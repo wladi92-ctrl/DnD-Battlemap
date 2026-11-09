@@ -1,0 +1,32 @@
+[package]
+name = "dnd-battlemap"
+version = "0.1.0"
+description = "Offline-Desktop-Battlemap für D&D 5e (SRD 5.1)"
+license = "MIT"
+edition = "2021"
+rust-version = "1.77.2"
+
+[lib]
+# Eigener Name, damit es unter Windows keine Kollision mit dem Binary gibt.
+name = "dnd_battlemap_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# Bewusst ohne Netzwerk-Plugins (http, updater, websocket, shell/opener).
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+
+[dev-dependencies]
+serde_json = "1"
+# Mock-Runtime für IPC-Integrationstests der Commands.
+tauri = { version = "2", features = ["test"] }
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+strip = true
+panic = "abort"

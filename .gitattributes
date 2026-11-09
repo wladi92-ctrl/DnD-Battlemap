@@ -1,0 +1,5 @@
+# Einheitliche Zeilenenden (LF) auf allen Plattformen
+* text=auto eol=lf
+*.png binary
+*.ico binary
+*.icns binary

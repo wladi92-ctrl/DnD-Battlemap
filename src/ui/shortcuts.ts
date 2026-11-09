@@ -1,0 +1,51 @@
+/** Übersicht aller Tastenkürzel (Anzeige auf der Startseite und in der README). */
+import type { MessageKey } from '../i18n';
+
+/** Benannte Tasten werden übersetzt (key.*), alle anderen wörtlich angezeigt. */
+export type KeyToken =
+  | { name: 'ctrl' | 'shift' | 'alt' | 'space' | 'enter' | 'esc' | 'arrows' | 'wheel' | 'drag' }
+  | string;
+
+export interface ShortcutInfo {
+  /** Jede innere Liste ist eine Tastenkombination; mehrere Listen = Alternativen. */
+  keys: KeyToken[][];
+  label: MessageKey;
+}
+
+const k = (name: Exclude<KeyToken, string>['name']) => ({ name });
+
+export const shortcutList: readonly ShortcutInfo[] = [
+  { keys: [[k('ctrl'), 'N']], label: 'shortcut.newMap' },
+  { keys: [[k('ctrl'), 'O']], label: 'shortcut.open' },
+  { keys: [[k('ctrl'), 'S']], label: 'shortcut.save' },
+  { keys: [[k('ctrl'), k('shift'), 'S']], label: 'shortcut.saveAs' },
+  { keys: [['H']], label: 'shortcut.pan' },
+  { keys: [['R']], label: 'shortcut.ruler' },
+  { keys: [['G']], label: 'shortcut.grid' },
+  { keys: [['+'], ['−']], label: 'shortcut.zoom' },
+  { keys: [['0']], label: 'shortcut.fit' },
+  { keys: [[k('wheel')]], label: 'shortcut.wheel' },
+  { keys: [[k('arrows')]], label: 'shortcut.cursor' },
+  { keys: [[k('shift'), k('arrows')]], label: 'shortcut.panView' },
+  { keys: [[k('space'), k('drag')]], label: 'shortcut.panDrag' },
+  { keys: [[k('enter')], [k('esc')]], label: 'shortcut.rulerKeys' },
+  {
+    keys: [
+      [k('alt'), '1'],
+      [k('alt'), '2'],
+      [k('alt'), '3'],
+    ],
+    label: 'shortcut.pages',
+  },
+];
+
+/** true, wenn ein Tastendruck in einem Eingabefeld landet und ignoriert werden soll. */
+export function isTypingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  if (target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return true;
+  if (target instanceof HTMLInputElement) {
+    return !['checkbox', 'radio', 'range', 'button', 'color'].includes(target.type);
+  }
+  return false;
+}
