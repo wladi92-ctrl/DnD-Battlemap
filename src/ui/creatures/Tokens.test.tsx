@@ -50,7 +50,14 @@ function reset() {
   useEditorStore.getState().reset();
   useRecoveryStore.getState().setPending(null);
   useNoticeStore.setState({ notices: [] });
-  useLibraryStore.setState({ pcs: [], homebrew: [], effects: [], status: 'idle', error: null });
+  useLibraryStore.setState({
+    pcs: [],
+    homebrew: [],
+    effects: [],
+    portraits: {},
+    status: 'idle',
+    error: null,
+  });
   setLibrary(createLocalStorageLibrary(memoryStorage()));
   fa = createFakeFileAccess();
   setFileAccess(fa);
@@ -118,6 +125,68 @@ describe('Kreaturen und Tokens', () => {
     expect(
       useMapStore.getState().doc!.tokens.every((t) => t.hp.current === 7 && !t.conditions.length),
     ).toBe(true);
+  });
+
+  it('Bilder: Standard-Porträt, eigenes Kreaturenbild, Token-Bild ändern und zurücksetzen', async () => {
+    fa.files.set('D:\\Bilder\\goblin.png', PNG);
+    fa.nextDialogPath = 'D:\\Bilder\\goblin.png';
+    const user = await setup();
+    await user.click(screen.getByRole('tab', { name: 'Kreaturen' }));
+    await screen.findByText('334 Kreaturen');
+    await user.type(screen.getByLabelText('Kreatur suchen'), 'goblin');
+    await user.click(screen.getByRole('option', { name: /^Goblin/ }));
+    const actions = screen.getByRole('group', { name: 'Goblin' });
+
+    // Erzeugtes Porträt; noch kein eigenes Bild
+    const preview = within(actions).getByAltText('Bild von Goblin');
+    expect(preview.getAttribute('src')).toMatch(/^data:image\/svg\+xml/);
+    expect(within(actions).getByRole('button', { name: 'Standardbild' })).toBeDisabled();
+
+    // Eigenes Bild für die SRD-Kreatur → Bibliothek
+    await user.click(within(actions).getByRole('button', { name: 'Bild ändern …' }));
+    await waitFor(() =>
+      expect(useLibraryStore.getState().portraits.goblin).toMatch(/^data:image\/png;base64,/),
+    );
+    expect(within(actions).getByAltText('Bild von Goblin').getAttribute('src')).toMatch(
+      /^data:image\/png/,
+    );
+
+    // Neu gesetzte Tokens übernehmen es (eingebettet in die Karte)
+    const amount = within(actions).getByLabelText('Anzahl');
+    await user.clear(amount);
+    await user.type(amount, '2');
+    await user.click(within(actions).getByRole('button', { name: 'Auf Karte setzen' }));
+    enterAt(2, 2);
+    await user.keyboard('{Enter}');
+    let { doc, assets } = useMapStore.getState();
+    const path = doc!.tokens[0]!.image!;
+    expect(path).toMatch(/^tokens\/.+\.png$/);
+    expect(doc!.tokens[1]!.image).toBe(path);
+    expect(assets.get(path)).toEqual(PNG);
+
+    // Token-Panel (beide ausgewählt): zurück zum Standardbild, dann eigenes Bild, Rückgängig
+    const panel = screen.getByText('2 Tokens ausgewählt').closest('details')!;
+    expect(within(panel).getByText('Eigenes Bild (in der Karte gespeichert)')).toBeInTheDocument();
+    await user.click(within(panel).getByRole('button', { name: 'Standardbild' }));
+    expect(useMapStore.getState().doc!.tokens.every((t) => !t.image)).toBe(true);
+    expect(within(panel).getByText('Automatisch erzeugtes Porträt')).toBeInTheDocument();
+    await user.click(within(panel).getByRole('button', { name: 'Bild ändern …' }));
+    await waitFor(() =>
+      expect(useMapStore.getState().doc!.tokens.every((t) => t.image?.startsWith('tokens/'))).toBe(
+        true,
+      ),
+    );
+    ({ doc, assets } = useMapStore.getState());
+    expect(assets.get(doc!.tokens[0]!.image!)).toEqual(PNG);
+    screen.getByRole('application').focus();
+    await user.keyboard('{Control>}z{/Control}');
+    expect(useMapStore.getState().doc!.tokens.every((t) => !t.image)).toBe(true);
+
+    // Kreaturenbild wieder entfernen
+    await user.click(screen.getByRole('tab', { name: 'Kreaturen' }));
+    const again = screen.getByRole('group', { name: 'Goblin' });
+    await user.click(within(again).getByRole('button', { name: 'Standardbild' }));
+    await waitFor(() => expect(useLibraryStore.getState().portraits.goblin).toBeUndefined());
   });
 
   it('Spielercharakter anlegen, setzen, per Pfeiltaste bewegen und mit Bild speichern', async () => {

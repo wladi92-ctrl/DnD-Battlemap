@@ -19,6 +19,17 @@ describe('Kalibrierung', () => {
     expect(normalizeOrigin(90, 100, 50)).toBe(140);
   });
 
+  it('1:1: krumme Feldgröße ergibt die volle Felderzahl (Rundungsrest am Rand)', () => {
+    // Abenteuerkarte 1500×955 px mit 66 Feldern Breite (22,7273 px)
+    const img = { ...defaultCalibration(1500, 955, 'a'), cellPx: 22.7273 };
+    expect(calibratedMapSize(img).raw).toEqual({ cols: 66, rows: 42 });
+    // gerundet auf 2 Stellen (22,73) ebenfalls 66, nicht 65
+    expect(calibratedMapSize({ ...img, cellPx: 22.73 }).raw.cols).toBe(66);
+    // echter Rest (halbes Feld) zählt weiterhin nicht
+    expect(calibratedMapSize({ ...img, cellPx: 30 }).raw.cols).toBe(50);
+    expect(calibratedMapSize({ ...img, cellPx: 1500 / 49.5 }).raw.cols).toBe(49);
+  });
+
   it('zwei Punkte: Abstand / Felder, Punkt A liegt auf dem Raster', () => {
     const r = twoPointCalibration({ x: 112, y: 40 }, { x: 412, y: 44 }, 6, crop);
     expect(r).toEqual({ cellPx: 50, originX: 12, originY: 40 });

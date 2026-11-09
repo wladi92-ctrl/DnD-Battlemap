@@ -992,7 +992,10 @@ input[type='color'] {
 
 .creature-item {
   display: grid;
-  gap: 0.05rem;
+  grid-template-columns: auto 1fr;
+  column-gap: 0.45rem;
+  row-gap: 0.05rem;
+  align-items: center;
   padding: 0.3rem 0.45rem;
   border-bottom: 1px solid var(--border);
   cursor: pointer;
@@ -1015,6 +1018,10 @@ input[type='color'] {
 .creature-item:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: -2px;
+}
+
+.creature-item > .muted {
+  grid-column: 2;
 }
 
 .creature-name {
@@ -1750,4 +1757,42 @@ input[type='color'] {
   border: 2px solid var(--text);
   font-weight: 700;
   box-sizing: border-box;
+}
+
+/* Kreaturen- und Token-Bilder */
+.creature-thumb {
+  grid-row: span 2;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--border);
+  object-fit: cover;
+}
+
+.portrait-field {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.portrait-preview {
+  flex: none;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow:
+    0 0 0 3px #7a2a1a,
+    0 2px 6px rgb(0 0 0 / 0.4);
+}
+
+.portrait-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.portrait-actions .small {
+  flex-basis: 100%;
 }

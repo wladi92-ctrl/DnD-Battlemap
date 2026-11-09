@@ -1,7 +1,7 @@
 /** Möbel, Einrichtung und Licht/Feuer (Ebene "Wände/Objekte" bzw. "Dekoration"). */
 import type { ElementLayerId, TerrainProps } from '../../storage/mapDocument';
 import type { CategoryId } from './categories';
-import { circle, ellipse, g, line, path, poly, rect, rrect, shade, stroke, svgDoc } from './svg';
+import { circle, g, line, path, poly, rect, rrect, shade, stroke, svgDoc } from './svg';
 import type { ElementDef } from './types';
 
 const SOLID: TerrainProps = { blocksMovement: true, blocksSight: true };
@@ -40,8 +40,6 @@ const WOOD = '#8a5a2e';
 const WOOD_L = '#a8733f';
 const WOOD_D = '#5b3b20';
 const OUT = (c = WOOD_D, w = 2) => stroke(c, w);
-const shadow = (x: number, y: number, w: number, h: number, r = 6) =>
-  rrect(x + 3, y + 4, w, h, r, '#000000', 'opacity="0.25"');
 
 const chairShape = (cx: number, cy: number, rot = 0) =>
   g(
@@ -50,7 +48,6 @@ const chairShape = (cx: number, cy: number, rot = 0) =>
   );
 
 const tableTop = (x: number, y: number, w: number, h: number) =>
-  shadow(x, y, w, h, 4) +
   rrect(x, y, w, h, 4, WOOD_L, OUT()) +
   line(x + 4, y + h / 2, x + w - 4, y + h / 2, shade(WOOD_L, -0.15), 1);
 
@@ -66,7 +63,6 @@ export const furnitureElements: ElementDef[] = [
     'furniture.table_round',
     WOOD_L,
     () =>
-      ellipse(53, 54, 38, 38, '#000', 'opacity="0.25"') +
       circle(50, 50, 38, WOOD_L, OUT()) +
       circle(50, 50, 28, 'none', stroke(shade(WOOD_L, -0.15), 1)),
     { props: HALF, tags: ['tisch', 'rund'] },
@@ -77,26 +73,17 @@ export const furnitureElements: ElementDef[] = [
     tags: ['tafel', 'tisch'],
   }),
   item('furniture.chair', WOOD_L, () => chairShape(50, 52), { tags: ['stuhl'] }),
-  item(
-    'furniture.stool',
-    WOOD_L,
-    () => circle(52, 53, 18, '#000', 'opacity="0.25"') + circle(50, 50, 18, WOOD_L, OUT()),
-    { tags: ['hocker'] },
-  ),
+  item('furniture.stool', WOOD_L, () => circle(50, 50, 18, WOOD_L, OUT()), { tags: ['hocker'] }),
   item(
     'furniture.bench',
     WOOD_L,
-    () =>
-      shadow(8, 34, 184, 32, 4) +
-      rrect(8, 34, 184, 32, 4, WOOD_L, OUT()) +
-      line(12, 50, 188, 50, shade(WOOD_L, -0.2), 1),
+    () => rrect(8, 34, 184, 32, 4, WOOD_L, OUT()) + line(12, 50, 188, 50, shade(WOOD_L, -0.2), 1),
     { w: 2, tags: ['bank'] },
   ),
   item(
     'furniture.bed_single',
     '#b8b0a0',
     () =>
-      shadow(14, 6, 72, 188) +
       rrect(14, 6, 72, 188, 5, WOOD, OUT()) +
       rrect(18, 50, 64, 140, 4, '#7a2e2e') +
       rrect(22, 12, 56, 34, 8, '#efe9dc', OUT('#b8b0a0', 1.5)),
@@ -106,7 +93,6 @@ export const furnitureElements: ElementDef[] = [
     'furniture.bed_double',
     '#b8b0a0',
     () =>
-      shadow(10, 6, 180, 188) +
       rrect(10, 6, 180, 188, 6, WOOD, OUT()) +
       rrect(14, 52, 172, 138, 4, '#2e4a7a') +
       rrect(20, 12, 74, 34, 8, '#efe9dc', OUT('#b8b0a0', 1.5)) +
@@ -117,7 +103,6 @@ export const furnitureElements: ElementDef[] = [
     'furniture.bed_bunk',
     '#b8b0a0',
     () =>
-      shadow(14, 6, 72, 188) +
       rrect(14, 6, 72, 188, 3, WOOD_D, OUT('#3a2512')) +
       rrect(18, 50, 64, 140, 3, '#5a6b3a') +
       rrect(22, 12, 56, 30, 6, '#efe9dc') +
@@ -129,7 +114,6 @@ export const furnitureElements: ElementDef[] = [
     'furniture.chest',
     WOOD,
     () =>
-      shadow(16, 26, 68, 48) +
       rrect(16, 26, 68, 48, 4, WOOD, OUT()) +
       rect(16, 44, 68, 6, '#3a3f45') +
       rect(30, 26, 6, 48, '#3a3f45') +
@@ -141,7 +125,6 @@ export const furnitureElements: ElementDef[] = [
     'furniture.crate',
     '#a3804f',
     () =>
-      shadow(14, 14, 72, 72, 2) +
       rect(14, 14, 72, 72, '#a3804f', OUT('#5e4626', 2.5)) +
       line(14, 14, 86, 86, '#7a5e36', 5) +
       rect(20, 20, 60, 60, 'none', stroke('#7a5e36', 3)),
@@ -151,7 +134,6 @@ export const furnitureElements: ElementDef[] = [
     'furniture.barrel',
     '#8a5a2e',
     () =>
-      circle(53, 54, 34, '#000', 'opacity="0.25"') +
       circle(50, 50, 34, '#8a5a2e', stroke('#3a3f45', 4)) +
       circle(50, 50, 24, 'none', stroke('#3a3f45', 2.5)) +
       circle(50, 50, 4, WOOD_D),
@@ -172,7 +154,6 @@ export const furnitureElements: ElementDef[] = [
     'furniture.shelf',
     WOOD,
     () =>
-      shadow(4, 26, 192, 48, 2) +
       rect(4, 26, 192, 48, WOOD, OUT()) +
       [20, 55, 95, 130, 165]
         .map((x, i) =>
@@ -195,7 +176,7 @@ export const furnitureElements: ElementDef[] = [
       let books = '';
       for (let i = 0; i < 26; i++)
         books += book(8 + i * 7, 32, 34 - (i % 3) * 4, colors[i % colors.length] ?? '#000');
-      return shadow(4, 24, 192, 52, 2) + rect(4, 24, 192, 52, WOOD_D, OUT('#2a1a0c')) + books;
+      return rect(4, 24, 192, 52, WOOD_D, OUT('#2a1a0c')) + books;
     },
     { w: 2, props: SOLID, tags: ['bücherregal', 'bibliothek'] },
   ),
@@ -203,7 +184,6 @@ export const furnitureElements: ElementDef[] = [
     'furniture.cabinet',
     WOOD,
     () =>
-      shadow(14, 20, 72, 60, 2) +
       rect(14, 20, 72, 60, WOOD, OUT()) +
       line(50, 20, 50, 80, WOOD_D, 2) +
       circle(44, 50, 3, '#e3b832') +
@@ -214,7 +194,6 @@ export const furnitureElements: ElementDef[] = [
     'furniture.wardrobe',
     WOOD_D,
     () =>
-      shadow(8, 14, 84, 72, 2) +
       rect(8, 14, 84, 72, WOOD_D, OUT('#2a1a0c')) +
       rect(14, 20, 34, 60, WOOD, OUT()) +
       rect(52, 20, 34, 60, WOOD, OUT()),
@@ -235,7 +214,6 @@ export const furnitureElements: ElementDef[] = [
     'furniture.throne',
     '#d4a830',
     () =>
-      shadow(18, 14, 64, 72) +
       rrect(18, 14, 64, 72, 6, '#8e2a2a', OUT('#6b5110', 3)) +
       rrect(18, 10, 64, 18, 4, '#d4a830', OUT('#6b5110', 2)) +
       rrect(28, 34, 44, 44, 4, '#a8323a') +
@@ -246,7 +224,6 @@ export const furnitureElements: ElementDef[] = [
     'furniture.altar',
     '#d8d2c4',
     () =>
-      shadow(10, 20, 180, 60, 3) +
       rrect(10, 20, 180, 60, 3, '#cfc8bc', OUT('#7a7468', 2)) +
       rect(30, 30, 140, 40, '#e8e3d8', OUT('#9a948a', 1)) +
       circle(100, 50, 10, '#b3261e', 'opacity="0.7"') +
@@ -267,7 +244,6 @@ export const furnitureElements: ElementDef[] = [
     'furniture.pillar_round',
     '#9a968e',
     () =>
-      circle(53, 54, 40, '#000', 'opacity="0.3"') +
       circle(50, 50, 40, '#a8a49c', OUT('#55524c', 3)) +
       circle(50, 50, 30, 'none', stroke('#7a7672', 1.5)),
     { props: SOLID, tags: ['säule'] },
@@ -276,7 +252,6 @@ export const furnitureElements: ElementDef[] = [
     'furniture.pillar_square',
     '#9a968e',
     () =>
-      shadow(10, 10, 80, 80, 2) +
       rect(10, 10, 80, 80, '#a8a49c', OUT('#55524c', 3)) +
       rect(20, 20, 60, 60, 'none', stroke('#7a7672', 1.5)),
     { props: SOLID, tags: ['säule', 'pfeiler'] },
@@ -285,7 +260,6 @@ export const furnitureElements: ElementDef[] = [
     'furniture.bar_counter',
     WOOD_D,
     () =>
-      shadow(4, 30, 292, 40, 3) +
       rrect(4, 30, 292, 40, 3, WOOD_D, OUT('#2a1a0c')) +
       rect(8, 34, 284, 8, shade(WOOD_D, 0.2)) +
       [40, 70, 160, 250].map((x) => circle(x, 55, 6, '#c9a05a', stroke('#6b5110', 1))).join(''),
@@ -313,7 +287,6 @@ export const furnitureElements: ElementDef[] = [
     'furniture.forge',
     '#5d5a56',
     () =>
-      shadow(10, 10, 180, 180, 4) +
       rrect(10, 10, 180, 180, 4, '#5d5a56', OUT('#2e2c2a', 3)) +
       rrect(40, 40, 120, 120, 6, '#2a1a12') +
       circle(100, 100, 40, '#ff6a12', 'opacity="0.9"') +
@@ -354,7 +327,6 @@ export const furnitureElements: ElementDef[] = [
     'furniture.coffin',
     WOOD_D,
     () =>
-      shadow(26, 8, 48, 184) +
       poly([38, 8, 62, 8, 76, 50, 66, 192, 34, 192, 24, 50], WOOD_D, OUT('#2a1a0c')) +
       line(50, 40, 50, 90, '#c8b9a3', 3) +
       line(38, 56, 62, 56, '#c8b9a3', 3),
@@ -364,7 +336,6 @@ export const furnitureElements: ElementDef[] = [
     'furniture.sarcophagus',
     '#a8a49c',
     () =>
-      shadow(16, 8, 68, 184, 6) +
       rrect(16, 8, 68, 184, 8, '#a8a49c', OUT('#55524c', 3)) +
       circle(50, 40, 14, '#c8c4bc', OUT('#7a7672', 1.5)) +
       path('M30 70 C30 140 70 140 70 70', 'none', stroke('#7a7672', 2)),
@@ -374,7 +345,6 @@ export const furnitureElements: ElementDef[] = [
     'furniture.cage',
     '#5d636a',
     () =>
-      rect(8, 8, 84, 84, '#000', 'opacity="0.15"') +
       rect(8, 8, 84, 84, 'none', stroke('#5d636a', 4)) +
       [22, 36, 50, 64, 78].map((x) => line(x, 8, x, 92, '#7a828c', 2.5)).join(''),
     { props: BLOCK, tags: ['käfig', 'gefängnis'] },

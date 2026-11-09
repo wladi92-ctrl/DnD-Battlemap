@@ -333,6 +333,11 @@
   "calibrate.hintPoints": "Zwei Punkte auf Rasterlinien bzw. -kreuzungen anklicken, dann die Zahl der Felder dazwischen eingeben",
   "calibrate.grid": "Raster",
   "calibrate.cellPx": "Feldgröße (Pixel)",
+  "calibrate.halve": "Feld ÷ 2",
+  "calibrate.halveHint": "Feldgröße halbieren (ein Programmfeld deckt vier Bildfelder ab)",
+  "calibrate.double": "Feld × 2",
+  "calibrate.doubleHint": "Feldgröße verdoppeln",
+  "calibrate.cellsAcross": "Felder über die Bildbreite",
   "calibrate.originX": "Versatz X (px)",
   "calibrate.originY": "Versatz Y (px)",
   "calibrate.detect": "Automatisch erkennen",
@@ -598,6 +603,7 @@
   "action.tokenMove": "Token bewegen",
   "action.tokenEdit": "Token ändern",
   "action.tokenHp": "Trefferpunkte",
+  "action.tokenImage": "Token-Bild ändern",
   "action.condition": "Zustand",
   "action.group": "Gruppe",
   "action.round": "Neue Runde",
@@ -921,5 +927,12 @@
   "player.screenInfo": "Erkannte Auflösung: {w} × {h} Pixel",
   "player.inchSample": "Prüfquadrat: 1 Zoll",
   "player.realSizeApply": "Übernehmen",
-  "player.realSizeOff": "Ausschalten"
+  "player.realSizeOff": "Ausschalten",
+  "portrait.choose": "Bild für Token wählen",
+  "portrait.change": "Bild ändern …",
+  "portrait.default": "Standardbild",
+  "portrait.of": "Bild von {name}",
+  "portrait.custom": "Eigenes Bild (in der Karte gespeichert)",
+  "portrait.generated": "Automatisch erzeugtes Porträt",
+  "portrait.creatureHint": "Gilt für neu gesetzte Tokens dieser Kreatur."
 }

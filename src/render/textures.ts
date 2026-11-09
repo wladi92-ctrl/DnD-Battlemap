@@ -29,7 +29,7 @@ async function loadImage(url: string): Promise<HTMLImageElement> {
 }
 
 /** Rastert ein Bild auf ein Canvas der Zielgröße (SVG wird dabei scharf skaliert). */
-async function rasterize(url: string, w: number, h: number): Promise<Texture> {
+export async function rasterize(url: string, w: number, h: number): Promise<Texture> {
   const img = await loadImage(url);
   const canvas = document.createElement('canvas');
   canvas.width = Math.max(1, Math.round(w * TEXTURE_PX_PER_CELL));

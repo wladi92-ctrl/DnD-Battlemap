@@ -46,6 +46,43 @@ describe('Rastererkennung', () => {
     expect(guess!.confidence).toBeGreaterThan(0.4);
   });
 
+  it.each([
+    [1200, 760, 18.18, 11],
+    [1500, 955, 22.73, 11],
+    [1400, 900, 25, 4],
+    [1000, 800, 40, 2],
+  ])(
+    'feines Raster unter kräftigen Strukturen (%i×%i, Feld %f px, alle %i Felder) → Grundperiode',
+    (w, h, cell, every) => {
+      // Gedruckte Abenteuerkarten: schwache Rasterlinien, dazu dicke dunkle Wände/Rahmen,
+      // die zufällig genau auf jeder n-ten Rasterlinie liegen (stärkere Einzelspitze).
+      const g = synthetic(w, h, cell, 0, 0, false);
+      for (let x = 0; x < w; x += cell) {
+        const xi = Math.round(x);
+        for (let y = 0; y < h; y++) g[y * w + xi] = (g[y * w + xi] ?? 0) - 18;
+      }
+      for (let y = 0; y < h; y += cell) {
+        const yi = Math.round(y);
+        for (let x = 0; x < w; x++) g[yi * w + x] = (g[yi * w + x] ?? 0) - 18;
+      }
+      for (let x = cell * 2; x < w; x += cell * every) {
+        for (let d = -2; d <= 2; d++) {
+          const xi = Math.round(x) + d;
+          for (let y = 0; y < h; y++) g[y * w + xi] = 20;
+        }
+      }
+      for (let y = cell * 3; y < h; y += cell * every) {
+        for (let d = -2; d <= 2; d++) {
+          const yi = Math.round(y) + d;
+          for (let x = 0; x < w; x++) g[yi * w + x] = 20;
+        }
+      }
+      const guess = detectGrid(g, w, h, { minCell: 6, maxCell: Math.min(w, h) / 3 });
+      expect(guess).not.toBeNull();
+      expect(guess!.cellPx).toBeCloseTo(cell, 0);
+    },
+  );
+
   it('kein Raster → kein (oder nur schwacher) Vorschlag', () => {
     const guess = detectGrid(synthetic(600, 400, 40, 0, 0, false), 600, 400);
     expect(guess).toBeNull();

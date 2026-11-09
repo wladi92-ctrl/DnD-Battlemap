@@ -15,6 +15,8 @@ import {
   shade,
   stroke,
   svgDoc,
+  INK,
+  type SvgStyle,
 } from './svg';
 import type { ElementDef } from './types';
 
@@ -26,7 +28,7 @@ function el(
   layer: ElementLayerId,
   color: string,
   body: () => string,
-  opts: { w?: number; h?: number; props?: TerrainProps; tags?: string[] } = {},
+  opts: { w?: number; h?: number; props?: TerrainProps; tags?: string[]; style?: SvgStyle } = {},
 ): ElementDef {
   const w = opts.w ?? 1;
   const h = opts.h ?? 1;
@@ -39,7 +41,7 @@ function el(
     color,
     ...(opts.props ? { props: opts.props } : {}),
     ...(opts.tags ? { tags: opts.tags } : {}),
-    draw: () => svgDoc(w, h, body()),
+    draw: () => svgDoc(w, h, body(), opts.style),
   };
 }
 
@@ -72,12 +74,15 @@ const wall = (
   body: () => string,
   props: TerrainProps = SOLID,
   tags?: string[],
-) => el(`wall.${id}`, 'walls', 'walls', color, body, { props, ...(tags ? { tags } : {}) });
+) =>
+  el(`wall.${id}`, 'walls', 'walls', color, body, {
+    props,
+    style: 'tile',
+    ...(tags ? { tags } : {}),
+  });
 
 export const wallElements: ElementDef[] = [
-  wall('stone', '#4a4845', () => blocks('wall-stone', '#5d5a56', '#2e2c2a', 3, 2), SOLID, [
-    'mauer',
-  ]),
+  wall('stone', '#5a544c', () => blocks('wall-stone', '#625c54', INK, 3, 2), SOLID, ['mauer']),
   wall('brick', '#7a3b2a', () => blocks('wall-brick', '#8e4632', '#c8b9a3', 6, 3), SOLID, [
     'ziegel',
   ]),

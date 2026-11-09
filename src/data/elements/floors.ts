@@ -33,7 +33,7 @@ function floor(
     color,
     ...(props ? { props } : {}),
     ...(tags ? { tags } : {}),
-    draw: () => svgDoc(1, 1, rect(0, 0, 100, 100, color) + body()),
+    draw: () => svgDoc(1, 1, rect(0, 0, 100, 100, color) + body(), 'tile'),
   };
 }
 
@@ -110,7 +110,7 @@ function carpet(id: string, base: string, trim: string): ElementDef {
 }
 
 export const floorElements: ElementDef[] = [
-  floor('stone', '#8b8a85', () => slabs('stone', '#9a9893', 2, 2, '#5d5b57'), undefined, [
+  floor('stone', '#a29e94', () => slabs('stone', '#aeaa9f', 2, 2, '#6a655c'), undefined, [
     'stein',
     'stone',
   ]),
@@ -189,7 +189,7 @@ export const floorElements: ElementDef[] = [
     }
     return out;
   }),
-  floor('wood', '#9b6b3e', () => planks('wood', '#a2703f', 4), undefined, ['holz', 'dielen']),
+  floor('wood', '#c49c6c', () => planks('wood', '#c9a171', 4), undefined, ['holz', 'dielen']),
   floor('wood_dark', '#5e3e24', () => planks('wood-dark', '#634127', 5)),
   floor('parquet', '#b07b45', () => {
     let out = '';
@@ -222,16 +222,16 @@ export const floorElements: ElementDef[] = [
   ),
   floor(
     'road',
-    '#957552',
+    '#cdb68a',
     () =>
-      speckle('road', 40, ['#836446', '#a8875f'], 1, 2.5) +
-      line(0, 30, 100, 30, '#7a5a3b', 3, 'opacity="0.5"') +
-      line(0, 70, 100, 70, '#7a5a3b', 3, 'opacity="0.5"'),
+      speckle('road', 40, ['#b89f72', '#dccaa2'], 1, 2.5) +
+      line(0, 30, 100, 30, '#a68c60', 3, 'opacity="0.5"') +
+      line(0, 70, 100, 70, '#a68c60', 3, 'opacity="0.5"'),
   ),
   floor(
     'grass',
-    '#5f8f3c',
-    () => blades('grass', 120, ['#4e7c30', '#76a64c', '#3f6a26']),
+    '#8db267',
+    () => blades('grass', 120, ['#7aa156', '#a5c67f', '#6b9149']),
     undefined,
     ['gras', 'wiese'],
   ),

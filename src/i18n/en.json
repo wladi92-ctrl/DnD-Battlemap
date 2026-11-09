@@ -333,6 +333,11 @@
   "calibrate.hintPoints": "Click two points on grid lines or intersections, then enter the number of squares between them",
   "calibrate.grid": "Grid",
   "calibrate.cellPx": "Square size (pixels)",
+  "calibrate.halve": "Square ÷ 2",
+  "calibrate.halveHint": "Halve the square size (one map square covers four image squares)",
+  "calibrate.double": "Square × 2",
+  "calibrate.doubleHint": "Double the square size",
+  "calibrate.cellsAcross": "Squares across the image width",
   "calibrate.originX": "Offset X (px)",
   "calibrate.originY": "Offset Y (px)",
   "calibrate.detect": "Detect automatically",
@@ -598,6 +603,7 @@
   "action.tokenMove": "Move token",
   "action.tokenEdit": "Change token",
   "action.tokenHp": "Hit points",
+  "action.tokenImage": "Change token image",
   "action.condition": "Condition",
   "action.group": "Group",
   "action.round": "New round",
@@ -921,5 +927,12 @@
   "player.screenInfo": "Detected resolution: {w} × {h} pixels",
   "player.inchSample": "Test square: 1 inch",
   "player.realSizeApply": "Apply",
-  "player.realSizeOff": "Turn off"
+  "player.realSizeOff": "Turn off",
+  "portrait.choose": "Choose token image",
+  "portrait.change": "Change image …",
+  "portrait.default": "Default image",
+  "portrait.of": "Image of {name}",
+  "portrait.custom": "Custom image (stored in the map)",
+  "portrait.generated": "Automatically generated portrait",
+  "portrait.creatureHint": "Applies to newly placed tokens of this creature."
 }

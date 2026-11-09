@@ -1,15 +1,18 @@
 /**
- * Darstellung der Tokens: Scheibe in Teamfarbe (oder eingebettetes Bild), Ring, Initialen,
+ * Darstellung der Tokens: eigenes Bild oder erzeugtes Standard-Porträt (bis es bereitsteht:
+ * Scheibe in Teamfarbe mit Initialen), Ring,
  * Name, TP-Balken, Zustands-Abzeichen, eigene Marker, Blickrichtung sowie die Optik für
  * bewusstlos/tot/verborgen. Jedes Token ist ein eigener Container und wird nur neu gebaut,
  * wenn sich das Token-Objekt (oder sein Bild) ändert.
  */
 import { Container, Graphics, ImageSource, Sprite, Text, Texture } from 'pixi.js';
 import { CELL_PX } from '../core/grid';
-import { SIZE_CELLS } from '../data/srd/creatures';
+import { baseName, portraitSvg } from '../data/portraits/portrait';
+import { creatureTypeOf, SIZE_CELLS } from '../data/srd/creatures';
 import { tokenStatus } from '../editor/tokens';
 import type { Token } from '../storage/mapDocument';
 import { decodeImage } from './backgroundImage';
+import { rasterize, svgUrl } from './textures';
 
 export function hexColor(hex: string): number {
   return Number.parseInt(hex.slice(1), 16);
@@ -28,6 +31,14 @@ export function initials(name: string): string {
       ? (words[0]?.[0] ?? '') + (words[1]?.[0] ?? '')
       : (words[0] ?? '?').slice(0, 2);
   return (num ? (letters[0] ?? '') + num : letters).toUpperCase();
+}
+
+/** Porträts werden mit 2 Feldern (256 px) gerastert – scharf auch bei großen Kreaturen. */
+const PORTRAIT_CELLS = 2;
+
+/** Gleiche Kreaturen teilen sich ein Standard-Porträt. */
+export function portraitKey(t: Pick<Token, 'kind' | 'source' | 'name'>): string {
+  return `${t.kind}|${t.source ?? ''}|${baseName(t.name)}`;
 }
 
 /** Lage eines Tokens in Weltkoordinaten (Tiny sitzt mittig im Feld). */
@@ -51,6 +62,10 @@ export class TokenLayer {
   private entries = new Map<string, { node: Container; token: Token; image: Texture | null }>();
   private images = new Map<string, Promise<Texture | null>>();
   private textures = new Map<string, Texture>();
+  /** Standard-Porträts je portraitKey (Tokens ohne eigenes Bild). */
+  private portraits = new Map<string, Texture>();
+  private portraitLoading = new Set<string>();
+  private destroyed = false;
   private assets: ReadonlyMap<string, Uint8Array> = new Map();
   private label: ConditionLabel = (id) => id.slice(0, 3);
 
@@ -74,7 +89,9 @@ export class TokenLayer {
     tokens.forEach((t, index) => {
       seen.add(t.id);
       const entry = this.entries.get(t.id);
-      const tex = t.image ? (this.textures.get(t.image) ?? null) : null;
+      const tex = t.image
+        ? (this.textures.get(t.image) ?? null)
+        : (this.portraits.get(portraitKey(t)) ?? null);
       if (entry && entry.token === t && entry.image === tex) {
         entry.node.zIndex = index;
         return;
@@ -85,6 +102,7 @@ export class TokenLayer {
       this.container.addChild(node);
       this.entries.set(t.id, { node, token: t, image: tex });
       if (t.image && !tex) this.loadImage(t.image);
+      else if (!t.image && !tex) this.loadPortrait(t);
     });
     for (const [id, e] of this.entries) {
       if (!seen.has(id)) {
@@ -95,9 +113,43 @@ export class TokenLayer {
   }
 
   destroy(): void {
+    this.destroyed = true;
     for (const e of this.entries.values()) e.node.destroy({ children: true });
     this.entries.clear();
     for (const key of [...this.textures.keys()]) this.dropImage(key);
+    for (const tex of this.portraits.values()) tex.destroy(true);
+    this.portraits.clear();
+  }
+
+  /** Standard-Porträt erzeugen (einmal je Kreatur/Name), danach neu zeichnen. */
+  private loadPortrait(t: Token) {
+    const key = portraitKey(t);
+    if (this.portraitLoading.has(key)) return;
+    this.portraitLoading.add(key);
+    const srdId = t.kind === 'creature' && t.source && !t.source.includes(':') ? t.source : null;
+    void (srdId ? creatureTypeOf(srdId).catch(() => undefined) : Promise.resolve(undefined))
+      .then((type) =>
+        rasterize(
+          svgUrl(
+            portraitSvg({
+              name: baseName(t.name),
+              ...(type ? { type } : {}),
+              kind: t.kind === 'pc' ? 'pc' : 'creature',
+            }),
+          ),
+          PORTRAIT_CELLS,
+          PORTRAIT_CELLS,
+        ),
+      )
+      .then((tex) => {
+        if (this.destroyed) return tex.destroy(true);
+        this.portraits.set(key, tex);
+        this.rebuildAll();
+        this.onChange();
+      })
+      .catch(() => {
+        // Ohne Porträt bleibt die Scheibe mit Initialen.
+      });
   }
 
   private dropImage(key: string) {

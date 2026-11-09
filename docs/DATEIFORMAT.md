@@ -321,7 +321,12 @@ Laden abgelehnt; beim Ändern der Kartengröße werden sie umgerechnet.
 ## Lokale Bibliothek (nicht Teil der Karte)
 
 Spielercharaktere, eigene Kreaturen und eigene Effekte liegen in `bibliothek.sqlite` im App-Datenordner
-(Tabelle `entries`: `kind` = `pc`/`creature`/`effect`, `id`, `name`, `data` = JSON, `modified_at`;
+(Tabelle `entries`: `kind` = `pc`/`creature`/`effect`/`portrait`, `id`, `name`, `data` = JSON, `modified_at`;
 `PRAGMA user_version` = Schema-Version 1). Eine neuere Schema-Version wird nicht überschrieben,
 sondern mit Meldung abgelehnt. Beim Setzen eines Tokens werden alle nötigen Werte (und das
 Bild) in die Karte kopiert – Karten bleiben ohne Bibliothek vollständig.
+
+`portrait`-Einträge enthalten ein eigenes Bild für eine SRD-Kreatur (`id` = Kreatur-ID,
+`data` = `{ "image": "data:image/png;base64,…" }`). Tokens ohne eigenes Bild (`image` fehlt)
+zeigen ein zur Laufzeit erzeugtes Porträt – es wird nicht in der Karte gespeichert, das
+Dateiformat bleibt unverändert (Version 7).

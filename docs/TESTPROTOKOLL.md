@@ -358,3 +358,35 @@ Neue Tests:
 | Konsole                                              | ✅ keine Fehler                                                                                   |
 | Gefunden und behoben                                 | Dauerhafte Effekte fehlten in der Spieleransicht (→ werden jetzt übertragen und gezeichnet, Test) |
 | Spieleransicht als Desktop-Fenster, Vollbild, Beamer | ⏳ bitte manuell prüfen (Tauri-Fenster und Vollbild lassen sich im Browser-Test nicht ausführen)  |
+
+## Zwischenschritt nach Phase 8 – D&D-Optik, Kreaturenbilder, 1:1-Bildimport (2026-11-09)
+
+### Automatisch
+
+| Prüfung                                                                  | Ergebnis                   |
+| ------------------------------------------------------------------------ | -------------------------- |
+| `npm run verify` (Lint, Prettier, `tsc`, Vitest, Build, Offline-Prüfung) | ✅ 254 Tests in 35 Dateien |
+| `npm run test:rust`                                                      | ✅ 6 Tests                 |
+
+Neue Tests:
+
+- `src/core/gridDetect.test.ts` – feines Raster unter kräftigen Wänden/Rahmen auf jeder 2., 4. und 11. Linie (u. a. 1500×955 px mit 22,73 px) → Grundperiode statt Vielfaches
+- `src/editor/calibration.test.ts` – 1500 px / 66 Felder ergibt genau 66 × 42 Felder (Rundungsrest)
+- `src/ui/map/ImportAndWalls.test.tsx` – „Feld ÷ 2“, „Feld × 2“, „Felder über die Bildbreite“
+- `src/data/portraits/portrait.test.ts` – gültiges SVG für alle 334 SRD-Kreaturen und alle
+  Silhouetten, Zuordnung (Wolf, Spinne, Drache, Skelett, Lich, Goblin, Wache, Erzmagier,
+  Feuerriese, Riesenaffe, Schwärme, Spielercharaktere), Drachenfarben, Determinismus
+- `src/ui/creatures/Tokens.test.tsx` – Standard-Porträt in der Liste, eigenes Kreaturenbild in
+  der Bibliothek, neu gesetzte Tokens übernehmen es, Token-Bild ändern/zurücksetzen mit Undo
+- Rust `library.rs` – Eintragsart `portrait`
+
+### Manuell (Produktions-Build, Produktions-CSP, Chromium)
+
+| Prüfung                                                      | Ergebnis                                                                                        |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| Rastererkennung mit der Karte „Woodland Manse“ (1500×955 px) | ✅ 22,727 px, 66 × 42 Felder (vorher 250 px = 11 Felder)                                        |
+| Elementgalerie (168 Elemente)                                | ✅ Umrisse, Schatten, Korn; durchscheinende Flächen (Fallen, Glas) bleiben hell                 |
+| Taverne aus Vorlage                                          | ✅ helle Dielen, dunkles Mauerwerk mit Fugen, Möbel mit Schatten, Türen als Türblatt            |
+| Porträtgalerie (334 Kreaturen)                               | ✅ alle sichtbar; gefunden und behoben: Schlangen (doppeltes Attribut), „Fire Giant“ als Flamme |
+| Tokens auf der Karte, Kreaturenliste, Bild-Bedienelemente    | ✅ Porträts mit Teamring, Vorschaubilder, „Bild ändern …“/„Standardbild“                        |
+| Konsole                                                      | ✅ keine Fehler                                                                                 |

@@ -64,7 +64,14 @@ function reset() {
   useEditorStore.getState().reset();
   useRecoveryStore.getState().setPending(null);
   useNoticeStore.setState({ notices: [] });
-  useLibraryStore.setState({ pcs: [], homebrew: [], effects: [], status: 'idle', error: null });
+  useLibraryStore.setState({
+    pcs: [],
+    homebrew: [],
+    effects: [],
+    portraits: {},
+    status: 'idle',
+    error: null,
+  });
   useDiceStore.getState().clear();
   setLibrary(createLocalStorageLibrary(memoryStorage()));
   fa = createFakeFileAccess();

@@ -46,29 +46,76 @@ function item(
   };
 }
 
-/** Laubkrone aus überlappenden Kreisen mit Licht und Schatten. */
-function canopy(seed: string, cx: number, cy: number, r: number, base: string): string {
+/** Ein Blattbüschel: Grundton, Lichtkappe oben links, dunkle Kerbe unten rechts. */
+function lobe(cx: number, cy: number, r: number, base: string, rng: () => number): string {
+  return (
+    circle(cx, cy, r, base) +
+    circle(cx - r * 0.22, cy - r * 0.24, r * 0.62, shade(base, 0.16 + rng() * 0.06)) +
+    circle(cx - r * 0.34, cy - r * 0.36, r * 0.28, shade(base, 0.32), 'opacity="0.85"')
+  );
+}
+
+/**
+ * Laubkrone im Stil gedruckter Abenteuerkarten: dichter Kranz aus Blattbüscheln (blumenkohl-
+ * artiger Rand), innere Büschel, Licht von oben links; optional Früchte.
+ */
+function canopy(
+  seed: string,
+  cx: number,
+  cy: number,
+  r: number,
+  base: string,
+  fruit?: string,
+): string {
   const rng = rngFrom(seed);
-  let out = circle(cx + r * 0.12, cy + r * 0.15, r, '#000', 'opacity="0.3"');
-  out += circle(cx, cy, r * 0.92, shade(base, -0.25));
-  for (let i = 0; i < 9; i++) {
-    const a = (i / 9) * Math.PI * 2;
-    const d = r * (0.45 + rng() * 0.15);
-    out += circle(
+  const dark = shade(base, -0.32);
+  let out = poly(blob(rng, cx, cy, r * 0.9, 0.12, 18), dark);
+  const ring = Math.max(9, Math.round(r / 6.5));
+  for (let i = 0; i < ring; i++) {
+    const a = (i / ring) * Math.PI * 2 + rng() * 0.2;
+    const d = r * (0.7 + rng() * 0.06);
+    out += lobe(
       cx + Math.cos(a) * d,
       cy + Math.sin(a) * d,
-      r * (0.38 + rng() * 0.12),
-      shade(base, (rng() - 0.6) * 0.3),
+      r * (0.27 + rng() * 0.06),
+      shade(base, (rng() - 0.6) * 0.16),
+      rng,
     );
   }
-  out += circle(cx - r * 0.2, cy - r * 0.2, r * 0.35, shade(base, 0.2), 'opacity="0.8"');
+  const inner = Math.max(4, Math.round(ring / 2));
+  for (let i = 0; i < inner; i++) {
+    const a = (i / inner) * Math.PI * 2 + 0.4;
+    const d = r * (0.32 + rng() * 0.08);
+    out += lobe(cx + Math.cos(a) * d, cy + Math.sin(a) * d, r * 0.3, shade(base, 0.04), rng);
+  }
+  out += lobe(cx - r * 0.06, cy - r * 0.06, r * 0.32, shade(base, 0.1), rng);
+  // Blattstruktur: feine dunkle Kerben
+  for (let i = 0; i < r * 0.9; i++) {
+    const a = rng() * Math.PI * 2;
+    const d = rng() * r * 0.82;
+    const x = cx + Math.cos(a) * d;
+    const y = cy + Math.sin(a) * d;
+    out += path(`M${x - 2} ${y + 1} q2 -3 4 0`, 'none', stroke(dark, 1.2));
+  }
+  if (fruit) {
+    const count = Math.max(3, Math.round(r / 9));
+    for (let i = 0; i < count; i++) {
+      const a = rng() * Math.PI * 2;
+      const d = r * (0.25 + rng() * 0.55);
+      const x = cx + Math.cos(a) * d;
+      const y = cy + Math.sin(a) * d;
+      const fr = Math.max(3.5, r * 0.075);
+      out +=
+        circle(x, y, fr, fruit, stroke('#3a1c08', 1.4)) +
+        circle(x - fr * 0.3, y - fr * 0.35, fr * 0.35, shade(fruit, 0.45));
+    }
+  }
   return out;
 }
 
 function rock(seed: string, cx: number, cy: number, r: number, base: string): string {
   const rng = rngFrom(seed);
   return (
-    poly(blob(rng, cx + r * 0.1, cy + r * 0.12, r, 0.35, 9), '#000', 'opacity="0.3"') +
     poly(blob(rng, cx, cy, r, 0.35, 9), base, stroke(shade(base, -0.45), 2)) +
     poly(blob(rng, cx - r * 0.2, cy - r * 0.2, r * 0.45, 0.4, 7), shade(base, 0.18))
   );
@@ -84,18 +131,25 @@ const nat = (
 const TREE: TerrainProps = { blocksMovement: true, cover: 'threeQuarters' };
 
 export const natureElements: ElementDef[] = [
-  nat('tree_oak', '#3f6e2c', () => canopy('oak', 100, 100, 88, '#4b7f33'), {
+  nat('tree_oak', '#3f6e2c', () => canopy('oak', 100, 100, 88, '#3f7a35'), {
     w: 2,
     h: 2,
     layer: 'walls',
     props: TREE,
     tags: ['baum', 'eiche'],
   }),
+  nat('tree_fruit', '#4a8a3a', () => canopy('fruit', 100, 100, 84, '#4a8a3a', '#e8762a'), {
+    w: 2,
+    h: 2,
+    layer: 'walls',
+    props: TREE,
+    tags: ['baum', 'obst', 'orange', 'apfel', 'garten'],
+  }),
   nat(
     'tree_pine',
     '#2a5236',
     () => {
-      let out = circle(110, 112, 86, '#000', 'opacity="0.3"');
+      let out = '';
       for (let i = 0; i < 4; i++) {
         const r = 86 - i * 20;
         const pts: number[] = [];
@@ -114,13 +168,11 @@ export const natureElements: ElementDef[] = [
     'tree_dead',
     '#5b4630',
     () =>
-      circle(104, 106, 30, '#000', 'opacity="0.25"') +
       path(
         'M100 100 L40 40 M100 100 L170 50 M100 100 L150 170 M100 100 L30 150 M70 70 L60 30 M140 70 L180 90 M125 135 L170 140',
         'none',
         stroke('#5b4630', 9),
-      ) +
-      circle(100, 100, 18, '#5b4630'),
+      ) + circle(100, 100, 18, '#5b4630'),
     {
       w: 2,
       h: 2,
@@ -139,7 +191,6 @@ export const natureElements: ElementDef[] = [
     'tree_palm',
     '#5f9a3a',
     () =>
-      circle(104, 106, 30, '#000', 'opacity="0.25"') +
       [0, 60, 120, 180, 240, 300]
         .map((a) => {
           const r = (a * Math.PI) / 180;
@@ -158,8 +209,7 @@ export const natureElements: ElementDef[] = [
             )
           );
         })
-        .join('') +
-      circle(100, 100, 12, '#7a5a3a'),
+        .join('') + circle(100, 100, 12, '#7a5a3a'),
     {
       w: 2,
       h: 2,
@@ -168,18 +218,18 @@ export const natureElements: ElementDef[] = [
       tags: ['baum', 'palme'],
     },
   ),
-  nat('bush', '#4b7f33', () => canopy('bush', 50, 50, 38, '#5a8f3a'), {
+  nat('bush', '#4b7f33', () => canopy('bush', 50, 50, 42, '#4f8a3a'), {
     props: { difficult: true, cover: 'half' },
     tags: ['busch', 'strauch'],
   }),
-  nat(
-    'bush_berry',
-    '#4b7f33',
-    () =>
-      canopy('berry', 50, 50, 38, '#4f8436') +
-      scatter('berries', 12, 60, 60, (x, y) => circle(x + 20, y + 20, 3.5, '#a8233a')),
-    { props: { difficult: true, cover: 'half' }, tags: ['beeren', 'busch'] },
-  ),
+  nat('bush_berry', '#4b7f33', () => canopy('berry', 50, 50, 40, '#4f8436', '#b5263f'), {
+    props: { difficult: true, cover: 'half' },
+    tags: ['beeren', 'busch'],
+  }),
+  nat('bush_fruit', '#4a8a3a', () => canopy('orange', 50, 50, 42, '#4a8a3a', '#e8762a'), {
+    props: { difficult: true, cover: 'half' },
+    tags: ['obst', 'orange', 'busch', 'hecke', 'garten'],
+  }),
   nat('rock_small', '#8a857c', () => rock('rock-s', 50, 52, 24, '#8a857c'), {
     props: { difficult: true },
     tags: ['stein', 'fels'],
@@ -200,7 +250,6 @@ export const natureElements: ElementDef[] = [
     'stump',
     '#7a5532',
     () =>
-      circle(52, 54, 26, '#000', 'opacity="0.25"') +
       circle(50, 50, 26, '#7a5532', stroke('#4a2f15', 3)) +
       circle(50, 50, 18, '#c2a874') +
       circle(50, 50, 11, 'none', stroke('#a3804f', 1.5)) +
@@ -289,7 +338,6 @@ export const natureElements: ElementDef[] = [
     'cactus',
     '#4f8a4a',
     () =>
-      circle(52, 54, 22, '#000', 'opacity="0.25"') +
       circle(50, 50, 22, '#4f8a4a', stroke('#2f5e3a', 2)) +
       [0, 45, 90, 135, 180, 225, 270, 315]
         .map((a) => {
@@ -450,7 +498,6 @@ export const miscElements: ElementDef[] = [
     'tent',
     '#c2a874',
     () =>
-      rect(16, 16, 168, 168, '#000', 'opacity="0.2"') +
       poly([10, 10, 190, 10, 100, 100], '#c9b07a', stroke('#7a6440', 2)) +
       poly([190, 10, 190, 190, 100, 100], '#b39a6b', stroke('#7a6440', 2)) +
       poly([10, 190, 190, 190, 100, 100], '#c9b07a', stroke('#7a6440', 2)) +
@@ -560,7 +607,6 @@ export const miscElements: ElementDef[] = [
     'haystack',
     '#d6b85c',
     () =>
-      circle(53, 54, 40, '#000', 'opacity="0.2"') +
       circle(50, 50, 40, '#d6b85c', stroke('#a88a3a', 2)) +
       scatter('haystack', 30, 70, 70, (x, y, rng) =>
         line(

@@ -113,15 +113,19 @@ const DAMAGE_COLORS: Record<string, number> = {
 };
 
 /** Darstellung der Kantenwände je Art/Zustand. */
+/** Tinte der Umrisse (wie die Element-Grafiken). */
+const INK = 0x2a1c11;
+
 const WALL_STYLES: Record<string, { color: number; open?: boolean; marker?: number }> = {
-  wall: { color: 0x3b3a38 },
-  window: { color: 0x8fd3ee },
-  'door:closed': { color: 0x9a6a3a },
-  'door:open': { color: 0x9a6a3a, open: true },
-  'door:locked': { color: 0x9a6a3a, marker: 0xe3b832 },
-  'secret:closed': { color: 0x7a4fd0 },
-  'secret:open': { color: 0x7a4fd0, open: true },
-  'secret:locked': { color: 0x7a4fd0, marker: 0xe3b832 },
+  wall: { color: 0x7d6a55 },
+  window: { color: 0xdcecef },
+  'door:closed': { color: 0xe6d7b4 },
+  'door:open': { color: 0xe6d7b4, open: true },
+  'door:locked': { color: 0xe6d7b4, marker: 0xe3b832 },
+  // Geheimtür: wie eine Mauer, in der GM-Ansicht mit violetter Marke
+  'secret:closed': { color: 0x7d6a55, marker: 0x8a5ad8 },
+  'secret:open': { color: 0x7d6a55, open: true, marker: 0x8a5ad8 },
+  'secret:locked': { color: 0x7d6a55, marker: 0xe3b832 },
 };
 
 export function hexToNumber(hex: string): number {
@@ -555,33 +559,80 @@ export class MapRenderer {
 
   // ---------------------------------------------------------------- Hintergrund & Raster
 
-  /** Kantenwände als dicke Linien (Breite in Weltkoordinaten, skaliert mit dem Zoom). */
+  /**
+   * Kantenwände im Stil gedruckter Abenteuerkarten (Breite in Weltkoordinaten): Mauern als
+   * dicker Tuschestrich mit hellerem Steinkern, Fenster mit Glas und Sprosse, Türen als helles
+   * Türblatt (offen: aufgeschwenkt). Erst alle Umrisse, dann alle Kerne – so gehen
+   * aneinanderstoßende Mauern nahtlos ineinander über.
+   */
   private drawEdgeWalls(walls: readonly EdgeWall[]): void {
     const g = this.edgeWalls;
     g.clear();
-    const W = CELL_PX * 0.14;
-    const line = (w: EdgeWall) =>
+    const W = CELL_PX * 0.16;
+    const seg = (w: EdgeWall) =>
       g.moveTo(w.x1 * CELL_PX, w.y1 * CELL_PX).lineTo(w.x2 * CELL_PX, w.y2 * CELL_PX);
+    const styleOf = (w: EdgeWall) =>
+      WALL_STYLES[
+        w.kind === 'door' || w.kind === 'secret' ? `${w.kind}:${w.state ?? 'closed'}` : w.kind
+      ];
+    const solid = (w: EdgeWall) => w.kind === 'wall' || w.kind === 'window' || w.kind === 'secret';
+
+    // 1) Tuschumrisse aller Mauern und Fenster (Geheimtüren sehen aus wie Mauer)
     for (const w of walls) {
-      const style =
-        WALL_STYLES[
-          w.kind === 'door' || w.kind === 'secret' ? `${w.kind}:${w.state ?? 'closed'}` : w.kind
-        ];
-      if (!style) continue;
-      line(w).stroke({
-        color: 0x111111,
-        width: W + 4,
+      if (!solid(w)) continue;
+      const open = styleOf(w)?.open;
+      seg(w).stroke({ color: INK, width: W + 6, cap: 'round', alpha: open ? 0.35 : 1 });
+    }
+    // 2) Kerne
+    for (const w of walls) {
+      const style = styleOf(w);
+      if (!style || !solid(w)) continue;
+      seg(w).stroke({
+        color: style.color,
+        width: W - 2,
         cap: 'round',
-        alpha: style.open ? 0.35 : 0.9,
+        alpha: style.open ? 0.5 : 1,
       });
-      line(w).stroke({ color: style.color, width: W, cap: 'round', alpha: style.open ? 0.6 : 1 });
-      if (style.marker) {
-        const mx = ((w.x1 + w.x2) / 2) * CELL_PX;
-        const my = ((w.y1 + w.y2) / 2) * CELL_PX;
-        g.circle(mx, my, W * 0.75)
-          .fill({ color: style.marker })
-          .stroke({ color: 0x111111, width: 2 });
+      if (w.kind === 'window') seg(w).stroke({ color: INK, width: 2, alpha: 0.8 });
+    }
+    // 3) Türen: Türblatt als Rechteck, offen um 75° in den Raum geschwenkt
+    for (const w of walls) {
+      if (w.kind !== 'door') continue;
+      const style = styleOf(w);
+      if (!style) continue;
+      const x1 = w.x1 * CELL_PX;
+      const y1 = w.y1 * CELL_PX;
+      const len = Math.hypot(w.x2 - w.x1, w.y2 - w.y1) * CELL_PX;
+      const base = Math.atan2(w.y2 - w.y1, w.x2 - w.x1);
+      const angle = style.open ? base + (75 * Math.PI) / 180 : base;
+      const ux = Math.cos(angle);
+      const uy = Math.sin(angle);
+      const nx = -uy * (W * 0.55);
+      const ny = ux * (W * 0.55);
+      const inset = style.open ? 0 : len * 0.06;
+      const ax = x1 + ux * inset;
+      const ay = y1 + uy * inset;
+      const bx = x1 + ux * (len - inset);
+      const by = y1 + uy * (len - inset);
+      if (style.open) {
+        // Türöffnung bleibt als feine Schwelle sichtbar
+        seg(w).stroke({ color: INK, width: 2, alpha: 0.5 });
       }
+      g.poly([ax + nx, ay + ny, bx + nx, by + ny, bx - nx, by - ny, ax - nx, ay - ny])
+        .fill({ color: style.color })
+        .stroke({ color: INK, width: 3, join: 'round' });
+      // Maserung des Türblatts
+      g.moveTo(ax, ay).lineTo(bx, by).stroke({ color: INK, width: 1, alpha: 0.35 });
+    }
+    // 4) Marken (verschlossen, Geheimtür in der GM-Ansicht)
+    for (const w of walls) {
+      const style = styleOf(w);
+      if (!style?.marker) continue;
+      const mx = ((w.x1 + w.x2) / 2) * CELL_PX;
+      const my = ((w.y1 + w.y2) / 2) * CELL_PX;
+      g.circle(mx, my, W * 0.6)
+        .fill({ color: style.marker })
+        .stroke({ color: INK, width: 2 });
     }
   }
 

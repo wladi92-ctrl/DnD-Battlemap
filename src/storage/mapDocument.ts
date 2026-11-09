@@ -483,12 +483,15 @@ export function rotatedSize(img: Pick<BackgroundImage, 'width' | 'height' | 'rot
     : { w: img.width, h: img.height };
 }
 
+/** Ein Rest von höchstens 2 % eines Feldes am Bildrand zählt als ganzes Feld (Rundung der Feldgröße). */
+const CELL_REMAINDER = 0.02;
+
 /** Anzahl ganzer Felder, die der Bildausschnitt ab dem Ursprung abdeckt. */
 export function imageGridSize(
   img: Pick<BackgroundImage, 'cellPx' | 'originX' | 'originY' | 'crop'>,
 ) {
-  const cols = Math.floor((img.crop.x + img.crop.w - img.originX) / img.cellPx + 1e-6);
-  const rows = Math.floor((img.crop.y + img.crop.h - img.originY) / img.cellPx + 1e-6);
+  const cols = Math.floor((img.crop.x + img.crop.w - img.originX) / img.cellPx + CELL_REMAINDER);
+  const rows = Math.floor((img.crop.y + img.crop.h - img.originY) / img.cellPx + CELL_REMAINDER);
   return { cols: Math.max(1, cols), rows: Math.max(1, rows) };
 }
 

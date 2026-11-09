@@ -1,5 +1,5 @@
 /**
- * Bibliothek (Spielercharaktere, eigene Kreaturen) im Speicher; Quelle ist die SQLite-Datenbank
+ * Bibliothek (Spielercharaktere, eigene Kreaturen, eigene Effekte und Kreaturenbilder) im Speicher; Quelle ist die SQLite-Datenbank
  * (Desktop) bzw. localStorage (Browser-Vorschau). Wird beim ersten Öffnen der Panels geladen.
  */
 import { create } from 'zustand';
@@ -9,8 +9,10 @@ import {
   listHomebrewEffects,
   saveHomebrewEffect,
   listPcs,
+  listPortraits,
   saveHomebrew,
   savePc,
+  savePortrait,
   type HomebrewCreature,
   type PlayerCharacter,
 } from '../../storage/library';
@@ -20,6 +22,8 @@ export interface LibraryState {
   pcs: PlayerCharacter[];
   homebrew: HomebrewCreature[];
   effects: EffectSource[];
+  /** Eigene Bilder für SRD-Kreaturen (Kreatur-ID → Data-URL). */
+  portraits: Record<string, string>;
   status: 'idle' | 'loading' | 'ready' | 'error';
   error: string | null;
   load: (force?: boolean) => Promise<void>;
@@ -29,6 +33,8 @@ export interface LibraryState {
   removeHomebrew: (id: string) => Promise<void>;
   putEffect: (e: EffectSource) => Promise<EffectSource>;
   removeEffect: (id: string) => Promise<void>;
+  putPortrait: (id: string, name: string, image: string) => Promise<void>;
+  removePortrait: (id: string) => Promise<void>;
 }
 
 const byName = <T extends { name: string }>(list: T[]) =>
@@ -39,18 +45,21 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   pcs: [],
   homebrew: [],
   effects: [],
+  portraits: {},
   status: 'idle',
   error: null,
   load: async (force = false) => {
     if (!force && (get().status === 'loading' || get().status === 'ready')) return;
     set({ status: 'loading', error: null });
     try {
-      const [pcs, homebrew, effects] = await Promise.all([
+      const [pcs, homebrew, effects, portraitList] = await Promise.all([
         listPcs(),
         listHomebrew(),
         listHomebrewEffects(),
+        listPortraits(),
       ]);
-      set({ pcs, homebrew, effects, status: 'ready' });
+      const portraits = Object.fromEntries(portraitList.map((p) => [p.id, p.image]));
+      set({ pcs, homebrew, effects, portraits, status: 'ready' });
     } catch (e) {
       set({ status: 'error', error: message(e) });
     }
@@ -79,5 +88,16 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   removeEffect: async (id) => {
     await deleteEntry('effect', id);
     set((s) => ({ effects: s.effects.filter((x) => x.id !== id) }));
+  },
+  putPortrait: async (id, name, image) => {
+    const saved = await savePortrait({ id, name, image });
+    set((s) => ({ portraits: { ...s.portraits, [id]: saved.image } }));
+  },
+  removePortrait: async (id) => {
+    await deleteEntry('portrait', id);
+    set((s) => {
+      const { [id]: _removed, ...rest } = s.portraits;
+      return { portraits: rest };
+    });
   },
 }));

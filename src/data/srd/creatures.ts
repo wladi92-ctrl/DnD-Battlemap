@@ -145,3 +145,9 @@ export function filterCreatures(
         (c.subtype ?? '').includes(q)),
   );
 }
+
+/** Kreaturentyp einer SRD-Kreatur (für Standard-Porträts); undefined, wenn unbekannt. */
+export async function creatureTypeOf(id: string): Promise<string | undefined> {
+  const all = await loadCreatures();
+  return all.find((c) => c.id === id)?.type;
+}

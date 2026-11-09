@@ -76,6 +76,21 @@ function CalibrationForm({ session }: { session: Session }) {
   useEffect(() => {
     setCellDraft((d) => (Number(d) === img.cellPx ? d : String(img.cellPx)));
   }, [img.cellPx]);
+  // Felder über die Ausschnittbreite (für Karten mit bekannter Felderzahl).
+  const across = Math.round(img.crop.w / img.cellPx);
+  const [acrossDraft, setAcrossDraft] = useState(() => String(across));
+  useEffect(() => {
+    setAcrossDraft((d) => (Number(d) === across ? d : String(across)));
+  }, [across]);
+  const setCell = (v: number) => {
+    const cellPx = clampCellPx(v);
+    setImg((i) => ({
+      ...i,
+      cellPx,
+      originX: normalizeOrigin(i.originX, i.crop.x, cellPx),
+      originY: normalizeOrigin(i.originY, i.crop.y, cellPx),
+    }));
+  };
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -376,6 +391,41 @@ function CalibrationForm({ session }: { session: Session }) {
                 }));
               }}
               onBlur={() => setCellDraft(String(img.cellPx))}
+            />
+          </div>
+          <div className="button-grid">
+            <button
+              type="button"
+              className="btn"
+              title={t('calibrate.halveHint')}
+              onClick={() => setCell(img.cellPx / 2)}
+            >
+              {t('calibrate.halve')}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              title={t('calibrate.doubleHint')}
+              onClick={() => setCell(img.cellPx * 2)}
+            >
+              {t('calibrate.double')}
+            </button>
+          </div>
+          <div className="panel-field">
+            <label htmlFor={`${id}-across`}>{t('calibrate.cellsAcross')}</label>
+            <input
+              id={`${id}-across`}
+              type="number"
+              min={1}
+              max={1000}
+              step={1}
+              value={acrossDraft}
+              onChange={(e) => {
+                setAcrossDraft(e.target.value);
+                const n = Number(e.target.value);
+                if (Number.isInteger(n) && n >= 1 && n <= 1000) setCell(img.crop.w / n);
+              }}
+              onBlur={() => setAcrossDraft(String(Math.round(img.crop.w / img.cellPx)))}
             />
           </div>
           <div className="panel-row">

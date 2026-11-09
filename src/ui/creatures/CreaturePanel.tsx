@@ -11,6 +11,7 @@ import { useLibraryStore } from '../state/libraryStore';
 import { useNoticeStore } from '../state/noticeStore';
 import { useT } from '../useT';
 import { HomebrewDialog } from './HomebrewDialog';
+import { CreaturePortraitField, CreatureThumb } from './PortraitField';
 import { CREATURE_TYPES, sizeLabel, teamLabel, typeKey, typeLabel } from './labels';
 
 const CR_VALUES = [0, 0.125, 0.25, 0.5, ...Array.from({ length: 30 }, (_, i) => i + 1)];
@@ -75,6 +76,7 @@ export function CreaturePanel() {
   const homebrew = useLibraryStore((s) => s.homebrew);
   const libStatus = useLibraryStore((s) => s.status);
   const libError = useLibraryStore((s) => s.error);
+  const portraits = useLibraryStore((s) => s.portraits);
   const [query, setQuery] = useState('');
   const [type, setType] = useState('');
   const [size, setSize] = useState('');
@@ -110,7 +112,7 @@ export function CreaturePanel() {
   const isHomebrew = (c: Creature): c is HomebrewCreature => 'homebrew' in c;
 
   const place = (c: Creature, count: number, team: Team) => {
-    const image = isHomebrew(c) ? c.image : undefined;
+    const image = isHomebrew(c) ? c.image : portraits[c.id];
     useEditorStore.getState().setSpawn({
       template: templateFromCreature(c, team),
       count,
@@ -244,6 +246,7 @@ export function CreaturePanel() {
               }
             }}
           >
+            <CreatureThumb creature={c} />
             <span className="creature-name">
               {c.name}
               {isHomebrew(c) && <span className="badge">{t('creatures.homebrew')}</span>}
@@ -258,6 +261,7 @@ export function CreaturePanel() {
       {current && (
         <div className="creature-actions" aria-label={current.name} role="group">
           <strong>{current.name}</strong>
+          <CreaturePortraitField creature={current} />
           <div className="field-inline">
             <button
               type="button"

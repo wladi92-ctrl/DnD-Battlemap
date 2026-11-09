@@ -35,7 +35,8 @@ export function twoPointCalibration(a: Point, b: Point, cells: number, crop: Cro
 
 export function clampCellPx(v: number): number {
   if (!Number.isFinite(v)) return 50;
-  return Math.min(CELL_PX_MAX, Math.max(CELL_PX_MIN, Math.round(v * 100) / 100));
+  // Vier Nachkommastellen: 1500 px / 66 Felder = 22,7273 px ergibt wieder genau 66 Felder.
+  return Math.min(CELL_PX_MAX, Math.max(CELL_PX_MIN, Math.round(v * 10000) / 10000));
 }
 
 /** Ergebnis der automatischen Erkennung (Koordinaten der verkleinerten Probe) zurückrechnen. */

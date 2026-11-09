@@ -12,6 +12,11 @@ anzeigen. Regelinhalte ausschließlich aus dem **SRD 5.1 (CC-BY-4.0)**.
 > „Als Spieler ansehen“ und ein **zweites Fenster als Spieleransicht** (Beamer/Bildschirm;
 > Vollbild, eigene Kamera, reale Größe mit Kalibrierung). Die Spieleransicht erhält nur, was
 > Spieler sehen dürfen: keine verborgenen Tokens/Effekte, keine GM-Notizen, Geheimtüren als Wand.
+> Überarbeitet nach Phase 8: Kartengrafiken im Stil gedruckter Abenteuerkarten (Tuschumrisse,
+> Schlagschatten, Pinselkorn, neue Bäume/Obstbäume, Mauern und Türen), **Bilder für alle
+> 334 SRD-Kreaturen** (selbst erzeugte Porträts) mit „Bild ändern …“ für Tokens und Kreaturen,
+> zuverlässigere Rastererkennung für Abenteuerkarten (1:1-Import) mit „Feld ÷ 2 / × 2“ und
+> „Felder über die Bildbreite“.
 > Aus Phase 1–7: Karteneditor, Bildimport, Kantenwände, Tokens mit SRD-Kreaturen,
 > Spielercharaktere, Bewegung, Flächeneffekte mit Rettungswurf-Assistent, Initiative-Tracker,
 > Würfelroller, Angriffs-Helfer, Kampflog, `.dndmap`-Dateien, Autosave, Offline-Absicherung,
@@ -159,6 +164,12 @@ Kalibrierungsdialog:
 - **Feldgröße** in Pixeln eingeben, **Automatisch erkennen** (Autokorrelation der Rasterlinien,
   Ergebnis mit Deutlichkeit) oder **Zwei Punkte …**: zwei Rasterkreuzungen anklicken und die
   Zahl der Felder dazwischen angeben.
+- **Feld ÷ 2 / Feld × 2** korrigiert ein Raster, bei dem ein Programmfeld 2×2 Bildfelder
+  abdeckt (oder umgekehrt). **Felder über die Bildbreite**: Wer die Felderzahl einer
+  Abenteuerkarte kennt (oder abzählt), gibt sie hier ein – die Feldgröße ergibt sich exakt.
+- Die automatische Erkennung findet auch bei gedruckten Abenteuerkarten das feine 5-ft-Raster,
+  selbst wenn dicke Wände oder Rahmen genau auf jeder 2., 4. oder 11. Rasterlinie liegen
+  (früher wurde dort oft ein Vielfaches erkannt).
 - **Drehen** in 90°-Schritten, **Zuschnitt** in Pixeln, **Helligkeit/Kontrast**.
 - Ergebnis: Kartengröße in Feldern (auf 10–200 begrenzt, mit Hinweis).
 
@@ -179,6 +190,14 @@ Klick auf die Karte (oder `Eingabe` am Fokusfeld) setzt die Tokens nebeneinander
 Felder, durchnummeriert („Goblin 1 … 4“); `Esc` bricht ab. „Eigene Kreatur anlegen …“:
 vereinfachter Statblock (Größe, Typ, HG, RK, TP, Bewegungsarten, Reichweite, Attribute, Sinne,
 Sprachen, Merkmale/Aktionen als „Name: Beschreibung“ je Zeile, optional Token-Bild).
+
+**Bilder**: Jede Kreatur hat ein Bild – automatisch erzeugte Porträts im Stil von
+Abenteuer-Tokens (Silhouette je Tier-/Kreaturenart und Rolle, Farbe je Kreaturentyp, Drachen in
+ihrer Farbe; Spielercharaktere ohne eigenes Bild bekommen ein Heldenbild). Die Liste zeigt
+Vorschaubilder. **Bild ändern …** bei einer Kreatur der Liste speichert ein eigenes Bild
+(PNG/JPG/WebP) in der lokalen Bibliothek; neu gesetzte Tokens übernehmen es. Im Token-Panel
+ändert **Bild ändern …** das Bild der ausgewählten Tokens (in die Karte eingebettet);
+**Standardbild** kehrt zum erzeugten Porträt zurück.
 
 **Charaktere** (Reiter „Charaktere“): Spielercharaktere mit Name, Klasse, Stufe, Größe, RK,
 TP-Maximum, Initiativebonus, passiver Wahrnehmung, Bewegungsrate, Dunkelsicht und Token-Bild
@@ -424,7 +443,10 @@ enthalten (per Test erzwungen). Neue Sprache: JSON-Datei anlegen und in `src/i18
 | Erkundet                  | Wird automatisch mit der Karte gespeichert, aber nicht im Undo-Verlauf                                                                                                                                                                           | Rückgängig soll keine „gesehene“ Information wieder verstecken                                                               |
 | Spieleransicht            | Zweites Fenster derselben App, Daten über einen lokalen BroadcastChannel (kein Netzwerk), höchstens 10 Aktualisierungen/s; gefiltert wird im GM-Fenster                                                                                          | Offline-Vorgabe; Spieler-Fenster erhält verborgene Daten gar nicht erst                                                      |
 | Reale Größe               | Pixel pro Zoll = Bildschirm-Diagonale in physischen Pixeln / Diagonale in Zoll, Korrektur in %; je Gerät im Browser-Speicher                                                                                                                     | Browser kennen die physische Bildschirmgröße nicht; Kalibrierung mit Testquadrat                                             |
-| Bibliotheksgrafiken       | 165 selbst erzeugte SVGs, beim Start einmal in Texturen (128 px/Feld) gerastert                                                                                                                                                                  | Keine fremden Assets, scharf bis Zoom 200 %                                                                                  |
+| Kartenstil                | Ein gemeinsamer SVG-Filter für alle Objekte: Tuschumriss um die Silhouette, Schattierung zur Lichtseite (oben links), Schlagschatten, Pinselkorn; Böden/Mauern nur Korn (kachelbar)                                                              | Optik gedruckter D&D-Abenteuerkarten, ohne fremde Grafiken zu verwenden                                                      |
+| Kreaturenbilder           | Selbst erzeugte Porträts (eigene Silhouetten, Farben je Typ), zur Laufzeit erzeugt und nicht in Karten gespeichert; eigene Bilder haben Vorrang                                                                                                  | Das SRD enthält keine Bilder; Bilder aus Büchern/5e.tools sind urheberrechtlich geschützt                                    |
+| Rastererkennung (Teiler)  | Kammfilter über die Vielfachen der Feldgröße (unteres Quartil), danach Teilerprüfung bis ÷20 mit lokalen Spitzen; Feldgröße mit 4 Nachkommastellen, Rest ≤ 2 % am Rand zählt als Feld                                                            | Abenteuerkarten haben feine Rasterlinien unter kräftigen Wänden/Rahmen                                                       |
+| Bibliotheksgrafiken       | 168 selbst erzeugte SVGs, beim Start einmal in Texturen (128 px/Feld) gerastert                                                                                                                                                                  | Keine fremden Assets, scharf bis Zoom 200 %                                                                                  |
 | Performance               | Bodenkacheln in 16×16-Blöcken mit Culling, Rendern nur bei Änderungen                                                                                                                                                                            | Ausgelegt für 200×200 (40 000 Kacheln); FPS-Messung folgt in Phase 10                                                        |
 
 ## Testprotokoll

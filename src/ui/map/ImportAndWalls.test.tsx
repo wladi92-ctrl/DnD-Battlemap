@@ -93,6 +93,31 @@ describe('Bildimport', () => {
     expect(saved.assets.get(img.asset)).toEqual(PNG);
   });
 
+  it('Feld ÷ 2 / × 2 und „Felder über die Bildbreite“ für 1:1-Import', async () => {
+    const user = userEvent.setup();
+    fa.files.set('D:\\Karten\\Herrenhaus.png', PNG);
+    fa.nextDialogPath = 'D:\\Karten\\Herrenhaus.png';
+    render(<App />);
+    await user.click(screen.getAllByRole('button', { name: 'Bild importieren …' })[0]!);
+    const dialog = await calibrateDialog();
+    const cell = within(dialog).getByLabelText('Feldgröße (Pixel)');
+    await user.clear(cell);
+    await user.type(cell, '100');
+    expect(within(dialog).getByText(/^10 × 10 Felder/)).toBeInTheDocument(); // Mindestgröße
+    // Ein Programmfeld deckte 2×2 Bildfelder ab → halbieren
+    await user.click(within(dialog).getByRole('button', { name: 'Feld ÷ 2' }));
+    expect(cell).toHaveValue(50);
+    expect(within(dialog).getByText(/^20 × 16 Felder/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Feld × 2' }));
+    expect(cell).toHaveValue(100);
+    // Bekannte Felderzahl: 1000 px / 66 Felder = 15,1515 px → genau 66 Spalten
+    const across = within(dialog).getByLabelText('Felder über die Bildbreite');
+    await user.clear(across);
+    await user.type(across, '66');
+    expect(cell).toHaveValue(15.1515);
+    expect(within(dialog).getByText(/^66 × 52 Felder/)).toBeInTheDocument();
+  });
+
   it('Drehen vertauscht die Bildmaße, Abbrechen schließt ohne Karte', async () => {
     const user = userEvent.setup();
     fa.files.set('D:\\a.png', PNG);

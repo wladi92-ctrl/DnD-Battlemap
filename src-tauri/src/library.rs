@@ -13,7 +13,7 @@ use tauri::{AppHandle, Manager, Runtime, State};
 
 pub const DB_FILE: &str = "bibliothek.sqlite";
 const SCHEMA_VERSION: i32 = 1;
-const KINDS: [&str; 3] = ["pc", "creature", "effect"];
+const KINDS: [&str; 4] = ["pc", "creature", "effect", "portrait"];
 const ID_MAX: usize = 100;
 const NAME_MAX: usize = 120;
 /// Obergrenze je Eintrag (inkl. eingebettetem Token-Bild als Data-URL).
@@ -235,6 +235,10 @@ mod tests {
         lib.put("creature", "c1", "Sumpfhexe", r#"{"cr":2}"#).unwrap();
         lib.put("effect", "e1", "Säurenebel", r#"{"shape":"sphere"}"#).unwrap();
         assert_eq!(lib.list("effect").unwrap().len(), 1);
+        // Eigenes Bild einer SRD-Kreatur (gleiche ID wie die Kreatur, eigene Art)
+        lib.put("portrait", "goblin", "Goblin", r#"{"image":"data:image/png;base64,AAAA"}"#)
+            .unwrap();
+        assert_eq!(lib.list("portrait").unwrap()[0].id, "goblin");
         let names: Vec<_> = lib.list("pc").unwrap().into_iter().map(|e| e.name).collect();
         assert_eq!(names, ["anton", "Mira"]);
 

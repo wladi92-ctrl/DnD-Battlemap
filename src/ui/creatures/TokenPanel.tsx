@@ -1,5 +1,5 @@
 /**
- * Eigenschaften ausgewählter Tokens: TP (Schaden/Heilung/temporär), Todesrettungswürfe,
+ * Eigenschaften ausgewählter Tokens: Bild, TP (Schaden/Heilung/temporär), Todesrettungswürfe,
  * Zustände, Marker, Aktionen der Runde, Bewegung, Sichtbarkeit, Blickrichtung, Gruppe.
  * Mehrfachauswahl: Schaden/Heilung, Zustände, Sichtbarkeit und Gruppe wirken auf alle.
  */
@@ -32,6 +32,7 @@ import { useT } from '../useT';
 import { runOnTokens, type Say } from '../map/tokenTools';
 import { startNewRound } from '../map/effectTools';
 import { conditionLabel, sizeLabel, teamLabel } from './labels';
+import { TokenPortraitField } from './PortraitField';
 
 export function TokenPanel() {
   const t = useT();
@@ -106,6 +107,7 @@ function TokenEditor({ tokens, t }: { tokens: Token[]; t: ReturnType<typeof useT
       <summary>{single ? single.name : t('token.count', { count: tokens.length })}</summary>
 
       {single && <SingleFields token={single} update={update} />}
+      <TokenPortraitField tokens={tokens} update={update} />
 
       <fieldset className="panel-fieldset">
         <legend>{t('token.hp')}</legend>

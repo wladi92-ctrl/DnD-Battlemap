@@ -17,7 +17,7 @@ import {
   type SizeCategory,
 } from '../data/srd/creatures';
 
-export type LibraryKind = 'pc' | 'creature' | 'effect';
+export type LibraryKind = 'pc' | 'creature' | 'effect' | 'portrait';
 
 export interface RawEntry {
   kind: LibraryKind;
@@ -351,4 +351,34 @@ export async function saveHomebrewEffect(
   };
   await lib.put('effect', id, name, JSON.stringify(stored));
   return clean;
+}
+
+// ------------------------------------------------------------------ Eigene Kreaturenbilder
+
+/** Eigenes Bild für eine SRD-Kreatur (ID wie in der SRD-Liste); ersetzt das Standard-Porträt. */
+export interface CreaturePortrait {
+  id: string;
+  name: string;
+  /** Data-URL (PNG/JPEG/WebP). */
+  image: string;
+}
+
+export async function listPortraits(lib = getLibrary()): Promise<CreaturePortrait[]> {
+  const out: CreaturePortrait[] = [];
+  for (const e of await lib.list('portrait')) {
+    const data = parse(e.data) as Record<string, unknown> | null;
+    const img = image(data?.image);
+    if (img) out.push({ id: e.id, name: e.name, image: img });
+  }
+  return out;
+}
+
+export async function savePortrait(
+  p: CreaturePortrait,
+  lib = getLibrary(),
+): Promise<CreaturePortrait> {
+  const img = image(p.image);
+  if (!img) throw new Error('Ungültiges Bild');
+  await lib.put('portrait', p.id, p.name.slice(0, 120) || p.id, JSON.stringify({ image: img }));
+  return { id: p.id, name: p.name, image: img };
 }
