@@ -2,12 +2,13 @@
  * Kartendokument – Inhalt von map.json in einer .dndmap-Datei.
  * Das Format ist versioniert; Änderungen erhöhen MAP_FORMAT_VERSION und erhalten
  * eine Migration in migrations.ts. Beschreibung: docs/DATEIFORMAT.md,
- * JSON-Schema: docs/schema/map.v2.schema.json.
+ * JSON-Schema: docs/schema/map.v3.schema.json.
  */
 import { clampGridDimension } from '../core/grid';
+import type { DoorState, WallKind } from '../core/walls';
 
 export const MAP_FORMAT = 'dndmap';
-export const MAP_FORMAT_VERSION = 2;
+export const MAP_FORMAT_VERSION = 3;
 
 export const FEET_PER_CELL_MIN = 1;
 export const FEET_PER_CELL_MAX = 100;
@@ -114,6 +115,60 @@ export interface CustomElement {
   asset: string;
 }
 
+export type ImageRotation = 0 | 90 | 180 | 270;
+
+export interface CropRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/**
+ * Importiertes Kartenbild als Hintergrund. Alle Pixelangaben beziehen sich auf das
+ * gedrehte Bild (Breite/Höhe bei 90°/270° vertauscht).
+ */
+export interface BackgroundImage {
+  /** Pfad innerhalb von assets/, z. B. "background/3f…a1.jpg". */
+  asset: string;
+  /** Größe des Originalbildes in Pixeln (ungedreht). */
+  width: number;
+  height: number;
+  rotation: ImageRotation;
+  /** Pixel pro Feld (Kalibrierung). */
+  cellPx: number;
+  /** Bildposition (px) der linken oberen Ecke von Feld (0, 0). */
+  originX: number;
+  originY: number;
+  /** Sichtbarer Bildausschnitt (px). */
+  crop: CropRect;
+  /** Helligkeit, 1 = unverändert (0,2–3). */
+  brightness: number;
+  /** Kontrast, 0 = unverändert (−1…1). */
+  contrast: number;
+}
+
+export interface MapBackground {
+  color: string;
+  image?: BackgroundImage;
+}
+
+/** Wand entlang von Kanten (Feldkoordinaten; ganzzahlig = Rasterlinien). */
+export interface EdgeWall {
+  id: string;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  kind: WallKind;
+  /** Nur bei Türen und Geheimtüren. */
+  state?: DoorState;
+}
+
+export const WALL_KINDS: readonly WallKind[] = ['wall', 'door', 'window', 'secret'];
+export const DOOR_STATES: readonly DoorState[] = ['closed', 'open', 'locked'];
+export const IMAGE_MAX_SIDE = 16384;
+
 export interface MapDocument {
   format: typeof MAP_FORMAT;
   version: typeof MAP_FORMAT_VERSION;
@@ -122,7 +177,7 @@ export interface MapDocument {
   createdAt: string;
   modifiedAt: string;
   grid: GridSettings;
-  background: { color: string };
+  background: MapBackground;
   layers: LayerState[];
   /** Bodenkachel je Feld (Index y·cols+x), '' = leer. */
   floor: string[];
@@ -131,6 +186,8 @@ export interface MapDocument {
   terrain: Record<string, TerrainProps>;
   notes: MapNote[];
   customElements: CustomElement[];
+  /** Kantenwände, Türen und Fenster (gehören zur Ebene "Wände/Objekte"). */
+  walls: EdgeWall[];
 }
 
 export interface NewMapOptions {
@@ -139,6 +196,7 @@ export interface NewMapOptions {
   rows: number;
   feetPerCell?: number;
   backgroundColor?: string;
+  backgroundImage?: BackgroundImage;
 }
 
 export const HEX_COLOR = /^#[0-9a-f]{6}$/i;
@@ -202,6 +260,7 @@ export function createMap(opts: NewMapOptions, now = new Date()): MapDocument {
         opts.backgroundColor && HEX_COLOR.test(opts.backgroundColor)
           ? opts.backgroundColor.toLowerCase()
           : DEFAULT_BACKGROUND,
+      ...(opts.backgroundImage ? { image: opts.backgroundImage } : {}),
     },
     layers: defaultLayers(),
     floor: new Array<string>(cols * rows).fill(''),
@@ -209,7 +268,24 @@ export function createMap(opts: NewMapOptions, now = new Date()): MapDocument {
     terrain: {},
     notes: [],
     customElements: [],
+    walls: [],
   };
+}
+
+/** Größe des gedrehten Bildes in Pixeln. */
+export function rotatedSize(img: Pick<BackgroundImage, 'width' | 'height' | 'rotation'>) {
+  return img.rotation === 90 || img.rotation === 270
+    ? { w: img.height, h: img.width }
+    : { w: img.width, h: img.height };
+}
+
+/** Anzahl ganzer Felder, die der Bildausschnitt ab dem Ursprung abdeckt. */
+export function imageGridSize(
+  img: Pick<BackgroundImage, 'cellPx' | 'originX' | 'originY' | 'crop'>,
+) {
+  const cols = Math.floor((img.crop.x + img.crop.w - img.originX) / img.cellPx + 1e-6);
+  const rows = Math.floor((img.crop.y + img.crop.h - img.originY) / img.cellPx + 1e-6);
+  return { cols: Math.max(1, cols), rows: Math.max(1, rows) };
 }
 
 /** Wendet Rastereinstellungen geprüft und begrenzt an (ohne Inhalte anzupassen). */

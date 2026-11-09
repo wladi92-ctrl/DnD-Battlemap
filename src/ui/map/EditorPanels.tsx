@@ -1,5 +1,6 @@
 /** Rechte Seitenleiste: Werkzeugoptionen/Auswahl, Ebenen, Gelände. */
 import { useId } from 'react';
+import type { DoorState, WallKind } from '../../core/walls';
 import { resolveElement } from '../../data/elements';
 import { effectiveTerrain } from '../../editor/footprint';
 import { setLayerState, type AlignMode } from '../../editor/ops';
@@ -7,9 +8,11 @@ import type { MessageKey } from '../../i18n';
 import {
   COVER_LEVELS,
   DAMAGE_TYPES,
+  DOOR_STATES,
   ELEVATION_LIMIT,
   LAYER_IDS,
   layerState,
+  WALL_KINDS,
   type CoverLevel,
   type DamageType,
   type TerrainProps,
@@ -26,6 +29,8 @@ import {
   duplicateSelection,
   flipSelection,
   rotateSelectionOrPlacement,
+  toggleSelectedDoors,
+  updateSelectedWalls,
   type Notify,
 } from './editorTools';
 
@@ -130,7 +135,11 @@ export function ToolOptionsPanel() {
       )}
       {tool === 'select' && (
         <>
-          <p aria-live="polite">{t('selection.count', { count: ed.selection.size })}</p>
+          <p aria-live="polite">
+            {t('selection.count', {
+              count: doc.objects.filter((o) => ed.selection.has(o.id)).length,
+            })}
+          </p>
           <div className="button-grid">
             <button
               type="button"
@@ -201,11 +210,90 @@ export function ToolOptionsPanel() {
         </>
       )}
       {tool === 'note' && <p className="small muted">{t('hint.note')}</p>}
+      {tool === 'wall' && (
+        <fieldset className="panel-radios">
+          <legend>{t('wall.kind')}</legend>
+          {WALL_KINDS.map((k) => (
+            <label key={k}>
+              <input
+                type="radio"
+                name="wallkind"
+                checked={ed.wallKind === k}
+                onChange={() => ed.setWallKind(k)}
+              />
+              {t(`wall.kind.${k}` as MessageKey)}
+            </label>
+          ))}
+        </fieldset>
+      )}
+      {tool === 'select' && <SelectedWalls notify={notify} />}
       <label className="panel-check">
         <input type="checkbox" checked={ed.snap} onChange={(e) => ed.setSnap(e.target.checked)} />
         {t('options.snap')}
       </label>
     </details>
+  );
+}
+
+/** Art und Türzustand der ausgewählten Kantenwände ändern. */
+function SelectedWalls({ notify }: { notify: Notify }) {
+  const t = useT();
+  const id = useId();
+  const doc = useMapStore((s) => s.doc);
+  const selection = useEditorStore((s) => s.selection);
+  const walls = doc?.walls.filter((w) => selection.has(w.id)) ?? [];
+  if (!walls.length) return null;
+  const kinds = new Set(walls.map((w) => w.kind));
+  const kind = kinds.size === 1 ? walls[0]?.kind : '';
+  const doors = walls.filter((w) => w.kind === 'door' || w.kind === 'secret');
+  const states = new Set(doors.map((w) => w.state));
+  const state = states.size === 1 ? (doors[0]?.state ?? '') : '';
+  return (
+    <div className="terrain-readout">
+      <p className="small">{t('selection.walls', { count: walls.length })}</p>
+      <div className="panel-field">
+        <label htmlFor={`${id}-k`}>{t('wall.kind')}</label>
+        <select
+          id={`${id}-k`}
+          value={kind}
+          onChange={(e) => updateSelectedWalls({ kind: e.target.value as WallKind }, notify)}
+        >
+          {kind === '' && <option value="">–</option>}
+          {WALL_KINDS.map((k) => (
+            <option key={k} value={k}>
+              {t(`wall.kind.${k}` as MessageKey)}
+            </option>
+          ))}
+        </select>
+      </div>
+      {doors.length > 0 && (
+        <>
+          <div className="panel-field">
+            <label htmlFor={`${id}-s`}>{t('wall.state')}</label>
+            <select
+              id={`${id}-s`}
+              value={state}
+              onChange={(e) => updateSelectedWalls({ state: e.target.value as DoorState }, notify)}
+            >
+              {state === '' && <option value="">–</option>}
+              {DOOR_STATES.map((s) => (
+                <option key={s} value={s}>
+                  {t(`wall.state.${s}` as MessageKey)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => toggleSelectedDoors(notify)}
+            aria-keyshortcuts="D"
+          >
+            {t('wall.toggleDoor')} (D)
+          </button>
+        </>
+      )}
+    </div>
   );
 }
 

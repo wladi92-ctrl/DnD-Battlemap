@@ -10,6 +10,7 @@ import { ToolIcon } from './ToolIcon';
 interface Props {
   onNew: () => void;
   onOpen: () => void;
+  onImportImage: () => void;
   onSave: () => void;
   onSaveAs: () => void;
   onTemplate: () => void;
@@ -28,11 +29,21 @@ export const TOOLS: readonly { id: Tool; key: string }[] = [
   { id: 'line', key: 'L' },
   { id: 'fill', key: 'F' },
   { id: 'erase', key: 'E' },
+  { id: 'wall', key: 'W' },
   { id: 'note', key: 'N' },
   { id: 'ruler', key: 'R' },
 ];
 
-export function Toolbar({ onNew, onOpen, onSave, onSaveAs, onTemplate, onUndo, onRedo }: Props) {
+export function Toolbar({
+  onNew,
+  onOpen,
+  onImportImage,
+  onSave,
+  onSaveAs,
+  onTemplate,
+  onUndo,
+  onRedo,
+}: Props) {
   const t = useT();
   const tool = useViewStore((s) => s.tool);
   const zoom = useViewStore((s) => s.camera.zoom);
@@ -56,6 +67,9 @@ export function Toolbar({ onNew, onOpen, onSave, onSaveAs, onTemplate, onUndo, o
         </button>
         <button type="button" className="btn" onClick={onOpen} aria-keyshortcuts="Control+O">
           {t('file.open')}
+        </button>
+        <button type="button" className="btn" onClick={onImportImage}>
+          {t('imageImport.button')}
         </button>
         <button
           type="button"

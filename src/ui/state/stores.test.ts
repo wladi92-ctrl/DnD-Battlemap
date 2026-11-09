@@ -76,6 +76,30 @@ describe('mapStore', () => {
     expect([...referencedAssets(doc, useMapStore.getState().assets).keys()]).toEqual([
       'custom/a.png',
     ]);
+    // Das Hintergrundbild gehört ebenfalls dazu.
+    s.addAsset('background/k.jpg', new Uint8Array([3]));
+    const withBg = {
+      ...doc,
+      background: {
+        color: '#ffffff',
+        image: {
+          asset: 'background/k.jpg',
+          width: 10,
+          height: 10,
+          rotation: 0 as const,
+          cellPx: 5,
+          originX: 0,
+          originY: 0,
+          crop: { x: 0, y: 0, w: 10, h: 10 },
+          brightness: 1,
+          contrast: 0,
+        },
+      },
+    };
+    expect([...referencedAssets(withBg, useMapStore.getState().assets).keys()]).toEqual([
+      'custom/a.png',
+      'background/k.jpg',
+    ]);
   });
 
   it('Name und Hintergrund werden geprüft', () => {

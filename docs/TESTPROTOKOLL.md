@@ -124,3 +124,53 @@ Neue Tests:
 | Native Datei-Dialoge (Öffnen/Speichern/Bild importieren) in der Desktop-App | ⏳ bitte manuell prüfen                                                                             |
 | SVG-Texturen unter WebKit (macOS/Linux)                                     | ⏳ nicht geprüft (nur Chromium/WebView2)                                                            |
 | FPS-Messung großer Karten                                                   | ⏳ Phase 10                                                                                         |
+
+## Phase 4 – Bildimport & Kalibrierung (2026-11-09)
+
+### Automatisch
+
+| Prüfung                                                                  | Ergebnis                   |
+| ------------------------------------------------------------------------ | -------------------------- |
+| `npm run verify` (Lint, Prettier, `tsc`, Vitest, Build, Offline-Prüfung) | ✅ 140 Tests in 20 Dateien |
+| `npm run test:rust`                                                      | ✅ 3 Tests                 |
+
+Neue Tests:
+
+- `src/core/gridDetect.test.ts` – synthetische Karten (Rauschen, „Möbel“, Rasterlinien) mit
+  Feldgrößen 23 / 37,5 / 50 / 70 px und verschiedenen Versätzen: Feldgröße ±0,5 px, Versatz
+  ±1,5 px, Deutlichkeit > 0,4; ohne Raster bzw. einfarbig → kein Vorschlag
+- `src/core/walls.test.ts` – Streckenschnitt, Abstand, Wand zwischen Feldern blockiert,
+  kein Durchquetschen an Wandecken, Tür offen/geschlossen/verschlossen, Fenster, Geheimtür,
+  Sichtlinie
+- `src/editor/wallOps.test.ts` – Wände anlegen (Begrenzung, Duplikate, Länge 0), Treffertest,
+  Rahmenauswahl, Art/Zustand, gemeinsames Verschieben/Löschen mit Objekten, gesperrte Ebene,
+  Größe ändern/Vorlage entfernen Wände, Hintergrundbild setzen inkl. Rasteranpassung als
+  **ein** Undo-Schritt, ändern, entfernen
+- `src/editor/calibration.test.ts` – Ursprung normalisieren, Zwei-Punkte-Messung, Rückrechnung
+  der Erkennung, Standardwerte, Drehung, Zuschnitt, Kartengröße (10–200)
+- `src/storage/storage.test.ts` – Round-Trip mit Hintergrundbild und Wänden, **Migration v2 → v3**
+  und v1 → v3, JSON-Schema v3 = Validator in 36 Fällen
+- `src/ui/map/ImportAndWalls.test.tsx` – Bild wählen → Kalibrierung → Feldgröße 50 →
+  20 × 16 Felder → Karte erstellen → **mit Bild speichern**; Drehen; falscher Inhalt abgelehnt;
+  **Drag & Drop**; Wandkette per Tastatur + Undo; Tür zeichnen, auswählen, `D` öffnen,
+  Zustand/Art ändern, löschen
+
+### Manuell (Produktions-Build, Produktions-CSP, Chromium)
+
+Testbild: per Canvas erzeugtes Verlies 3000 × 2400 px, Raster alle 60 px ab 23 px (2 px Linien).
+
+| Prüfung                                         | Ergebnis                                                                                                                                                     |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Drag & Drop ins Fenster öffnet Kalibrierung     | ✅                                                                                                                                                           |
+| Automatisch erkennen                            | ✅ 60 px, Deutlichkeit 100 %; Versatz 20,4 statt 22–24 px (Probe auf 40 % verkleinert) → per Eingabe korrigiert                                              |
+| Karte erstellen                                 | ✅ 49 × 39 Felder (rechnerisch korrekt)                                                                                                                      |
+| Pixi-Hintergrund bei 25 %, 83 %, 274 %, 400 %   | ✅ Bildraster deckt sich mit App-Raster; bei 400 % scharf (Kacheln)                                                                                          |
+| Wand + Tür per Maus zeichnen                    | ✅ auf Rasterlinie eingerastet                                                                                                                               |
+| Tür auswählen, `D`                              | ✅ Zustand „Offen“, Panel zeigt Art/Zustand                                                                                                                  |
+| Helligkeit 40 %                                 | ✅ nur Bild abgedunkelt, Wände/Raster unverändert                                                                                                            |
+| Konsole                                         | ✅ keine Fehler                                                                                                                                              |
+| Gefunden und behoben                            | Hintergrundbild fehlte beim Speichern (Test); Feldgrößen-Eingabe sprang beim Tippen auf Mindestwert (Test); Auswahlzähler zählte Wände als Objekte (Browser) |
+| `npm run tauri:build`                           | ✅ MSI de/en (je 2,3 MB), NSIS-Setup (1,7 MB)                                                                                                                |
+| Start der Release-Exe                           | ✅                                                                                                                                                           |
+| Drag & Drop und Dateidialoge in der Desktop-App | ⏳ bitte manuell prüfen (Tauri-Drop auf HTML5 umgestellt)                                                                                                    |
+| Echte 8000×8000-Bilder, WebKit (macOS/Linux)    | ⏳ nicht geprüft                                                                                                                                             |

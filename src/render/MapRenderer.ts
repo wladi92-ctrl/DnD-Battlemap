@@ -2,8 +2,8 @@
  * PixiJS-Szene der Karte. Imperativ und ohne React: die UI schiebt Zustände hinein,
  * gerendert wird nur bei Änderungen (kein Dauer-Ticker) – spart CPU/GPU im Leerlauf.
  *
- * Ebenen (von unten): Hintergrund → Boden → Raster → Wände/Objekte → Dekoration →
- * Gelände-Overlay → GM-Notizen → Overlay (Hover, Auswahl, Vorschau, Lineal).
+ * Ebenen (von unten): Hintergrundfarbe → Hintergrundbild → Boden → Raster → Wände/Objekte
+ * (inkl. Kantenwände) → Dekoration → Gelände-Overlay → GM-Notizen → Overlay.
  * Bodenkacheln liegen in 16×16-Blöcken, die außerhalb des Sichtbereichs ausgeblendet werden.
  */
 import 'pixi.js/unsafe-eval';
@@ -22,10 +22,12 @@ import { CELL_PX, cellCenter, type Cell } from '../core/grid';
 import { computeTerrainGrid, footprintSize } from '../editor/footprint';
 import {
   layerState,
+  type EdgeWall,
   type MapDocument,
   type ObjectLayerId,
   type PlacedObject,
 } from '../storage/mapDocument';
+import { BackgroundImageLayer } from './backgroundImage';
 import { RENDERER_PREFERENCE } from './graphicsSupport';
 import { ElementTextures, TEXTURE_PX_PER_CELL } from './textures';
 
@@ -55,6 +57,19 @@ export interface OverlayState {
   /** Rahmen ausgewählter Objekte (in Feldern). */
   selection?: readonly CellRectF[];
   marquee?: CellRectF | null;
+  /** Ausgewählte Kantenwände. */
+  selectedWalls?: readonly SegmentF[];
+  /** Vorschau beim Wandzeichnen (letzter Punkt → Zeiger) und bereits gesetzte Kette. */
+  wallPreview?: readonly SegmentF[];
+  /** Einrastpunkt unter dem Zeiger beim Wandzeichnen. */
+  wallVertex?: { x: number; y: number } | null;
+}
+
+export interface SegmentF {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
 }
 
 const HOVER_COLOR = 0xffffff;
@@ -77,6 +92,18 @@ const DAMAGE_COLORS: Record<string, number> = {
   thunder: 0x5a7bd6,
   force: 0xc94adf,
   psychic: 0xe24a9c,
+};
+
+/** Darstellung der Kantenwände je Art/Zustand. */
+const WALL_STYLES: Record<string, { color: number; open?: boolean; marker?: number }> = {
+  wall: { color: 0x3b3a38 },
+  window: { color: 0x8fd3ee },
+  'door:closed': { color: 0x9a6a3a },
+  'door:open': { color: 0x9a6a3a, open: true },
+  'door:locked': { color: 0x9a6a3a, marker: 0xe3b832 },
+  'secret:closed': { color: 0x7a4fd0 },
+  'secret:open': { color: 0x7a4fd0, open: true },
+  'secret:locked': { color: 0x7a4fd0, marker: 0xe3b832 },
 };
 
 export function hexToNumber(hex: string): number {
@@ -114,6 +141,8 @@ export class MapRenderer {
   private readonly terrainGfx = new Graphics();
   private readonly notesLayer = new Container();
   private readonly overlay = new Graphics();
+  private readonly edgeWalls = new Graphics();
+  private readonly bgImage: BackgroundImageLayer;
 
   private readonly textures: ElementTextures;
   private map: MapVisual | null = null;
@@ -131,9 +160,14 @@ export class MapRenderer {
 
   private constructor(private readonly app: Application) {
     this.textures = new ElementTextures(() => this.refreshTextures());
+    this.bgImage = new BackgroundImageLayer(() => this.requestRender());
     this.terrainLayer.addChild(this.terrainGfx);
+    // Kantenwände über allen Objekten der Wand-Ebene.
+    this.edgeWalls.zIndex = 1_000_000;
+    this.objectLayers.walls.addChild(this.edgeWalls);
     this.world.addChild(
       this.background,
+      this.bgImage.container,
       this.floorLayer,
       this.grid,
       this.objectLayers.walls,
@@ -195,6 +229,7 @@ export class MapRenderer {
   /** Überträgt Inhalte des Dokuments (Boden, Objekte, Notizen, Gelände, Ebenen). */
   setDocument(doc: MapDocument, assets: ReadonlyMap<string, Uint8Array>): void {
     const prev = this.doc;
+    const prevAssets = this.assets;
     this.doc = doc;
     this.assets = assets;
     this.setMap({
@@ -214,6 +249,16 @@ export class MapRenderer {
     if (!prev || prev.objects !== doc.objects || prev.customElements !== doc.customElements)
       this.syncObjects();
     if (!prev || prev.notes !== doc.notes) this.syncNotes();
+    if (!prev || prev.walls !== doc.walls) this.drawEdgeWalls(doc.walls);
+    if (
+      !prev ||
+      prev.background !== doc.background ||
+      prev.grid !== doc.grid ||
+      prevAssets !== assets
+    ) {
+      const img = doc.background.image;
+      this.bgImage.set(img, img ? assets.get(img.asset) : undefined, doc.grid.cols, doc.grid.rows);
+    }
     if (
       this.showTerrain &&
       (!prev ||
@@ -243,6 +288,7 @@ export class MapRenderer {
     this.camera = camera;
     this.world.position.set(camera.x, camera.y);
     this.world.scale.set(camera.zoom);
+    this.bgImage.setZoom(camera.zoom);
     if (zoomChanged) {
       this.applyGridAlpha();
       this.drawOverlay(); // Linienstärken sind zoomabhängig
@@ -260,6 +306,7 @@ export class MapRenderer {
     if (this.destroyed) return;
     this.destroyed = true;
     cancelAnimationFrame(this.frame);
+    this.bgImage.destroy();
     this.app.destroy(true, { children: true });
     this.textures.destroy();
   }
@@ -448,6 +495,36 @@ export class MapRenderer {
 
   // ---------------------------------------------------------------- Hintergrund & Raster
 
+  /** Kantenwände als dicke Linien (Breite in Weltkoordinaten, skaliert mit dem Zoom). */
+  private drawEdgeWalls(walls: readonly EdgeWall[]): void {
+    const g = this.edgeWalls;
+    g.clear();
+    const W = CELL_PX * 0.14;
+    const line = (w: EdgeWall) =>
+      g.moveTo(w.x1 * CELL_PX, w.y1 * CELL_PX).lineTo(w.x2 * CELL_PX, w.y2 * CELL_PX);
+    for (const w of walls) {
+      const style =
+        WALL_STYLES[
+          w.kind === 'door' || w.kind === 'secret' ? `${w.kind}:${w.state ?? 'closed'}` : w.kind
+        ];
+      if (!style) continue;
+      line(w).stroke({
+        color: 0x111111,
+        width: W + 4,
+        cap: 'round',
+        alpha: style.open ? 0.35 : 0.9,
+      });
+      line(w).stroke({ color: style.color, width: W, cap: 'round', alpha: style.open ? 0.6 : 1 });
+      if (style.marker) {
+        const mx = ((w.x1 + w.x2) / 2) * CELL_PX;
+        const my = ((w.y1 + w.y2) / 2) * CELL_PX;
+        g.circle(mx, my, W * 0.75)
+          .fill({ color: style.marker })
+          .stroke({ color: 0x111111, width: 2 });
+      }
+    }
+  }
+
   private drawBackground(): void {
     const m = this.map;
     this.background.clear();
@@ -525,6 +602,26 @@ export class MapRenderer {
       g.rect(marquee.x * CELL_PX, marquee.y * CELL_PX, marquee.w * CELL_PX, marquee.h * CELL_PX)
         .fill({ color: SELECT_COLOR, alpha: 0.12 })
         .stroke({ color: SELECT_COLOR, width: 1.5 * px });
+    }
+
+    const { selectedWalls, wallPreview, wallVertex } = this.overlayState;
+    const seg = (s: SegmentF) =>
+      g.moveTo(s.x1 * CELL_PX, s.y1 * CELL_PX).lineTo(s.x2 * CELL_PX, s.y2 * CELL_PX);
+    for (const s of selectedWalls ?? []) {
+      seg(s).stroke({
+        color: SELECT_COLOR,
+        width: CELL_PX * 0.14 + 6 * px,
+        cap: 'round',
+        alpha: 0.6,
+      });
+    }
+    for (const s of wallPreview ?? []) {
+      seg(s).stroke({ color: PREVIEW_COLOR, width: CELL_PX * 0.1, cap: 'round', alpha: 0.75 });
+    }
+    if (wallVertex) {
+      g.circle(wallVertex.x * CELL_PX, wallVertex.y * CELL_PX, 6 * px)
+        .fill({ color: 0xffffff })
+        .stroke({ color: PREVIEW_COLOR, width: 2.5 * px });
     }
 
     const first = ruler[0];

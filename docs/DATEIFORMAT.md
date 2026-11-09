@@ -2,24 +2,26 @@
 
 Eine Karte wird als **ZIP-Archiv** mit der Endung `.dndmap` gespeichert:
 
-| Eintrag         | Inhalt                                                                    |
-| --------------- | ------------------------------------------------------------------------- |
-| `map.json`      | Kartendokument (UTF-8, JSON) – Pflicht                                    |
-| `assets/…`      | eingebettete Dateien, z. B. `assets/custom/<id>.png` für eigene Elemente  |
-| `recovery.json` | nur in Autosave-Dateien: `{ "savedAt": ISO-Zeit, "filePath": Pfad/null }` |
+| Eintrag         | Inhalt                                                                                        |
+| --------------- | --------------------------------------------------------------------------------------------- |
+| `map.json`      | Kartendokument (UTF-8, JSON) – Pflicht                                                        |
+| `assets/…`      | eingebettete Dateien: `custom/<id>.png` (eigene Elemente), `background/<id>.jpg` (Kartenbild) |
+| `recovery.json` | nur in Autosave-Dateien: `{ "savedAt": ISO-Zeit, "filePath": Pfad/null }`                     |
 
 Bilder in `assets/` werden unkomprimiert abgelegt (sie sind bereits komprimiert), `map.json`
 mit Deflate. Unbekannte Einträge werden beim Laden ignoriert.
 
-## `map.json` – Version 2 (aktuell)
+## `map.json` – Version 3 (aktuell)
 
-JSON-Schema: [`schema/map.v2.schema.json`](schema/map.v2.schema.json)
-(Version 1: [`schema/map.v1.schema.json`](schema/map.v1.schema.json), wird beim Laden migriert).
+JSON-Schema: [`schema/map.v3.schema.json`](schema/map.v3.schema.json)
+(ältere Versionen: [`v2`](schema/map.v2.schema.json), [`v1`](schema/map.v1.schema.json) –
+werden beim Laden migriert). Version 3 ergänzt gegenüber Version 2 das optionale
+`background.image` und die Liste `walls` (siehe unten).
 
 ```json
 {
   "format": "dndmap",
-  "version": 2,
+  "version": 3,
   "id": "0b6f8c1e-…",
   "name": "Taverne zum Grünen Drachen",
   "createdAt": "2026-11-09T10:00:00.000Z",
@@ -98,6 +100,48 @@ magentafarbener Platzhalter angezeigt.
 Feld (z. B. Wände blockieren Bewegung und Sicht, tiefes Wasser ist schwieriges Gelände) plus
 gemaltes Gelände. Bei der Deckung gilt die stärkste Stufe.
 
+### Hintergrundbild (`background.image`, optional)
+
+```json
+"background": {
+  "color": "#d9cfb8",
+  "image": {
+    "asset": "background/3fa1….jpg",
+    "width": 3000, "height": 2400, "rotation": 0,
+    "cellPx": 60, "originX": 22, "originY": 22,
+    "crop": { "x": 0, "y": 0, "w": 3000, "h": 2400 },
+    "brightness": 1, "contrast": 0
+  }
+}
+```
+
+| Feld              | Bedeutung                                                                         |
+| ----------------- | --------------------------------------------------------------------------------- |
+| `asset`           | Bilddatei unter `assets/` (Original, unverändert)                                 |
+| `width/height`    | Größe des Originalbilds in px (ungedreht), je ≤ 16 384                            |
+| `rotation`        | 0/90/180/270; alle folgenden Pixelangaben beziehen sich auf das **gedrehte** Bild |
+| `cellPx`          | Pixel pro Feld (2–4000)                                                           |
+| `originX/originY` | Bildposition der linken oberen Ecke von Feld (1, 1)                               |
+| `crop`            | sichtbarer Ausschnitt in px                                                       |
+| `brightness`      | 0,2–3 (1 = unverändert); `contrast` −1…1 (0 = unverändert)                        |
+
+Darstellung: Bildpixel `p` liegt bei Feldkoordinate `(p − origin) / cellPx`. Sichtbar ist der
+Schnitt aus Zuschnitt und Kartenfläche.
+
+### Kantenwände (`walls`)
+
+```json
+"walls": [
+  { "id": "w1", "x1": 4, "y1": 3, "x2": 9, "y2": 3, "kind": "wall" },
+  { "id": "w2", "x1": 9, "y1": 3, "x2": 10, "y2": 3, "kind": "door", "state": "locked" }
+]
+```
+
+Koordinaten in Feldern (ganzzahlig = Rasterlinie; frei platzierte Wände auch gebrochen),
+0…cols bzw. 0…rows. `kind`: `wall` (blockiert Bewegung und Sicht), `window` (blockiert nur
+Bewegung), `door`/`secret` mit `state` `closed`/`open`/`locked` (offen = blockiert nichts).
+`state` ist nur bei Türen erlaubt.
+
 ## Versionierung und Migration
 
 - Jede inkompatible Änderung erhöht `version`.
@@ -108,6 +152,7 @@ gemaltes Gelände. Bei der Deckung gilt die stärkste Stufe.
 - Beim Laden werden unbekannte Felder verworfen; gespeichert wird immer die aktuelle Version.
 - **v1 → v2**: ergänzt Ebenen (alle sichtbar, entsperrt), leere Bodenkacheln, keine Objekte,
   kein Gelände, keine Notizen, keine eigenen Elemente.
+- **v2 → v3**: ergänzt eine leere Wandliste; ältere Karten haben kein Hintergrundbild.
 
 ## Speichern und Wiederherstellung
 

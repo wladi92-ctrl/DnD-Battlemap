@@ -26,8 +26,14 @@ export function migrateV1toV2(doc: RawDocument): RawDocument {
   };
 }
 
+/** v2 → v3: Kantenwände (leer); Hintergrundbild ist optional und fehlt bei alten Karten. */
+export function migrateV2toV3(doc: RawDocument): RawDocument {
+  return { ...doc, version: 3, walls: [] };
+}
+
 export const migrations: Readonly<Record<number, Migration>> = {
   1: migrateV1toV2,
+  2: migrateV2toV3,
 };
 
 export function migrate(

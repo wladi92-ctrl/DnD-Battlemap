@@ -12,6 +12,8 @@ export function mimeForAsset(path: string): string {
       return 'image/webp';
     case 'gif':
       return 'image/gif';
+    case 'bmp':
+      return 'image/bmp';
     default:
       return 'image/png';
   }
@@ -34,6 +36,10 @@ export function looksLikeImage(bytes: Uint8Array, ext: string): boolean {
       return starts(0xff, 0xd8, 0xff);
     case 'webp':
       return starts(0x52, 0x49, 0x46, 0x46) && bytes[8] === 0x57 && bytes[9] === 0x45;
+    case 'bmp':
+      return starts(0x42, 0x4d);
+    case 'gif':
+      return starts(0x47, 0x49, 0x46, 0x38);
     case 'svg': {
       const head = new TextDecoder().decode(bytes.subarray(0, 2048)).toLowerCase();
       return head.includes('<svg');

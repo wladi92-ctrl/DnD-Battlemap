@@ -4,15 +4,14 @@ Offline-Desktop-Anwendung für interaktive D&D-5e-Kampfkarten: Karten aus Elemen
 Bilder importieren und kalibrieren, Kreaturen als Tokens bewegen, Effektbereiche feldgenau
 anzeigen. Regelinhalte ausschließlich aus dem **SRD 5.1 (CC-BY-4.0)**.
 
-> **Entwicklungsstand: Phase 3 von 10 – Karteneditor.**
-> Enthalten: Elementbibliothek mit 165 selbst gezeichneten Elementen in 10 Kategorien (Suche,
-> eigene PNG/SVG-Elemente), Werkzeuge Auswahl/Pinsel/Rechteck/Linie/Füllen/Radierer/GM-Notiz,
-> Ebenen (Boden, Wände/Objekte, Dekoration, GM-Notizen; sichtbar/sperrbar), Drehen/Spiegeln/
-> Kopieren/Ausrichten, Geländeeigenschaften pro Feld, Raumvorlagen und Zufallsverliese per Seed,
-> Undo/Redo (500 Schritte).
-> Aus Phase 1–2: Raster, Zoom/Pan, Lineal mit drei Diagonalregeln, `.dndmap`-Dateien, Autosave,
-> Absturz-Wiederherstellung, Einstellungen, Offline-Absicherung, CI, Installer.
-> Bildimport, Tokens, Effekte, Kampf usw. folgen in den nächsten Phasen.
+> **Entwicklungsstand: Phase 4 von 10 – Bildimport & Kalibrierung.**
+> Neu: Kartenbilder (JPG, PNG, WebP, BMP, GIF) per Dialog oder Drag & Drop importieren,
+> Raster kalibrieren (Feldgröße/Versatz, zwei Punkte, automatische Erkennung, Live-Vorschau),
+> drehen, zuschneiden, Helligkeit/Kontrast; Bilder bis 16 384 px pro Seite mit Detailstufen;
+> Kantenwände, Türen (offen/geschlossen/verschlossen), Fenster und Geheimtüren nachzeichnen.
+> Aus Phase 1–3: Karteneditor mit 165 Elementen, Ebenen, Gelände, Vorlagen, Undo/Redo, Raster,
+> Lineal, `.dndmap`-Dateien, Autosave, Wiederherstellung, Offline-Absicherung, CI, Installer.
+> Tokens, Effekte, Kampf usw. folgen in den nächsten Phasen.
 
 ## Voraussetzungen
 
@@ -141,6 +140,27 @@ Linealdistanz, Kartengröße, die aktive Diagonalregel und ungespeicherte Änder
   das Werkzeug an (Rechteck/Linie: Eingabe am Start und am Ende).
 - **Rückgängig/Wiederholen**: `Strg+Z` / `Strg+Y` (bis 500 Schritte; ein Pinselstrich ist ein Schritt).
 
+**Bildimport** („Bild importieren …“ oder Datei ins Fenster ziehen; eine `.dndmap` wird dabei
+geöffnet): JPG, PNG, WebP, BMP, GIF (erstes Bild), bis 200 MB und 16 384 px pro Seite. Im
+Kalibrierungsdialog:
+
+- **Raster ziehen** (Maus) oder mit Pfeiltasten verschieben (Umschalt: 10 px); gelb markiert
+  Feld 1, 1. Mausrad/`+`/`−` zoomt, `0` passt ein, rechte Maustaste verschiebt die Ansicht.
+- **Feldgröße** in Pixeln eingeben, **Automatisch erkennen** (Autokorrelation der Rasterlinien,
+  Ergebnis mit Deutlichkeit) oder **Zwei Punkte …**: zwei Rasterkreuzungen anklicken und die
+  Zahl der Felder dazwischen angeben.
+- **Drehen** in 90°-Schritten, **Zuschnitt** in Pixeln, **Helligkeit/Kontrast**.
+- Ergebnis: Kartengröße in Feldern (auf 10–200 begrenzt, mit Hinweis).
+
+Später unter „Hintergrundbild“: anderes Bild wählen, **Kalibrieren …** (Kartengröße optional
+anpassen), entfernen, Helligkeit/Kontrast – alles rückgängig machbar.
+
+**Wand zeichnen** (`W`): Klicks setzen Eckpunkte einer Kette (Einrasten auf Rasterkreuzungen;
+ohne „Am Raster einrasten“ auf 1/16 Feld), Doppelklick, rechte Maustaste oder `Esc` beendet.
+Art: Wand, Tür, Fenster, Geheimtür. Per Tastatur setzt `Eingabe` einen Punkt an der linken
+oberen Ecke des Fokusfeldes. Mit der **Auswahl** lassen sich Wände anklicken oder per Rahmen
+wählen, verschieben, löschen und in Art/Türzustand ändern; `D` öffnet bzw. schließt Türen.
+
 **Lineal** (`R`): Mit gedrückter Maustaste ziehen; `Leertaste` während des Ziehens setzt einen
 Wegpunkt. Per Tastatur: Kartenansicht fokussieren, mit Pfeiltasten das Fokusfeld bewegen,
 `Eingabe` startet bzw. setzt Wegpunkte, `Esc` beendet; ein zweites `Esc` löscht die Messung.
@@ -157,6 +177,7 @@ Wegpunkte hinweg weiter (wie bei einer zusammenhängenden Bewegung).
 | `H` / `R`                                     | Werkzeug Verschieben / Lineal                             |
 | `Q` / `Y` / `Entf`                            | Drehen / Spiegeln / Löschen                               |
 | `G` / `T`                                     | Raster / Gelände ein/aus                                  |
+| `W` / `D`                                     | Wand zeichnen / Tür öffnen-schließen                      |
 | `+` / `-` / `0`                               | Vergrößern / Verkleinern / Einpassen                      |
 | Mausrad                                       | Zoomen am Mauszeiger                                      |
 | Pfeiltasten                                   | Fokusfeld bewegen (Kartenansicht fokussiert)              |
@@ -192,33 +213,40 @@ enthalten (per Test erzwungen). Neue Sprache: JSON-Datei anlegen und in `src/i18
 
 ## Annahmen und Entscheidungen
 
-| Thema                   | Entscheidung                                                                                                                                        | Begründung                                                               |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| Canvas2D-Fallback       | Eingebauter Canvas-Renderer von PixiJS 8 (`preference: ['webgl','canvas']`)                                                                         | Keine zweite Render-Implementierung nötig                                |
-| Einstellungs-Persistenz | `localStorage` der WebView für reine UI-Einstellungen                                                                                               | Klein, lokal, robust gegen Fehler; Projektdaten kommen in Dateien/SQLite |
-| i18n                    | Eigene schlanke Lösung statt i18next                                                                                                                | Keine Laufzeitabhängigkeit, Schlüssel typisiert                          |
-| WebView2                | Standard: Bootstrapper (nur aktiv, wenn WebView2 fehlt); zusätzlich Offline-Variante mit eingebetteter Runtime                                      | Kleiner Standard-Installer, trotzdem echte Offline-Option                |
-| NSIS-Installer          | Installation pro Benutzer (keine Admin-Rechte nötig)                                                                                                | Einfacher für Spielrunden-Rechner                                        |
-| Lizenzliste             | Wird lazy geladen (eigener Chunk)                                                                                                                   | ~1,5 MB Text, soll den App-Start nicht verlangsamen                      |
-| SRD-Attribution         | Englischer Originalwortlaut                                                                                                                         | Von Wizards of the Coast vorgegebene Formulierung                        |
-| Standard-Diagonalregel  | 5e-Standard (jede Diagonale 5 ft), umschaltbar                                                                                                      | PHB-Regel; DMG-Variante und euklidisch als Option                        |
-| Messpunkte              | Lineal misst Feldmitte zu Feldmitte                                                                                                                 | Entspricht dem Zählen von Feldern bei Bewegung                           |
-| Meter-Umrechnung        | 1 ft = 0,3 m (5 ft = 1,5 m)                                                                                                                         | Konvention deutscher Regelwerke statt exakter 0,3048                     |
-| Euklidische Distanz     | Anzeige auf eine Nachkommastelle                                                                                                                    | Ungerundete Werte sind am Tisch unpraktisch                              |
-| Koordinaten             | Anzeige 1-basiert („Feld 1, 1“ oben links), intern 0-basiert                                                                                        | Natürlicher für Menschen                                                 |
-| Raster bei kleinem Zoom | Linien werden unter ~14 px Feldgröße ausgeblendet                                                                                                   | Bei 200×200 und Zoom 5 % wäre das Raster nur Rauschen                    |
-| Rendering               | Nur bei Änderungen (kein Dauer-Ticker)                                                                                                              | Spart CPU/GPU und Akku im Leerlauf                                       |
-| Dateien lesen/schreiben | Eigene Rust-Commands mit Binär-IPC statt fs-Plugin; atomares Schreiben                                                                              | Schnell bei großen Karten, kein Datenverlust bei Absturz                 |
-| JSON-Validierung        | Handgeschriebener Validator, JSON-Schema als Doku; Test hält beide synchron                                                                         | Schema-Compiler (ajv) braucht `eval`, das die CSP verbietet              |
-| Browser-Dev-Modus       | Öffnen per Dateiauswahl, Speichern als Download, Autosave in IndexedDB                                                                              | Frontend bleibt ohne Tauri testbar                                       |
-| Undo/Redo               | Umkehrbare Patches; Bodenkacheln/Gelände zellweise, Rest als Ganzes; 500 Schritte; Schieberegler werden innerhalb 1 s zusammengefasst               | Wenig Speicher auch bei 200×200, ein Strich = ein Schritt                |
-| Ebenen                  | Boden, Wände/Objekte, Dekoration, GM-Notizen. Tokens, Effekte und Nebel kommen mit ihren Phasen hinzu                                               | Keine leeren Ebenen ohne Funktion                                        |
-| Wände im Editor         | Feldbasierte Wand-Elemente (blockieren Bewegung + Sicht); Kantenwände zum Nachzeichnen importierter Karten folgen in Phase 4                        | Für gebaute Karten natürlicher, für Bildimport genauer                   |
-| Geländevorgaben         | Elemente bringen Vorschläge mit (Wand blockiert, tiefes Wasser = schwierig, Tisch = halbe Deckung, Lava = Feuerschaden …); gemaltes Gelände ergänzt | Spielleitungs-Heuristik, keine Regeldaten; jederzeit pro Feld ergänzbar  |
-| Füllen                  | Nur Böden und Gelände; Region = zusammenhängender gleicher Boden (4er-Nachbarschaft)                                                                | Objekte flächig zu füllen ist selten sinnvoll                            |
-| Eigene Elemente         | Pro Karte gespeichert (Bild in der `.dndmap`). Eine kartenübergreifende Bibliothek folgt mit SQLite in Phase 5                                      | Karten bleiben eigenständig weitergebbar                                 |
-| Bibliotheksgrafiken     | 165 selbst erzeugte SVGs, beim Start einmal in Texturen (128 px/Feld) gerastert                                                                     | Keine fremden Assets, scharf bis Zoom 200 %                              |
-| Performance             | Bodenkacheln in 16×16-Blöcken mit Culling, Rendern nur bei Änderungen                                                                               | Ausgelegt für 200×200 (40 000 Kacheln); FPS-Messung folgt in Phase 10    |
+| Thema                     | Entscheidung                                                                                                                                          | Begründung                                                                                                                   |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Canvas2D-Fallback         | Eingebauter Canvas-Renderer von PixiJS 8 (`preference: ['webgl','canvas']`)                                                                           | Keine zweite Render-Implementierung nötig                                                                                    |
+| Einstellungs-Persistenz   | `localStorage` der WebView für reine UI-Einstellungen                                                                                                 | Klein, lokal, robust gegen Fehler; Projektdaten kommen in Dateien/SQLite                                                     |
+| i18n                      | Eigene schlanke Lösung statt i18next                                                                                                                  | Keine Laufzeitabhängigkeit, Schlüssel typisiert                                                                              |
+| WebView2                  | Standard: Bootstrapper (nur aktiv, wenn WebView2 fehlt); zusätzlich Offline-Variante mit eingebetteter Runtime                                        | Kleiner Standard-Installer, trotzdem echte Offline-Option                                                                    |
+| NSIS-Installer            | Installation pro Benutzer (keine Admin-Rechte nötig)                                                                                                  | Einfacher für Spielrunden-Rechner                                                                                            |
+| Lizenzliste               | Wird lazy geladen (eigener Chunk)                                                                                                                     | ~1,5 MB Text, soll den App-Start nicht verlangsamen                                                                          |
+| SRD-Attribution           | Englischer Originalwortlaut                                                                                                                           | Von Wizards of the Coast vorgegebene Formulierung                                                                            |
+| Standard-Diagonalregel    | 5e-Standard (jede Diagonale 5 ft), umschaltbar                                                                                                        | PHB-Regel; DMG-Variante und euklidisch als Option                                                                            |
+| Messpunkte                | Lineal misst Feldmitte zu Feldmitte                                                                                                                   | Entspricht dem Zählen von Feldern bei Bewegung                                                                               |
+| Meter-Umrechnung          | 1 ft = 0,3 m (5 ft = 1,5 m)                                                                                                                           | Konvention deutscher Regelwerke statt exakter 0,3048                                                                         |
+| Euklidische Distanz       | Anzeige auf eine Nachkommastelle                                                                                                                      | Ungerundete Werte sind am Tisch unpraktisch                                                                                  |
+| Koordinaten               | Anzeige 1-basiert („Feld 1, 1“ oben links), intern 0-basiert                                                                                          | Natürlicher für Menschen                                                                                                     |
+| Raster bei kleinem Zoom   | Linien werden unter ~14 px Feldgröße ausgeblendet                                                                                                     | Bei 200×200 und Zoom 5 % wäre das Raster nur Rauschen                                                                        |
+| Rendering                 | Nur bei Änderungen (kein Dauer-Ticker)                                                                                                                | Spart CPU/GPU und Akku im Leerlauf                                                                                           |
+| Dateien lesen/schreiben   | Eigene Rust-Commands mit Binär-IPC statt fs-Plugin; atomares Schreiben                                                                                | Schnell bei großen Karten, kein Datenverlust bei Absturz                                                                     |
+| JSON-Validierung          | Handgeschriebener Validator, JSON-Schema als Doku; Test hält beide synchron                                                                           | Schema-Compiler (ajv) braucht `eval`, das die CSP verbietet                                                                  |
+| Browser-Dev-Modus         | Öffnen per Dateiauswahl, Speichern als Download, Autosave in IndexedDB                                                                                | Frontend bleibt ohne Tauri testbar                                                                                           |
+| Undo/Redo                 | Umkehrbare Patches; Bodenkacheln/Gelände zellweise, Rest als Ganzes; 500 Schritte; Schieberegler werden innerhalb 1 s zusammengefasst                 | Wenig Speicher auch bei 200×200, ein Strich = ein Schritt                                                                    |
+| Ebenen                    | Boden, Wände/Objekte, Dekoration, GM-Notizen. Tokens, Effekte und Nebel kommen mit ihren Phasen hinzu                                                 | Keine leeren Ebenen ohne Funktion                                                                                            |
+| Wände im Editor           | Zwei Arten: feldbasierte Wand-Elemente (aus der Bibliothek) und Kantenwände entlang von Rasterlinien (Wand-Werkzeug); beide blockieren Bewegung/Sicht | Für gebaute Karten natürlicher, für importierte Karten genauer                                                               |
+| Kantenwände-Logik         | Wand, Fenster (blockiert nur Bewegung), Tür/Geheimtür (blockiert, außer offen); diagonales Durchquetschen an Wandecken ist blockiert                  | Wird ab Phase 5 (Bewegung) und 6/8 (Wirkungs-/Sichtlinie) genutzt                                                            |
+| Bildgrößen                | Bis 16 384 px pro Seite, 200 MB; Übersicht ≤ 2048 px immer, 2048er-Kacheln mit Mipmaps erst beim Hineinzoomen                                         | Spart Grafikspeicher; auch 8000×8000 bleibt handhabbar                                                                       |
+| Rastererkennung           | Läuft auf einer auf ≤ 1200 px verkleinerten Probe; Versatz daher auf ±(Verkleinerung) px genau                                                        | Schnell; Feinjustierung per Pfeiltasten vorgesehen                                                                           |
+| Zwei-Punkte-Messung       | Feldgröße = längere Achse ÷ Felderzahl; Punkt A liegt danach auf einer Rasterlinie                                                                    | Typischerweise klickt man zwei Kreuzungen in einer Reihe                                                                     |
+| Kartengröße aus Bild      | Ganze Felder ab dem Ursprung innerhalb des Zuschnitts, begrenzt auf 10–200                                                                            | Teilfelder am Rand werden ausgeblendet                                                                                       |
+| PDF-Import, Wanderkennung | Nicht umgesetzt (in der Vorgabe optional)                                                                                                             | PDF bräuchte pdf.js (~1 MB, eigener Worker); Kantenerkennung wäre unzuverlässig – Nachzeichnen ist schneller als Korrigieren |
+| Drag & Drop in Tauri      | Natives Drag & Drop von Tauri ist abgeschaltet (`dragDropEnabled: false`), damit HTML5-Drop mit Dateiinhalt funktioniert                              | Ein Pfad für Desktop und Browser                                                                                             |
+| Geländevorgaben           | Elemente bringen Vorschläge mit (Wand blockiert, tiefes Wasser = schwierig, Tisch = halbe Deckung, Lava = Feuerschaden …); gemaltes Gelände ergänzt   | Spielleitungs-Heuristik, keine Regeldaten; jederzeit pro Feld ergänzbar                                                      |
+| Füllen                    | Nur Böden und Gelände; Region = zusammenhängender gleicher Boden (4er-Nachbarschaft)                                                                  | Objekte flächig zu füllen ist selten sinnvoll                                                                                |
+| Eigene Elemente           | Pro Karte gespeichert (Bild in der `.dndmap`). Eine kartenübergreifende Bibliothek folgt mit SQLite in Phase 5                                        | Karten bleiben eigenständig weitergebbar                                                                                     |
+| Bibliotheksgrafiken       | 165 selbst erzeugte SVGs, beim Start einmal in Texturen (128 px/Feld) gerastert                                                                       | Keine fremden Assets, scharf bis Zoom 200 %                                                                                  |
+| Performance               | Bodenkacheln in 16×16-Blöcken mit Culling, Rendern nur bei Änderungen                                                                                 | Ausgelegt für 200×200 (40 000 Kacheln); FPS-Messung folgt in Phase 10                                                        |
 
 ## Testprotokoll
 

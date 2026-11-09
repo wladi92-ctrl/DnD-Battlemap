@@ -4,10 +4,17 @@
  */
 import { GRID_MAX, GRID_MIN } from '../core/grid';
 import { isCategoryId } from '../data/elements/categories';
+import type { DoorState, WallKind } from '../core/walls';
 import { ProjectFileError } from './errors';
 import {
   COVER_LEVELS,
   DAMAGE_TYPES,
+  DOOR_STATES,
+  IMAGE_MAX_SIDE,
+  WALL_KINDS,
+  type BackgroundImage,
+  type EdgeWall,
+  type ImageRotation,
   ELEMENT_SIZE_MAX,
   ELEVATION_LIMIT,
   FEET_PER_CELL_MAX,
@@ -35,6 +42,8 @@ import { migrate, type RawDocument } from './migrations';
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
 const ASSET_PATH = /^custom\/[A-Za-z0-9._-]{1,100}$/;
+const BACKGROUND_PATH = /^background\/[A-Za-z0-9._-]{1,100}$/;
+const WALLS_MAX = 50_000;
 const ID_MAX = 100;
 const OBJECTS_MAX = 100_000;
 /** Maximale Anzahl gemeldeter Einzelfehler (große Karten sollen nicht tausende liefern). */
@@ -250,6 +259,75 @@ function checkCustomElements(c: Checker, raw: unknown): CustomElement[] {
   return out;
 }
 
+function checkBackgroundImage(c: Checker, raw: unknown): BackgroundImage | undefined {
+  if (raw === undefined) return undefined;
+  const p = 'background.image';
+  const i = c.object(raw, p);
+  const crop = c.object(i.crop, `${p}.crop`);
+  const ok = [
+    c.string(i.asset, `${p}.asset`, { pattern: BACKGROUND_PATH }),
+    c.number(i.width, `${p}.width`, 1, IMAGE_MAX_SIDE, true),
+    c.number(i.height, `${p}.height`, 1, IMAGE_MAX_SIDE, true),
+    c.oneOf(i.rotation, `${p}.rotation`, ROTATIONS),
+    c.number(i.cellPx, `${p}.cellPx`, 2, 4000),
+    c.number(i.originX, `${p}.originX`, -IMAGE_MAX_SIDE, IMAGE_MAX_SIDE),
+    c.number(i.originY, `${p}.originY`, -IMAGE_MAX_SIDE, IMAGE_MAX_SIDE),
+    c.number(crop.x, `${p}.crop.x`, 0, IMAGE_MAX_SIDE),
+    c.number(crop.y, `${p}.crop.y`, 0, IMAGE_MAX_SIDE),
+    c.number(crop.w, `${p}.crop.w`, 1, IMAGE_MAX_SIDE),
+    c.number(crop.h, `${p}.crop.h`, 1, IMAGE_MAX_SIDE),
+    c.number(i.brightness, `${p}.brightness`, 0.2, 3),
+    c.number(i.contrast, `${p}.contrast`, -1, 1),
+  ].every(Boolean);
+  if (!ok) return undefined;
+  return {
+    asset: i.asset as string,
+    width: i.width as number,
+    height: i.height as number,
+    rotation: i.rotation as ImageRotation,
+    cellPx: i.cellPx as number,
+    originX: i.originX as number,
+    originY: i.originY as number,
+    crop: { x: crop.x as number, y: crop.y as number, w: crop.w as number, h: crop.h as number },
+    brightness: i.brightness as number,
+    contrast: i.contrast as number,
+  };
+}
+
+function checkWalls(c: Checker, raw: unknown, cols: number, rows: number): EdgeWall[] {
+  const list = c.array(raw, 'walls', WALLS_MAX);
+  const ids = new Set<string>();
+  const out: EdgeWall[] = [];
+  list.forEach((entry, i) => {
+    const p = `walls[${i}]`;
+    const w = c.object(entry, p);
+    const door = w.kind === 'door' || w.kind === 'secret';
+    const ok = [
+      c.string(w.id, `${p}.id`, { min: 1, max: ID_MAX }),
+      c.number(w.x1, `${p}.x1`, 0, cols),
+      c.number(w.y1, `${p}.y1`, 0, rows),
+      c.number(w.x2, `${p}.x2`, 0, cols),
+      c.number(w.y2, `${p}.y2`, 0, rows),
+      c.oneOf(w.kind, `${p}.kind`, WALL_KINDS),
+      w.state === undefined ||
+        (door ? c.oneOf(w.state, `${p}.state`, DOOR_STATES) : c.fail(`${p}.state: nur bei Türen`)),
+    ].every(Boolean);
+    if (ok && ids.has(w.id as string)) return void c.fail(`${p}.id: doppelt`);
+    if (!ok) return;
+    ids.add(w.id as string);
+    out.push({
+      id: w.id as string,
+      x1: w.x1 as number,
+      y1: w.y1 as number,
+      x2: w.x2 as number,
+      y2: w.y2 as number,
+      kind: w.kind as WallKind,
+      ...(w.state !== undefined ? { state: w.state as DoorState } : {}),
+    });
+  });
+  return out;
+}
+
 /** Prüft, migriert und liefert ein gültiges Kartendokument. */
 export function parseMapDocument(raw: unknown): MapDocument {
   if (!isObject(raw)) throw new ProjectFileError('invalidContent', ['Wurzel: Objekt erwartet']);
@@ -272,6 +350,7 @@ export function parseMapDocument(raw: unknown): MapDocument {
 
   const background = c.object(doc.background, 'background');
   c.string(background.color, 'background.color', { pattern: HEX_COLOR });
+  const image = checkBackgroundImage(c, background.image);
 
   // Inhalte nur prüfen, wenn die Rastergröße stimmt (sonst Folgefehler).
   if (c.errors.length || !colsOk || !rowsOk) {
@@ -290,13 +369,14 @@ export function parseMapDocument(raw: unknown): MapDocument {
   const terrain = checkTerrain(c, doc.terrain, cols, rows);
   const notes = checkNotes(c, doc.notes, cols, rows);
   const customElements = checkCustomElements(c, doc.customElements);
+  const walls = checkWalls(c, doc.walls, cols, rows);
 
   if (c.errors.length) throw new ProjectFileError('invalidContent', c.errors);
 
   // Nur bekannte Felder übernehmen – unbekannte Zusatzdaten werden verworfen.
   return {
     format: MAP_FORMAT,
-    version: 2,
+    version: 3,
     id: doc.id as string,
     name: doc.name as string,
     createdAt: doc.createdAt as string,
@@ -309,12 +389,16 @@ export function parseMapDocument(raw: unknown): MapDocument {
       color: (grid.color as string).toLowerCase(),
       opacity: grid.opacity as number,
     },
-    background: { color: (background.color as string).toLowerCase() },
+    background: {
+      color: (background.color as string).toLowerCase(),
+      ...(image ? { image } : {}),
+    },
     layers,
     floor: floor as string[],
     objects,
     terrain,
     notes,
     customElements,
+    walls,
   };
 }

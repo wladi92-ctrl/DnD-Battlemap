@@ -15,7 +15,7 @@ import { sameCell, type Cell, type Point } from '../../core/grid';
 
 /** Ansichts-Werkzeuge (Verschieben, Lineal) und Editor-Werkzeuge. */
 export type Tool =
-  'pan' | 'ruler' | 'select' | 'brush' | 'rect' | 'line' | 'fill' | 'erase' | 'note';
+  'pan' | 'ruler' | 'select' | 'brush' | 'rect' | 'line' | 'fill' | 'erase' | 'note' | 'wall';
 
 export interface RulerState {
   /** Feste Punkte (Start + Wegpunkte). */
@@ -38,6 +38,8 @@ export interface ViewState {
   camera: Camera;
   viewport: Size;
   hoverCell: Cell | null;
+  /** Zeigerposition in Feldern (gebrochen), z. B. für das Wandwerkzeug. */
+  hoverPoint: Point | null;
   /** Tastatur-Fokusfeld (Pfeiltasten). */
   cursorCell: Cell | null;
   ruler: RulerState;
@@ -49,6 +51,7 @@ export interface ViewState {
   zoomAt: (screen: Point, factor: number, world: Size) => void;
   fit: (world: Size) => void;
   setHoverCell: (cell: Cell | null) => void;
+  setHoverPoint: (point: Point | null) => void;
   setCursorCell: (cell: Cell | null) => void;
 
   rulerBegin: (cell: Cell) => void;
@@ -64,6 +67,7 @@ export const useViewStore = create<ViewState>((set, get) => ({
   camera: identityCamera,
   viewport: { width: 0, height: 0 },
   hoverCell: null,
+  hoverPoint: null,
   cursorCell: null,
   ruler: emptyRuler,
 
@@ -82,6 +86,7 @@ export const useViewStore = create<ViewState>((set, get) => ({
   setHoverCell: (hoverCell) => {
     if (!sameCell(hoverCell, get().hoverCell)) set({ hoverCell });
   },
+  setHoverPoint: (hoverPoint) => set({ hoverPoint }),
   setCursorCell: (cursorCell) => set({ cursorCell }),
 
   rulerBegin: (cell) => set({ ruler: { points: [cell], preview: cell, active: true } }),

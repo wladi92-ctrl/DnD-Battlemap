@@ -3,7 +3,8 @@
  * aktive Ebene, Auswahl, Zwischenablage und Vorschau der Formwerkzeuge.
  */
 import { create } from 'zustand';
-import type { Cell } from '../../core/grid';
+import type { Cell, Point } from '../../core/grid';
+import type { WallKind } from '../../core/walls';
 import type { LayerId, PlacedObject, Rotation, TerrainProps } from '../../storage/mapDocument';
 
 export type PaintMode = 'element' | 'terrain';
@@ -37,6 +38,10 @@ export interface EditorState {
   marquee: Marquee | null;
   /** Feld, dessen Notiz gerade bearbeitet wird. */
   noteCell: Cell | null;
+  /** Art neu gezeichneter Kantenwände. */
+  wallKind: WallKind;
+  /** Bereits gesetzte Eckpunkte der aktuellen Wandkette (Feldkoordinaten). */
+  wallChain: Point[];
 
   selectElement: (id: string, layer: LayerId) => void;
   setPaintMode: (mode: PaintMode) => void;
@@ -52,6 +57,8 @@ export interface EditorState {
   setPreview: (cells: Cell[]) => void;
   setMarquee: (m: Marquee | null) => void;
   setNoteCell: (cell: Cell | null) => void;
+  setWallKind: (kind: WallKind) => void;
+  setWallChain: (chain: Point[]) => void;
   reset: () => void;
 }
 
@@ -70,6 +77,8 @@ const initial = {
   preview: [] as Cell[],
   marquee: null,
   noteCell: null,
+  wallKind: 'wall' as WallKind,
+  wallChain: [] as Point[],
 };
 
 export const useEditorStore = create<EditorState>((set) => ({
@@ -90,5 +99,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   setPreview: (preview) => set({ preview }),
   setMarquee: (marquee) => set({ marquee }),
   setNoteCell: (noteCell) => set({ noteCell }),
-  reset: () => set({ ...initial, selection: new Set(), clipboard: [], preview: [] }),
+  setWallKind: (wallKind) => set({ wallKind }),
+  setWallChain: (wallChain) => set({ wallChain }),
+  reset: () => set({ ...initial, selection: new Set(), clipboard: [], preview: [], wallChain: [] }),
 }));

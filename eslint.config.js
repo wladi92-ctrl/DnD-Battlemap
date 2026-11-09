@@ -13,6 +13,11 @@ export default tseslint.config(
     plugins: { 'react-hooks': reactHooks },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      // Felder per Rest-Syntax weglassen ist gewollt (z. B. { image: _old, ...rest }).
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { ignoreRestSiblings: true, varsIgnorePattern: '^_', argsIgnorePattern: '^_' },
+      ],
       // Netzwerk-APIs sind in der App verboten (Offline-Vorgabe).
       'no-restricted-globals': [
         'error',

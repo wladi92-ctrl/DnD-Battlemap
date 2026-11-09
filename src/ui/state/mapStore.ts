@@ -221,9 +221,11 @@ export function referencedAssets(
   assets: ReadonlyMap<string, Uint8Array>,
 ): Map<string, Uint8Array> {
   const out = new Map<string, Uint8Array>();
-  for (const el of doc.customElements) {
-    const bytes = assets.get(el.asset);
-    if (bytes) out.set(el.asset, bytes);
+  const paths = doc.customElements.map((el) => el.asset);
+  if (doc.background.image) paths.push(doc.background.image.asset);
+  for (const path of paths) {
+    const bytes = assets.get(path);
+    if (bytes) out.set(path, bytes);
   }
   return out;
 }

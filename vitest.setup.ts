@@ -6,6 +6,16 @@ if (typeof URL.createObjectURL !== 'function') {
   URL.createObjectURL = () => `blob:test/${++n}`;
   URL.revokeObjectURL = () => undefined;
 }
+if (typeof Blob !== 'undefined' && typeof Blob.prototype.arrayBuffer !== 'function') {
+  Blob.prototype.arrayBuffer = function arrayBuffer(this: Blob) {
+    return new Promise<ArrayBuffer>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as ArrayBuffer);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsArrayBuffer(this);
+    });
+  };
+}
 if (typeof HTMLCanvasElement !== 'undefined') {
   HTMLCanvasElement.prototype.getContext = (() =>
     null) as typeof HTMLCanvasElement.prototype.getContext;

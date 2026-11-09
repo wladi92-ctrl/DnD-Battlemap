@@ -411,6 +411,9 @@ export function resizeGrid(doc: MapDocument, colsRaw: number, rowsRaw: number): 
     }),
   );
   const notes = doc.notes.filter((n) => n.x < cols && n.y < rows);
+  const walls = doc.walls.filter(
+    (w) => Math.max(w.x1, w.x2) <= cols && Math.max(w.y1, w.y2) <= rows,
+  );
   return done({
     whole: {
       grid: { b: doc.grid, a: { ...doc.grid, cols, rows } },
@@ -418,6 +421,7 @@ export function resizeGrid(doc: MapDocument, colsRaw: number, rowsRaw: number): 
       objects: { b: doc.objects, a: objects },
       terrain: { b: doc.terrain, a: terrain },
       notes: { b: doc.notes, a: notes },
+      walls: { b: doc.walls, a: walls },
     },
   });
 }

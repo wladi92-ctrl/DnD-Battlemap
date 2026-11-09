@@ -21,6 +21,7 @@ import {
   paste,
   rotateSelectionOrPlacement,
   selectAll,
+  toggleSelectedDoors,
   setTool,
   type Notify,
 } from './editorTools';
@@ -29,10 +30,14 @@ import { LibraryPanel } from './LibraryPanel';
 import { MapCanvas } from './MapCanvas';
 import { NewMapDialog } from './NewMapDialog';
 import { NoteDialog } from './NoteDialog';
-import { PropertiesPanel } from './PropertiesPanel';
+import { BackgroundImagePanel, PropertiesPanel } from './PropertiesPanel';
 import { StatusBar } from './StatusBar';
 import { TOOLS, Toolbar, ZOOM_STEP } from './Toolbar';
 import { useFileActions } from './useFileActions';
+import { CalibrationDialog } from '../import/CalibrationDialog';
+import { beginImageImport, pickImageImport } from '../import/useImageImport';
+import { extensionOf } from '../../storage/assets';
+import { PROJECT_EXTENSION } from '../../storage/fileAccess';
 
 export function MapWorkspace() {
   const t = useT();
@@ -40,6 +45,7 @@ export function MapWorkspace() {
   const actions = useFileActions();
   const [newOpen, setNewOpen] = useState(false);
   const [templateOpen, setTemplateOpen] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const notify: Notify = (key) => useNoticeStore.getState().push('info', t(key));
 
@@ -106,6 +112,7 @@ export function MapWorkspace() {
       const center = { x: view.viewport.width / 2, y: view.viewport.height / 2 };
       const handlers: Record<string, () => void> = {
         g: () => useMapStore.getState().updateGrid({ visible: !d.grid.visible }),
+        d: () => toggleSelectedDoors(notify),
         t: () => useEditorStore.getState().setShowTerrain(!useEditorStore.getState().showTerrain),
         q: () => rotateSelectionOrPlacement(e.shiftKey ? -1 : 1, notify),
         y: () => flipSelection(e.shiftKey ? 'y' : 'x', notify),
@@ -127,11 +134,49 @@ export function MapWorkspace() {
     return () => window.removeEventListener('keydown', onKey);
   });
 
+  const importImage = async () => {
+    if (await actions.confirmDiscard()) await pickImageImport(t, 'newMap');
+  };
+
+  // Drag & Drop: Kartenbilder werden importiert, .dndmap-Dateien geöffnet.
+  const hasFiles = (e: React.DragEvent) => [...e.dataTransfer.types].includes('Files');
+  const onDragOver = (e: React.DragEvent) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    setDragging(true);
+  };
+  const onDragLeave = (e: React.DragEvent) => {
+    if (!rootRef.current?.contains(e.relatedTarget as Node | null)) setDragging(false);
+  };
+  const onDrop = async (e: React.DragEvent) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    setDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    if (extensionOf(file.name) === PROJECT_EXTENSION) {
+      await actions.openDropped(file.name, bytes);
+    } else if (await actions.confirmDiscard()) {
+      await beginImageImport(t, { name: file.name, bytes }, 'newMap');
+    }
+  };
+
   return (
-    <div className="workspace" ref={rootRef}>
+    <div
+      className="workspace"
+      ref={rootRef}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={(e) => void onDrop(e)}
+    >
+      {dragging && <div className="drop-overlay">{t('imageImport.dropHint')}</div>}
+      <CalibrationDialog />
       <Toolbar
         onNew={() => void requestNew()}
         onOpen={() => void actions.openMap()}
+        onImportImage={() => void importImage()}
         onSave={() => void actions.save()}
         onSaveAs={() => void actions.saveAs()}
         onTemplate={() => setTemplateOpen(true)}
@@ -147,6 +192,7 @@ export function MapWorkspace() {
               <ToolOptionsPanel />
               <LayersPanel />
               <TerrainPanel />
+              <BackgroundImagePanel />
               <PropertiesPanel />
             </div>
           </div>
@@ -155,7 +201,11 @@ export function MapWorkspace() {
           {templateOpen && <GeneratorDialog onClose={() => setTemplateOpen(false)} />}
         </>
       ) : (
-        <EmptyState onNew={() => void requestNew()} onOpen={() => void actions.openMap()} />
+        <EmptyState
+          onNew={() => void requestNew()}
+          onOpen={() => void actions.openMap()}
+          onImport={() => void importImage()}
+        />
       )}
       {newOpen && (
         <NewMapDialog
@@ -170,7 +220,15 @@ export function MapWorkspace() {
   );
 }
 
-function EmptyState({ onNew, onOpen }: { onNew: () => void; onOpen: () => void }) {
+function EmptyState({
+  onNew,
+  onOpen,
+  onImport,
+}: {
+  onNew: () => void;
+  onOpen: () => void;
+  onImport: () => void;
+}) {
   const t = useT();
   const pending = useRecoveryStore((s) => s.pending);
   const locale = useSettings((s) => s.locale);
@@ -212,7 +270,11 @@ function EmptyState({ onNew, onOpen }: { onNew: () => void; onOpen: () => void }
           <button type="button" className="btn" onClick={onOpen}>
             {t('file.open')}
           </button>
+          <button type="button" className="btn" onClick={onImport}>
+            {t('imageImport.button')}
+          </button>
         </div>
+        <p className="muted small">{t('imageImport.dropHint')}</p>
         <p className="muted">{t('start.status')}</p>
         <p>
           <strong>{t('start.offline')}</strong>

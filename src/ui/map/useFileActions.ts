@@ -55,20 +55,40 @@ export function useFileActions() {
     useMapStore.getState().newMap(opts);
   }, []);
 
+  /** Lädt eine bereits gelesene .dndmap-Datei (Dialog oder Drag & Drop). */
+  const loadFile = useCallback(
+    async (file: { path: string | null; name: string; bytes: Uint8Array }) => {
+      const { doc, assets } = decodeProject(file.bytes);
+      useMapStore.getState().loadMap(doc, { path: file.path, name: file.name }, false, assets);
+      await getFileAccess()
+        .autosaveClear()
+        .catch(() => undefined);
+      useNoticeStore.getState().push('info', t('notice.opened', { name: file.name }));
+    },
+    [t],
+  );
+
   const openMap = useCallback(async () => {
     try {
       if (!(await confirmDiscard())) return;
-      const fa = getFileAccess();
-      const file = await fa.openProject(t('file.openTitle'), t('file.filterName'));
-      if (!file) return;
-      const { doc, assets } = decodeProject(file.bytes);
-      useMapStore.getState().loadMap(doc, { path: file.path, name: file.name }, false, assets);
-      await fa.autosaveClear().catch(() => undefined);
-      useNoticeStore.getState().push('info', t('notice.opened', { name: file.name }));
+      const file = await getFileAccess().openProject(t('file.openTitle'), t('file.filterName'));
+      if (file) await loadFile(file);
     } catch (e) {
       reportError(t, e);
     }
-  }, [confirmDiscard, t]);
+  }, [confirmDiscard, loadFile, t]);
+
+  /** Öffnet eine per Drag & Drop abgelegte Kartendatei. */
+  const openDropped = useCallback(
+    async (name: string, bytes: Uint8Array) => {
+      try {
+        if (await confirmDiscard()) await loadFile({ path: null, name, bytes });
+      } catch (e) {
+        reportError(t, e);
+      }
+    },
+    [confirmDiscard, loadFile, t],
+  );
 
   const saveInternal = useCallback(
     async (forceDialog: boolean): Promise<boolean> => {
@@ -133,7 +153,25 @@ export function useFileActions() {
   }, [t]);
 
   return useMemo(
-    () => ({ confirmDiscard, createMap, openMap, save, saveAs, restoreRecovery, discardRecovery }),
-    [confirmDiscard, createMap, openMap, save, saveAs, restoreRecovery, discardRecovery],
+    () => ({
+      confirmDiscard,
+      createMap,
+      openMap,
+      openDropped,
+      save,
+      saveAs,
+      restoreRecovery,
+      discardRecovery,
+    }),
+    [
+      confirmDiscard,
+      createMap,
+      openMap,
+      openDropped,
+      save,
+      saveAs,
+      restoreRecovery,
+      discardRecovery,
+    ],
   );
 }

@@ -2,17 +2,24 @@
  * Steuerung der Editor-Werkzeuge: übersetzt Zeiger- und Tastatureingaben in Operationen.
  * Unabhängig von Pixi/React, damit die Abläufe testbar sind.
  */
-import { type Cell } from '../../core/grid';
+import { type Cell, type Point } from '../../core/grid';
 import { lineCells, rectBetween, rectCells } from '../../core/shapes';
+import type { DoorState, WallKind } from '../../core/walls';
 import { resolveElement } from '../../data/elements';
 import { footprintSize } from '../../editor/footprint';
 import {
+  addWalls,
+  deleteItems,
+  moveItems,
+  updateWalls,
+  wallsInRect,
+  wallsNear,
+} from '../../editor/wallOps';
+import {
   alignObjects,
-  deleteObjects,
   eraseCells,
   fillArea,
   flipObjects,
-  moveObjects,
   objectsAt,
   objectsInRect,
   paintCells,
@@ -38,6 +45,7 @@ export const EDIT_TOOLS: readonly Tool[] = [
   'fill',
   'erase',
   'note',
+  'wall',
 ];
 
 const REASON_KEYS: Record<string, MessageKey | null> = {
@@ -140,8 +148,11 @@ export function pointerDown(
     case 'note':
       ed.setNoteCell(cell);
       return;
+    case 'wall':
+      addWallPoint(snapPoint(point), notify);
+      return;
     case 'select': {
-      const hit = objectsAt(doc, point.x, point.y)[0];
+      const hit = itemAt(point);
       if (hit) {
         const sel = new Set(ed.selection);
         if (shift) {
@@ -198,8 +209,8 @@ export function pointerMove(
       const dx = snapValue(point.x - d.start.x) - d.applied.x;
       const dy = snapValue(point.y - d.start.y) - d.applied.y;
       if (dx === 0 && dy === 0) return;
-      const r = moveObjects(doc, ed.selection, dx, dy);
-      // Am Kartenrand bleiben Objekte stehen (moveObjects begrenzt je Objekt).
+      const r = moveItems(doc, ed.selection, dx, dy);
+      // Am Kartenrand bleiben Objekte/Wände stehen (die Operationen begrenzen selbst).
       if (map.strokeApply(r) === null) d.applied = { x: d.applied.x + dx, y: d.applied.y + dy };
       return;
     }
@@ -246,7 +257,10 @@ export function pointerUp(tool: Tool, notify: Notify) {
       const m = ed.marquee;
       ed.setMarquee(null);
       if (!m) return;
-      const found = objectsInRect(doc, m).map((o) => o.id);
+      const found = [
+        ...objectsInRect(doc, m).map((o) => o.id),
+        ...wallsInRect(doc, m).map((w) => w.id),
+      ];
       ed.setSelection(d.additive ? [...ed.selection, ...found] : found);
       return;
     }
@@ -294,8 +308,13 @@ export function activateAt(tool: Tool, cell: Cell, shift: boolean, notify: Notif
     pointerDown(tool, cell, { x: cell.x + 0.5, y: cell.y + 0.5 }, false, notify);
     return;
   }
+  if (tool === 'wall') {
+    // Tastatur: Eckpunkt = linke obere Ecke des Fokusfeldes.
+    addWallPoint({ x: cell.x, y: cell.y }, notify);
+    return;
+  }
   if (tool === 'select') {
-    const hit = objectsAt(doc, cell.x + 0.5, cell.y + 0.5)[0];
+    const hit = itemAt({ x: cell.x + 0.5, y: cell.y + 0.5 });
     if (!hit) return ed.setSelection(shift ? ed.selection : []);
     const sel = new Set(shift ? ed.selection : []);
     if (ed.selection.has(hit.id) && shift) sel.delete(hit.id);
@@ -323,7 +342,7 @@ function withSelection(fn: (ids: ReadonlySet<string>) => OpResult, label: string
 export function moveSelection(dx: number, dy: number, notify: Notify): boolean {
   const doc = useMapStore.getState().doc;
   if (!doc) return false;
-  return withSelection((ids) => moveObjects(doc, ids, dx, dy), 'action.move', notify);
+  return withSelection((ids) => moveItems(doc, ids, dx, dy), 'action.move', notify);
 }
 
 /** Dreht die Auswahl – oder, ohne Auswahl, die Ausrichtung neu platzierter Objekte. */
@@ -342,7 +361,7 @@ export function flipSelection(axis: 'x' | 'y', notify: Notify) {
 
 export function deleteSelection(notify: Notify) {
   const doc = useMapStore.getState().doc;
-  if (doc && withSelection((ids) => deleteObjects(doc, ids), 'action.delete', notify)) {
+  if (doc && withSelection((ids) => deleteItems(doc, ids), 'action.delete', notify)) {
     useEditorStore.getState().setSelection([]);
   }
 }
@@ -387,10 +406,85 @@ export function duplicateSelection(notify: Notify) {
 export function selectAll() {
   const doc = useMapStore.getState().doc;
   if (!doc) return;
-  const ids = objectsInRect(doc, { x: -100, y: -100, w: 10_000, h: 10_000 })
+  const all = { x: -100, y: -100, w: 10_000, h: 10_000 };
+  const ids = objectsInRect(doc, all)
     .filter((o) => OBJECT_LAYERS.includes(o.layer))
     .map((o) => o.id);
-  useEditorStore.getState().setSelection(ids);
+  useEditorStore.getState().setSelection([...ids, ...wallsInRect(doc, all).map((w) => w.id)]);
+}
+
+// ------------------------------------------------------------------ Kantenwände
+
+/** Trefferabstand für Wände in Feldern. */
+const WALL_HIT = 0.2;
+
+/** Objekt oder Kantenwand unter einem Punkt (Objekte haben Vorrang). */
+function itemAt(p: Point): { id: string } | undefined {
+  const doc = useMapStore.getState().doc;
+  if (!doc) return undefined;
+  return objectsAt(doc, p.x, p.y)[0] ?? wallsNear(doc, p, WALL_HIT)[0];
+}
+
+/** Rastet auf Rasterkreuzungen ein (oder, ohne Snap, auf 1/16 Feld). */
+export function snapPoint(p: Point): Point {
+  const doc = useMapStore.getState().doc;
+  const snap = useEditorStore.getState().snap;
+  const r = (v: number) => (snap ? Math.round(v) : Math.round(v * 16) / 16);
+  const cols = doc?.grid.cols ?? Infinity;
+  const rows = doc?.grid.rows ?? Infinity;
+  return { x: Math.min(cols, Math.max(0, r(p.x))), y: Math.min(rows, Math.max(0, r(p.y))) };
+}
+
+/**
+ * Wandkette: erster Klick setzt den Start, jeder weitere ein Segment (ein Undo-Schritt je
+ * Segment). Ein Klick auf den letzten Punkt beendet die Kette.
+ */
+export function addWallPoint(p: Point, notify: Notify) {
+  const ed = useEditorStore.getState();
+  const map = useMapStore.getState();
+  const doc = map.doc;
+  if (!doc) return;
+  const last = ed.wallChain[ed.wallChain.length - 1];
+  if (!last) return ed.setWallChain([p]);
+  if (last.x === p.x && last.y === p.y) return endWallChain();
+  const reason = map.run(
+    addWalls(doc, [{ x1: last.x, y1: last.y, x2: p.x, y2: p.y, kind: ed.wallKind }]),
+    'action.wall',
+  );
+  report(reason, notify);
+  if (reason !== 'locked') ed.setWallChain([...ed.wallChain, p]);
+}
+
+export function endWallChain() {
+  useEditorStore.getState().setWallChain([]);
+}
+
+/** Ausgewählte Wände: Art bzw. Türzustand ändern. */
+export function updateSelectedWalls(
+  changes: { kind?: WallKind; state?: DoorState },
+  notify: Notify,
+) {
+  const doc = useMapStore.getState().doc;
+  if (doc) withSelection((ids) => updateWalls(doc, ids, changes), 'action.wallEdit', notify);
+}
+
+/** Taste D: ausgewählte Türen öffnen bzw. schließen (verschlossene werden geöffnet). */
+export function toggleSelectedDoors(notify: Notify) {
+  const doc = useMapStore.getState().doc;
+  const sel = useEditorStore.getState().selection;
+  if (!doc) return;
+  const doors = doc.walls.filter(
+    (w) => sel.has(w.id) && (w.kind === 'door' || w.kind === 'secret'),
+  );
+  if (!doors.length) return;
+  const anyClosed = doors.some((w) => w.state !== 'open');
+  const ids = new Set(doors.map((w) => w.id));
+  report(
+    useMapStore
+      .getState()
+      .run(updateWalls(doc, ids, { state: anyClosed ? 'open' : 'closed' }), 'action.wallEdit'),
+    notify,
+  );
 }
 
 /** Platzbedarf des gewählten Elements (für die Pinselvorschau), gedreht. */
@@ -408,6 +502,7 @@ export function cancelEditing() {
   ed.setShapeAnchor(null);
   ed.setPreview([]);
   ed.setMarquee(null);
+  ed.setWallChain([]);
 }
 
 export function setTool(tool: Tool) {

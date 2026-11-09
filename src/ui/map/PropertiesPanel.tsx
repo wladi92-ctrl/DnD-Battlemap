@@ -1,8 +1,86 @@
 import { useEffect, useId, useState } from 'react';
 import { GRID_MAX, GRID_MIN } from '../../core/grid';
 import { FEET_PER_CELL_MAX, FEET_PER_CELL_MIN, type GridSettings } from '../../storage/mapDocument';
+import { setBackgroundImage, updateBackgroundImage } from '../../editor/wallOps';
 import { useMapStore } from '../state/mapStore';
 import { useT } from '../useT';
+import { pickImageImport, recalibrateBackground } from '../import/useImageImport';
+
+/** Hintergrundbild: wählen, neu kalibrieren, entfernen, Helligkeit/Kontrast. */
+export function BackgroundImagePanel() {
+  const t = useT();
+  const id = useId();
+  const doc = useMapStore((s) => s.doc);
+  if (!doc) return null;
+  const img = doc.background.image;
+  const update = (changes: { brightness?: number; contrast?: number }, key: string) =>
+    useMapStore.getState().run(updateBackgroundImage(doc, changes), 'action.backgroundImage', key);
+  return (
+    <details className="panel-section" open={Boolean(img)}>
+      <summary>{t('props.bgHeading')}</summary>
+      <p className="small muted">
+        {img
+          ? t('props.bgInfo', { w: img.width, h: img.height, cell: img.cellPx })
+          : t('props.bgNone')}
+      </p>
+      <div className="button-grid">
+        <button type="button" className="btn" onClick={() => void pickImageImport(t, 'background')}>
+          {t('props.bgImport')}
+        </button>
+        {img && (
+          <button type="button" className="btn" onClick={() => void recalibrateBackground(t)}>
+            {t('props.bgRecalibrate')}
+          </button>
+        )}
+        {img && (
+          <button
+            type="button"
+            className="btn"
+            onClick={() =>
+              useMapStore
+                .getState()
+                .run(setBackgroundImage(doc, undefined, false), 'action.backgroundImage')
+            }
+          >
+            {t('props.bgRemove')}
+          </button>
+        )}
+      </div>
+      {img && (
+        <div className="bg-sliders">
+          <div className="panel-field">
+            <label htmlFor={`${id}-b`}>
+              {t('calibrate.brightness', { percent: Math.round(img.brightness * 100) })}
+            </label>
+            <input
+              id={`${id}-b`}
+              type="range"
+              min={0.2}
+              max={2}
+              step={0.05}
+              value={img.brightness}
+              onChange={(e) => update({ brightness: Number(e.target.value) }, 'bg:brightness')}
+            />
+          </div>
+          <div className="panel-field">
+            <label htmlFor={`${id}-c`}>
+              {t('calibrate.contrast', { percent: Math.round(img.contrast * 100) })}
+            </label>
+            <input
+              id={`${id}-c`}
+              type="range"
+              min={-0.8}
+              max={0.8}
+              step={0.05}
+              value={img.contrast}
+              onChange={(e) => update({ contrast: Number(e.target.value) }, 'bg:contrast')}
+            />
+          </div>
+        </div>
+      )}
+    </details>
+  );
+}
 
 /**
  * Zahlen-/Textfeld, das erst bei Enter oder Verlassen übernimmt

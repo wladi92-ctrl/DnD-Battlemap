@@ -501,6 +501,13 @@ export function placeStamp(doc: MapDocument, stamp: Stamp, at: Cell, replace: bo
     if (notes.length !== doc.notes.length) {
       patch.whole = { ...patch.whole, notes: { b: doc.notes, a: notes } };
     }
+    // Kantenwände vollständig im Bereich entfernen.
+    const inside = (x: number, y: number) =>
+      x >= at.x && x <= at.x + stamp.w && y >= at.y && y <= at.y + stamp.h;
+    const walls = doc.walls.filter((w) => !(inside(w.x1, w.y1) && inside(w.x2, w.y2)));
+    if (walls.length !== doc.walls.length) {
+      patch.whole = { ...patch.whole, walls: { b: doc.walls, a: walls } };
+    }
   }
   return isEmptyPatch(patch) ? { ok: false, reason: 'nothing' } : { ok: true, patch };
 }

@@ -1,5 +1,5 @@
 import Ajv from 'ajv';
-import schema from '../../docs/schema/map.v2.schema.json';
+import schema from '../../docs/schema/map.v3.schema.json';
 import { strToU8, zipSync } from 'fflate';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { startAutosave } from './autosave';
@@ -74,6 +74,26 @@ const richSample = (): MapDocument => {
         asset: 'custom/0123abcd.png',
       },
     ],
+    background: {
+      color: d.background.color,
+      image: {
+        asset: 'background/karte.jpg',
+        width: 2000,
+        height: 1400,
+        rotation: 90,
+        cellPx: 70,
+        originX: 12.5,
+        originY: 3,
+        crop: { x: 0, y: 0, w: 1400, h: 2000 },
+        brightness: 1.2,
+        contrast: -0.1,
+      },
+    },
+    walls: [
+      { id: 'w1', x1: 1, y1: 1, x2: 5, y2: 1, kind: 'wall' },
+      { id: 'w2', x1: 5, y1: 1, x2: 5, y2: 2, kind: 'door', state: 'locked' },
+      { id: 'w3', x1: 5, y1: 2, x2: 5.5, y2: 3.25, kind: 'window' },
+    ],
   };
 };
 
@@ -91,7 +111,9 @@ describe('Kartendokument', () => {
     const doc = createMap({ name: '  ', cols: 5, rows: 999, feetPerCell: 0 });
     expect(doc.name).toBe('Neue Karte');
     expect(doc.grid).toMatchObject({ cols: 10, rows: 200, feetPerCell: 1, visible: true });
-    expect(doc.version).toBe(2);
+    expect(doc.version).toBe(3);
+    expect(doc.walls).toEqual([]);
+    expect(doc.background.image).toBeUndefined();
     expect(doc.floor).toHaveLength(10 * 200);
     expect(doc.layers.map((l) => l.id)).toEqual(['floor', 'walls', 'decor', 'gm']);
   });
@@ -131,7 +153,18 @@ describe('Projektdatei (.dndmap)', () => {
     expect(loaded.assets.get('custom/0123abcd.png')).toEqual(new Uint8Array([137, 80, 78, 71]));
   });
 
-  it('Version-1-Dateien werden auf Version 2 migriert', () => {
+  it('Version-2-Dateien werden auf Version 3 migriert', () => {
+    const { walls: _walls, ...v2 } = {
+      ...richSample(),
+      version: 2,
+      background: { color: '#ffffff' },
+    };
+    const doc = decodeProject(zipSync({ 'map.json': strToU8(JSON.stringify(v2)) })).doc;
+    expect(doc).toMatchObject({ version: 3, walls: [], background: { color: '#ffffff' } });
+    expect(doc.objects).toHaveLength(3);
+  });
+
+  it('Version-1-Dateien werden über v2 auf Version 3 migriert', () => {
     const v1 = {
       format: 'dndmap',
       version: 1,
@@ -144,11 +177,12 @@ describe('Projektdatei (.dndmap)', () => {
     };
     const doc = decodeProject(zipSync({ 'map.json': strToU8(JSON.stringify(v1)) })).doc;
     expect(doc).toMatchObject({
-      version: 2,
+      version: 3,
       name: 'Alte Karte',
       objects: [],
       notes: [],
       terrain: {},
+      walls: [],
     });
     expect(doc.floor).toHaveLength(120);
     expect(doc.layers).toHaveLength(4);
@@ -244,6 +278,17 @@ describe('Validierung', () => {
       mutate((d) => (d.customElements[0].asset = '../../etc/passwd')),
       mutate((d) => (d.customElements[0].id = 'kein-prefix')),
       mutate((d) => (d.floor[5] = 42)),
+      mutate((d) => (d.background.image.cellPx = 1)),
+      mutate((d) => (d.background.image.rotation = 45)),
+      mutate((d) => (d.background.image.asset = 'custom/x.png')),
+      mutate((d) => (d.background.image.brightness = 5)),
+      mutate((d) => delete d.background.image.crop),
+      mutate((d) => delete d.background.image),
+      mutate((d) => (d.walls[0].kind = 'zaun')),
+      mutate((d) => (d.walls[0].state = 'open')),
+      mutate((d) => (d.walls[1].state = 'ajar')),
+      mutate((d) => (d.walls[2].x2 = -1)),
+      mutate((d) => delete d.walls),
     ];
     for (const c of cases) {
       let ours = true;

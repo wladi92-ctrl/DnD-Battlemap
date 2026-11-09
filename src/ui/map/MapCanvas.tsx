@@ -30,6 +30,8 @@ import {
   activateAt,
   cancelEditing,
   cursorMoved,
+  endWallChain,
+  snapPoint,
   EDIT_TOOLS,
   isDragging,
   moveSelection,
@@ -70,6 +72,23 @@ function buildOverlay(): OverlayState {
     placement,
     selection,
     marquee: ed.marquee,
+    selectedWalls: doc ? doc.walls.filter((w) => ed.selection.has(w.id)) : [],
+    ...wallOverlay(tool),
+  };
+}
+
+/** Einrastpunkt und Vorschau der Wandkette (letzter Punkt → Zeiger). */
+function wallOverlay(tool: string): Pick<OverlayState, 'wallPreview' | 'wallVertex'> {
+  if (tool !== 'wall') return { wallPreview: [], wallVertex: null };
+  const view = useViewStore.getState();
+  const chain = useEditorStore.getState().wallChain;
+  const cursor = view.cursorCell;
+  const raw = view.hoverPoint ?? (cursor ? { x: cursor.x, y: cursor.y } : null);
+  const vertex = raw ? snapPoint(raw) : null;
+  const last = chain[chain.length - 1];
+  return {
+    wallVertex: vertex,
+    wallPreview: last && vertex ? [{ x1: last.x, y1: last.y, x2: vertex.x, y2: vertex.y }] : [],
   };
 }
 
@@ -82,6 +101,7 @@ const HINTS: Partial<Record<string, MessageKey[]>> = {
   fill: ['hint.fill'],
   erase: ['hint.erase'],
   note: ['hint.note'],
+  wall: ['hint.wall'],
 };
 
 export function MapCanvas() {
@@ -173,7 +193,9 @@ export function MapCanvas() {
         s.hoverCell !== prev.hoverCell ||
         s.cursorCell !== prev.cursorCell ||
         s.ruler !== prev.ruler ||
-        s.tool !== prev.tool
+        s.tool !== prev.tool ||
+        // Gebrochene Zeigerposition nur fürs Wandwerkzeug (Einrastpunkt/Vorschau).
+        (s.tool === 'wall' && s.hoverPoint !== prev.hoverPoint)
       ) {
         pushOverlay();
       }
@@ -186,7 +208,8 @@ export function MapCanvas() {
         s.marquee !== prev.marquee ||
         s.elementId !== prev.elementId ||
         s.rotation !== prev.rotation ||
-        s.paintMode !== prev.paintMode
+        s.paintMode !== prev.paintMode ||
+        s.wallChain !== prev.wallChain
       ) {
         pushOverlay();
       }
@@ -238,6 +261,11 @@ export function MapCanvas() {
     hostRef.current?.focus();
     const p = localPoint(e);
     const view = useViewStore.getState();
+    // Rechte Maustaste beendet beim Wandzeichnen die Kette statt zu verschieben.
+    if (e.button === 2 && tool === 'wall' && useEditorStore.getState().wallChain.length) {
+      endWallChain();
+      return;
+    }
     const panGesture =
       e.button === 1 || e.button === 2 || (e.button === 0 && (tool === 'pan' || spaceRef.current));
     if (panGesture) {
@@ -260,6 +288,7 @@ export function MapCanvas() {
     const view = useViewStore.getState();
     const cell = cellAt(p);
     view.setHoverCell(inBounds(cell, doc.grid) ? cell : null);
+    if (tool === 'wall') view.setHoverPoint(cellPoint(p));
     const drag = dragRef.current;
     if (drag?.kind === 'pan') {
       view.panBy(p.x - drag.last.x, p.y - drag.last.y, world);
@@ -340,7 +369,8 @@ export function MapCanvas() {
       return;
     }
     if (e.key === 'Escape') {
-      if (view.ruler.active) view.rulerEnd();
+      if (ed.wallChain.length) endWallChain();
+      else if (view.ruler.active) view.rulerEnd();
       else if (view.ruler.points.length) view.rulerClear();
       else if (ed.shapeAnchor || isDragging()) cancelEditing();
       else if (ed.selection.size) ed.setSelection([]);
@@ -367,7 +397,13 @@ export function MapCanvas() {
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
-        onPointerLeave={() => useViewStore.getState().setHoverCell(null)}
+        onPointerLeave={() => {
+          useViewStore.getState().setHoverCell(null);
+          useViewStore.getState().setHoverPoint(null);
+        }}
+        onDoubleClick={() => {
+          if (tool === 'wall') endWallChain();
+        }}
         onContextMenu={(e) => e.preventDefault()}
         onKeyDown={onKeyDown}
         onKeyUp={onKeyUp}

@@ -15,7 +15,12 @@ export interface OpenedFile {
   bytes: Uint8Array;
 }
 
+/** Bildformate für eigene Elemente. */
 export const IMAGE_EXTENSIONS = ['png', 'svg', 'webp', 'jpg', 'jpeg'] as const;
+/** Bildformate für importierte Karten (GIF: erstes Bild). */
+export const MAP_IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'bmp', 'gif'] as const;
+/** Obergrenze für Kartenbilder (Bytes). */
+export const MAP_IMAGE_MAX_BYTES = 200 * 1024 * 1024;
 /** Obergrenze für importierte Bilder (Bytes). */
 export const IMAGE_MAX_BYTES = 20 * 1024 * 1024;
 
@@ -23,7 +28,11 @@ export interface FileAccess {
   /** Zeigt "Öffnen"-Dialog; null bei Abbruch. */
   openProject(title: string, filterName: string): Promise<OpenedFile | null>;
   /** Bilddatei wählen und lesen; null bei Abbruch. */
-  openImage(title: string, filterName: string): Promise<OpenedFile | null>;
+  openImage(
+    title: string,
+    filterName: string,
+    extensions?: readonly string[],
+  ): Promise<OpenedFile | null>;
   /**
    * Speichert unter `path`; ist `path` null, wird ein "Speichern unter"-Dialog gezeigt.
    * Liefert den verwendeten Pfad bzw. Dateinamen oder null bei Abbruch.
@@ -88,13 +97,13 @@ export function createTauriFileAccess(): FileAccess {
       const data = await ioError(() => invoke<ArrayBuffer>('read_file', { path }));
       return { path, name: baseName(path), bytes: toBytes(data) };
     },
-    async openImage(title, filterName) {
+    async openImage(title, filterName, extensions = IMAGE_EXTENSIONS) {
       const { open } = await dialog();
       const path = await open({
         title,
         multiple: false,
         directory: false,
-        filters: [{ name: filterName, extensions: [...IMAGE_EXTENSIONS] }],
+        filters: [{ name: filterName, extensions: [...extensions] }],
       });
       if (typeof path !== 'string') return null;
       const data = await ioError(() => invoke<ArrayBuffer>('read_file', { path }));
@@ -174,8 +183,8 @@ export function createBrowserFileAccess(): FileAccess {
       if (!file) return null;
       return { path: null, name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) };
     },
-    async openImage() {
-      const file = await pickFile(IMAGE_EXTENSIONS.map((e) => `.${e}`).join(','));
+    async openImage(_title, _filterName, extensions = IMAGE_EXTENSIONS) {
+      const file = await pickFile(extensions.map((e) => `.${e}`).join(','));
       if (!file) return null;
       return { path: null, name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) };
     },

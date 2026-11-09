@@ -12,6 +12,7 @@ const paths: Record<IconName, string> = {
   fill: 'M5 11l7-7 7 7-7 7zM19 15c1 1.5 2 3 2 4a2 2 0 0 1-4 0c0-1 1-2.5 2-4z',
   erase: 'M3 15l9-9 8 8-6 6H8zM8 20h13',
   note: 'M5 3h10l4 4v14H5zM15 3v4h4M8 11h8M8 15h8',
+  wall: 'M4 20V8l8-4 8 4v12M4 12h16M12 4v16',
   ruler: 'M3 17L17 3l4 4L7 21zM7 13l2 2M10 10l2 2M13 7l2 2',
   undo: 'M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3',
   redo: 'M15 14l5-5-5-5M20 9H10a6 6 0 0 0 0 12h3',

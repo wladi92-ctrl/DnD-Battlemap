@@ -4,13 +4,15 @@ interface ModalProps {
   title: string;
   onClose: () => void;
   children: ReactNode;
+  /** Breiter Dialog (z. B. Kalibrierung mit Vorschau). */
+  wide?: boolean;
 }
 
 const FOCUSABLE =
   'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea, [tabindex]:not([tabindex="-1"])';
 
 /** Barrierearmer Dialog: fängt den Fokus, schließt mit Esc, stellt den Fokus wieder her. */
-export function Modal({ title, onClose, children }: ModalProps) {
+export function Modal({ title, onClose, children, wide = false }: ModalProps) {
   const ref = useRef<HTMLDivElement>(null);
   const titleId = useId();
 
@@ -45,7 +47,7 @@ export function Modal({ title, onClose, children }: ModalProps) {
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div
         ref={ref}
-        className="modal"
+        className={wide ? 'modal modal-wide' : 'modal'}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
