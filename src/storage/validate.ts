@@ -7,7 +7,18 @@ import { isCategoryId } from '../data/elements/categories';
 import type { DoorState, WallKind } from '../core/walls';
 import { CONDITION_IDS, SIZE_CATEGORIES, type SizeCategory } from '../data/srd/creatures';
 import { ProjectFileError } from './errors';
+import { AOE_SHAPES, WALL_MODES, type AoeShape, type WallMode } from '../core/aoe';
+import { parseDice } from '../core/dice';
 import {
+  DICE_TEXT_MAX,
+  EFFECT_CELLS_MAX,
+  EFFECT_SIZE_MAX,
+  EFFECT_TRIGGERS,
+  EFFECTS_MAX,
+  SAVE_ABILITIES,
+  type EffectTrigger,
+  type MapEffect,
+  type SaveAbility,
   TEAMS,
   type Team,
   type Token,
@@ -435,6 +446,108 @@ function checkTokens(c: Checker, raw: unknown, cols: number, rows: number): Toke
   return out;
 }
 
+function checkEffects(
+  c: Checker,
+  raw: unknown,
+  cols: number,
+  rows: number,
+  tokenIds: ReadonlySet<string>,
+): MapEffect[] {
+  const list = c.array(raw, 'effects', EFFECTS_MAX);
+  const ids = new Set<string>();
+  const out: MapEffect[] = [];
+  list.forEach((entry, i) => {
+    const p = `effects[${i}]`;
+    const e = c.object(entry, p);
+    const origin = c.object(e.origin, `${p}.origin`);
+    const save = e.save === undefined ? undefined : c.object(e.save, `${p}.save`);
+    const cells =
+      e.cells === undefined ? undefined : c.array(e.cells, `${p}.cells`, EFFECT_CELLS_MAX);
+    const ok = [
+      c.string(e.id, `${p}.id`, { min: 1, max: ID_MAX }),
+      c.string(e.name, `${p}.name`, { min: 1, max: NAME_MAX }),
+      c.oneOf(e.shape, `${p}.shape`, AOE_SHAPES),
+      c.number(e.size, `${p}.size`, 0, EFFECT_SIZE_MAX),
+      e.width === undefined || c.number(e.width, `${p}.width`, 1, EFFECT_SIZE_MAX),
+      c.number(origin.x, `${p}.origin.x`, 0, cols),
+      c.number(origin.y, `${p}.origin.y`, 0, rows),
+      c.number(e.angle, `${p}.angle`, 0, 359.999),
+      !cells ||
+        cells.every((q, k) => {
+          const ok2 =
+            Array.isArray(q) &&
+            q.length === 2 &&
+            Number.isInteger(q[0]) &&
+            Number.isInteger(q[1]) &&
+            (q[0] as number) >= 0 &&
+            (q[1] as number) >= 0 &&
+            (q[0] as number) < cols &&
+            (q[1] as number) < rows;
+          return ok2 || c.fail(`${p}.cells[${k}]: Feld [x, y] innerhalb der Karte erwartet`);
+        }),
+      e.attachedTo === undefined ||
+        c.string(e.attachedTo, `${p}.attachedTo`, { min: 1, max: ID_MAX }),
+      c.string(e.color, `${p}.color`, { pattern: HEX_COLOR }),
+      e.damageType === undefined || c.oneOf(e.damageType, `${p}.damageType`, DAMAGE_TYPES),
+      c.oneOf(e.wallMode, `${p}.wallMode`, WALL_MODES),
+      e.rounds === null || c.number(e.rounds, `${p}.rounds`, 0, 1_000_000, true),
+      c.boolean(e.concentration, `${p}.concentration`),
+      c.oneOf(e.trigger, `${p}.trigger`, EFFECT_TRIGGERS),
+      !save ||
+        (c.oneOf(save.ability, `${p}.save.ability`, SAVE_ABILITIES) &&
+          c.number(save.dc, `${p}.save.dc`, 1, 40, true) &&
+          c.boolean(save.half, `${p}.save.half`)),
+      e.damage === undefined ||
+        (c.string(e.damage, `${p}.damage`, { min: 1, max: DICE_TEXT_MAX }) &&
+          (parseDice(e.damage as string) !== null ||
+            c.fail(`${p}.damage: Würfelausdruck erwartet`))),
+      e.source === undefined || c.string(e.source, `${p}.source`, { min: 1, max: ID_MAX }),
+      e.notes === undefined || c.string(e.notes, `${p}.notes`, { max: NOTE_MAX }),
+      c.boolean(e.hidden, `${p}.hidden`),
+    ].every(Boolean);
+    if (ok && ids.has(e.id as string)) return void c.fail(`${p}.id: doppelt`);
+    if (!ok) return;
+    ids.add(e.id as string);
+    const attached = e.attachedTo as string | undefined;
+    out.push({
+      id: e.id as string,
+      name: e.name as string,
+      shape: e.shape as AoeShape,
+      size: e.size as number,
+      ...(e.width !== undefined ? { width: e.width as number } : {}),
+      origin: { x: origin.x as number, y: origin.y as number },
+      angle: e.angle as number,
+      ...(cells
+        ? { cells: (cells as [number, number][]).map(([x, y]) => [x, y] as [number, number]) }
+        : {}),
+      // Verweis auf ein nicht (mehr) vorhandenes Token wird verworfen: Effekt bleibt am Ursprung.
+      ...(attached && tokenIds.has(attached) ? { attachedTo: attached } : {}),
+      color: (e.color as string).toLowerCase(),
+      ...(e.damageType !== undefined ? { damageType: e.damageType as DamageType } : {}),
+      wallMode: e.wallMode as WallMode,
+      rounds: e.rounds as number | null,
+      concentration: e.concentration as boolean,
+      trigger: e.trigger as EffectTrigger,
+      ...(save
+        ? {
+            save: {
+              ability: save.ability as SaveAbility,
+              dc: save.dc as number,
+              half: save.half as boolean,
+            },
+          }
+        : {}),
+      ...(e.damage !== undefined
+        ? { damage: parseDice(e.damage as string)?.text ?? (e.damage as string) }
+        : {}),
+      ...(e.source !== undefined ? { source: e.source as string } : {}),
+      ...(e.notes !== undefined ? { notes: e.notes as string } : {}),
+      hidden: e.hidden as boolean,
+    });
+  });
+  return out;
+}
+
 /** Prüft, migriert und liefert ein gültiges Kartendokument. */
 export function parseMapDocument(raw: unknown): MapDocument {
   if (!isObject(raw)) throw new ProjectFileError('invalidContent', ['Wurzel: Objekt erwartet']);
@@ -478,13 +591,14 @@ export function parseMapDocument(raw: unknown): MapDocument {
   const customElements = checkCustomElements(c, doc.customElements);
   const walls = checkWalls(c, doc.walls, cols, rows);
   const tokens = checkTokens(c, doc.tokens, cols, rows);
+  const effects = checkEffects(c, doc.effects, cols, rows, new Set(tokens.map((t) => t.id)));
 
   if (c.errors.length) throw new ProjectFileError('invalidContent', c.errors);
 
   // Nur bekannte Felder übernehmen – unbekannte Zusatzdaten werden verworfen.
   return {
     format: MAP_FORMAT,
-    version: 4,
+    version: 5,
     id: doc.id as string,
     name: doc.name as string,
     createdAt: doc.createdAt as string,
@@ -509,5 +623,6 @@ export function parseMapDocument(raw: unknown): MapDocument {
     customElements,
     walls,
     tokens,
+    effects,
   };
 }

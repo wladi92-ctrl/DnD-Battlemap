@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { COVERAGE_RULES, type CoverageRule } from '../core/aoe';
 import { diagonalRules, type DiagonalRule } from '../core/distance';
 import { locales, isLocale, type MessageKey } from '../i18n';
 import {
@@ -100,6 +101,20 @@ export function SettingsPage() {
             {diagonalRules.map((r) => (
               <option key={r} value={r}>
                 {t(`rule.${r}` as MessageKey)}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor={`${id}-cov`}>{t('settings.coverageRule')}</label>
+          <select
+            id={`${id}-cov`}
+            value={s.coverageRule}
+            onChange={(e) => s.setCoverageRule(e.target.value as CoverageRule)}
+          >
+            {COVERAGE_RULES.map((r) => (
+              <option key={r} value={r}>
+                {t(`coverage.${r}` as MessageKey)}
               </option>
             ))}
           </select>

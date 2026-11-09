@@ -44,6 +44,7 @@ import {
   tokenAt,
   tokenDragMove,
 } from './tokenTools';
+import { aoePointerDown, aoePointerMove, effectAt, effectsInRect } from './effectTools';
 
 export type Notify = (key: MessageKey, params?: Record<string, string | number>) => void;
 
@@ -56,6 +57,7 @@ export const EDIT_TOOLS: readonly Tool[] = [
   'erase',
   'note',
   'wall',
+  'effect',
 ];
 
 const REASON_KEYS: Record<string, MessageKey | null> = {
@@ -98,7 +100,7 @@ function snapValue(v: number): number {
 // ------------------------------------------------------------------ Zeiger
 
 interface DragState {
-  kind: 'paint' | 'erase' | 'shape' | 'move' | 'marquee' | 'token';
+  kind: 'paint' | 'erase' | 'shape' | 'move' | 'marquee' | 'token' | 'aoe';
   lastCell: Cell;
   start: { x: number; y: number };
   /** Bereits angewendete Verschiebung beim Bewegen. */
@@ -167,6 +169,10 @@ export function pointerDown(
     case 'wall':
       addWallPoint(snapPoint(point), notify);
       return;
+    case 'effect':
+      aoePointerDown(point, notify);
+      drag = { kind: 'aoe', ...base };
+      return;
     case 'select': {
       // Tokens liegen über Objekten und Wänden und haben Vorrang.
       const token = tokenAt(point);
@@ -183,7 +189,7 @@ export function pointerDown(
         drag = { kind: 'token', ...base };
         return;
       }
-      const hit = itemAt(point);
+      const hit = effectAt(doc, point) ?? itemAt(point);
       if (hit) {
         const sel = new Set(ed.selection);
         if (shift) {
@@ -248,6 +254,9 @@ export function pointerMove(
     case 'token':
       tokenDragMove(point);
       return;
+    case 'aoe':
+      aoePointerMove(point, true);
+      return;
     case 'marquee':
       ed.setMarquee({
         x: Math.min(d.start.x, point.x),
@@ -298,6 +307,7 @@ export function pointerUp(tool: Tool, notify: Notify) {
         ...objectsInRect(doc, m).map((o) => o.id),
         ...wallsInRect(doc, m).map((w) => w.id),
         ...tokensInRect(m),
+        ...effectsInRect(doc, m),
       ];
       ed.setSelection(d.additive ? [...ed.selection, ...found] : found);
       return;
@@ -355,9 +365,18 @@ export function activateAt(tool: Tool, cell: Cell, shift: boolean, notify: Notif
     addWallPoint({ x: cell.x, y: cell.y }, notify);
     return;
   }
+  if (tool === 'effect') {
+    // Tastatur: Rasterkreuzung = linke obere Ecke des Fokusfeldes, sonst Feldmitte.
+    const snap = ed.aoe?.originSnap;
+    aoePointerDown(
+      snap === 'vertex' ? { x: cell.x, y: cell.y } : { x: cell.x + 0.5, y: cell.y + 0.5 },
+      notify,
+    );
+    return;
+  }
   if (tool === 'select') {
     const center = { x: cell.x + 0.5, y: cell.y + 0.5 };
-    const hit = tokenAt(center) ?? itemAt(center);
+    const hit = tokenAt(center) ?? effectAt(doc, center) ?? itemAt(center);
     if (!hit) return ed.setSelection(shift ? ed.selection : []);
     const sel = new Set(shift ? ed.selection : []);
     if (ed.selection.has(hit.id) && shift) sel.delete(hit.id);
@@ -369,6 +388,7 @@ export function activateAt(tool: Tool, cell: Cell, shift: boolean, notify: Notif
 /** Nimmt die Formvorschau bei bewegtem Fokusfeld mit. */
 export function cursorMoved(tool: Tool, cell: Cell) {
   const ed = useEditorStore.getState();
+  if (tool === 'effect') aoePointerMove({ x: cell.x + 0.5, y: cell.y + 0.5 });
   if ((tool === 'rect' || tool === 'line') && ed.shapeAnchor)
     ed.setPreview(shapeCells(tool, ed.shapeAnchor, cell));
 }
@@ -464,7 +484,12 @@ export function selectAll() {
     .map((o) => o.id);
   useEditorStore
     .getState()
-    .setSelection([...ids, ...wallsInRect(doc, all).map((w) => w.id), ...tokensInRect(all)]);
+    .setSelection([
+      ...ids,
+      ...wallsInRect(doc, all).map((w) => w.id),
+      ...tokensInRect(all),
+      ...effectsInRect(doc, all),
+    ]);
 }
 
 /** Tokens, die ein Rechteck (in Feldern) schneiden; ausgeblendete/gesperrte Ebene → keine. */
@@ -572,6 +597,8 @@ export function cancelEditing() {
   ed.setPreview([]);
   ed.setMarquee(null);
   ed.setWallChain([]);
+  // Laufende Effekt-Platzierung verwerfen (Vorlage bleibt gewählt).
+  if (ed.aoePhase.origin || ed.aoePhase.cells.length) ed.setAoePhase({ origin: null, cells: [] });
 }
 
 export function setTool(tool: Tool) {

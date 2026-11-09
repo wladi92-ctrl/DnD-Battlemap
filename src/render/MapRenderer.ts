@@ -4,7 +4,7 @@
  *
  * Ebenen (von unten): Hintergrundfarbe → Hintergrundbild → Boden → Raster → Wände/Objekte
  * (inkl. Kantenwände) → Dekoration → Gelände-Overlay → Bewegungsreichweite → Tokens →
- * GM-Notizen → Overlay.
+ * Effekte → GM-Notizen → Overlay.
  * Bodenkacheln liegen in 16×16-Blöcken, die außerhalb des Sichtbereichs ausgeblendet werden.
  */
 import 'pixi.js/unsafe-eval';
@@ -30,6 +30,7 @@ import {
 } from '../storage/mapDocument';
 import { BackgroundImageLayer } from './backgroundImage';
 import { TokenLayer, type ConditionLabel } from './tokenLayer';
+import { EffectLayer, type EffectVisual } from './effectLayer';
 import { RENDERER_PREFERENCE } from './graphicsSupport';
 import { ElementTextures, TEXTURE_PX_PER_CELL } from './textures';
 
@@ -73,6 +74,8 @@ export interface OverlayState {
   movePath?: readonly Cell[];
   /** true = Weg übersteigt die Restbewegung (rot). */
   moveOver?: boolean;
+  /** Vom Effekt betroffene Tokens (Vorschau), hervorgehoben. */
+  targets?: readonly CellRectF[];
   /** Nahkampfreichweiten ausgewählter Tokens (Rechtecke in Feldern). */
   reach?: readonly CellRectF[];
 }
@@ -156,6 +159,7 @@ export class MapRenderer {
   private readonly edgeWalls = new Graphics();
   private readonly rangeGfx = new Graphics();
   private readonly tokens: TokenLayer;
+  private readonly effects = new EffectLayer();
   private readonly bgImage: BackgroundImageLayer;
 
   private readonly textures: ElementTextures;
@@ -190,6 +194,7 @@ export class MapRenderer {
       this.terrainLayer,
       this.rangeGfx,
       this.tokens.container,
+      this.effects.container,
       this.notesLayer,
       this.overlay,
     );
@@ -293,6 +298,7 @@ export class MapRenderer {
     this.objectLayers.decor.visible = layerState(doc, 'decor').visible;
     this.notesLayer.visible = layerState(doc, 'gm').visible;
     this.tokens.container.visible = layerState(doc, 'tokens').visible;
+    this.effects.container.visible = layerState(doc, 'effects').visible;
     this.requestRender();
   }
 
@@ -300,6 +306,12 @@ export class MapRenderer {
     this.showTerrain = show;
     this.terrainLayer.visible = show;
     if (show) this.drawTerrain();
+    this.requestRender();
+  }
+
+  /** Dauerhafte Effekte und Vorschau (betroffene Felder berechnet die UI). */
+  setEffects(items: readonly EffectVisual[]): void {
+    this.effects.set(items, this.map?.cols ?? 1);
     this.requestRender();
   }
 
@@ -315,6 +327,7 @@ export class MapRenderer {
     this.world.position.set(camera.x, camera.y);
     this.world.scale.set(camera.zoom);
     this.bgImage.setZoom(camera.zoom);
+    this.effects.setZoom(camera.zoom);
     if (zoomChanged) {
       this.applyGridAlpha();
       this.drawOverlay(); // Linienstärken sind zoomabhängig
@@ -334,6 +347,7 @@ export class MapRenderer {
     cancelAnimationFrame(this.frame);
     this.bgImage.destroy();
     this.tokens.destroy();
+    this.effects.destroy();
     this.app.destroy(true, { children: true });
     this.textures.destroy();
   }
@@ -655,6 +669,19 @@ export class MapRenderer {
         color: PREVIEW_COLOR,
         width: 2 * px,
         alpha: 0.9,
+      });
+    }
+
+    for (const r of this.overlayState.targets ?? []) {
+      g.roundRect(
+        r.x * CELL_PX + 3 * px,
+        r.y * CELL_PX + 3 * px,
+        r.w * CELL_PX - 6 * px,
+        r.h * CELL_PX - 6 * px,
+        6 * px,
+      ).stroke({
+        color: 0xff8c00,
+        width: 4 * px,
       });
     }
 

@@ -2,14 +2,15 @@
  * Kartendokument – Inhalt von map.json in einer .dndmap-Datei.
  * Das Format ist versioniert; Änderungen erhöhen MAP_FORMAT_VERSION und erhalten
  * eine Migration in migrations.ts. Beschreibung: docs/DATEIFORMAT.md,
- * JSON-Schema: docs/schema/map.v4.schema.json.
+ * JSON-Schema: docs/schema/map.v5.schema.json.
  */
+import type { AoeShape, WallMode } from '../core/aoe';
 import { clampGridDimension } from '../core/grid';
 import type { DoorState, WallKind } from '../core/walls';
 import type { SizeCategory } from '../data/srd/creatures';
 
 export const MAP_FORMAT = 'dndmap';
-export const MAP_FORMAT_VERSION = 4;
+export const MAP_FORMAT_VERSION = 5;
 
 export const FEET_PER_CELL_MIN = 1;
 export const FEET_PER_CELL_MAX = 100;
@@ -31,8 +32,8 @@ export interface GridSettings {
 }
 
 /** Ebenen von unten nach oben. Effekte und Nebel folgen in späteren Phasen. */
-export type LayerId = 'floor' | 'walls' | 'decor' | 'tokens' | 'gm';
-export const LAYER_IDS: readonly LayerId[] = ['floor', 'walls', 'decor', 'tokens', 'gm'];
+export type LayerId = 'floor' | 'walls' | 'decor' | 'tokens' | 'effects' | 'gm';
+export const LAYER_IDS: readonly LayerId[] = ['floor', 'walls', 'decor', 'tokens', 'effects', 'gm'];
 /** Ebenen, auf denen Objekte (statt Bodenkacheln) liegen. */
 export type ObjectLayerId = 'walls' | 'decor';
 export const OBJECT_LAYERS: readonly ObjectLayerId[] = ['walls', 'decor'];
@@ -214,6 +215,54 @@ export interface Token {
   pc?: { className: string; level: number };
 }
 
+export type SaveAbility = 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha';
+export const SAVE_ABILITIES: readonly SaveAbility[] = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
+
+/** Hinweis, wann ein dauerhafter Effekt eine Kreatur trifft. */
+export type EffectTrigger = 'none' | 'enter' | 'turnStart' | 'both';
+export const EFFECT_TRIGGERS: readonly EffectTrigger[] = ['none', 'enter', 'turnStart', 'both'];
+export const EFFECTS_MAX = 500;
+export const EFFECT_SIZE_MAX = 5000;
+export const EFFECT_CELLS_MAX = 40000;
+export const DICE_TEXT_MAX = 60;
+
+/**
+ * Dauerhafter Flächeneffekt auf der Karte (Wolke, Zone, Aura). Die betroffenen Felder werden
+ * nicht gespeichert, sondern aus Form, Ursprung, Wänden und Flächenregel berechnet.
+ */
+export interface MapEffect {
+  id: string;
+  name: string;
+  shape: AoeShape;
+  /** Größe in ft (Radius, Länge, Kante, Abstand – je nach Form). */
+  size: number;
+  /** Linienbreite in ft. */
+  width?: number;
+  /** Ursprung in Feldkoordinaten. */
+  origin: { x: number; y: number };
+  /** Richtung in Grad (0 = Osten, 90 = Süden). */
+  angle: number;
+  /** Freie Fläche: Felder [x, y]. */
+  cells?: [number, number][];
+  /** Aura folgt diesem Token. */
+  attachedTo?: string;
+  color: string;
+  damageType?: DamageType;
+  wallMode: WallMode;
+  /** Verbleibende Runden; null = unbegrenzt. */
+  rounds: number | null;
+  concentration: boolean;
+  trigger: EffectTrigger;
+  save?: { ability: SaveAbility; dc: number; half: boolean };
+  /** Schaden als Würfelausdruck, z. B. "5d8". */
+  damage?: string;
+  /** Herkunft aus der Effektbibliothek (z. B. "spell.cloudkill"). */
+  source?: string;
+  notes?: string;
+  /** Vor Spielern verborgen. */
+  hidden: boolean;
+}
+
 export const WALL_KINDS: readonly WallKind[] = ['wall', 'door', 'window', 'secret'];
 export const DOOR_STATES: readonly DoorState[] = ['closed', 'open', 'locked'];
 export const IMAGE_MAX_SIDE = 16384;
@@ -239,6 +288,8 @@ export interface MapDocument {
   walls: EdgeWall[];
   /** Figuren auf der Ebene "Tokens". */
   tokens: Token[];
+  /** Dauerhafte Flächeneffekte auf der Ebene "Effekte". */
+  effects: MapEffect[];
 }
 
 export interface NewMapOptions {
@@ -321,6 +372,7 @@ export function createMap(opts: NewMapOptions, now = new Date()): MapDocument {
     customElements: [],
     walls: [],
     tokens: [],
+    effects: [],
   };
 }
 

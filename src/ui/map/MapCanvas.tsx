@@ -44,6 +44,8 @@ import {
 import { SIZE_CELLS } from '../../data/srd/creatures';
 import { tokenCells } from '../../editor/tokens';
 import { moveRangeFor, selectedTokens, stepSelectedTokens } from './tokenTools';
+import { aoePointerMove, cancelAoe, effectVisuals, previewResult } from './effectTools';
+import { effectLabel } from '../creatures/effectLabels';
 
 const KEY_PAN_PX = 64;
 const WHEEL_ZOOM_SPEED = 0.0015;
@@ -92,7 +94,20 @@ function buildOverlay(): OverlayState {
     selectedWalls: doc ? doc.walls.filter((w) => ed.selection.has(w.id)) : [],
     ...wallOverlay(tool),
     ...tokenOverlay(tool),
+    targets: aoeTargets(tool),
   };
+}
+
+/** Tokens im Vorschaubereich des Effekt-Werkzeugs (zum Hervorheben). */
+function aoeTargets(tool: string): NonNullable<OverlayState['targets']> {
+  const doc = useMapStore.getState().doc;
+  if (!doc || tool !== 'effect') return [];
+  const prev = previewResult(doc);
+  if (!prev) return [];
+  return prev.tokens.map((tk) => {
+    const s = Math.max(1, SIZE_CELLS[tk.size]);
+    return { x: tk.x, y: tk.y, w: s, h: s };
+  });
 }
 
 /** Bewegungsreichweite, gezogener Weg und Nahkampfreichweite der ausgewählten Tokens. */
@@ -145,6 +160,7 @@ const HINTS: Partial<Record<string, MessageKey[]>> = {
   erase: ['hint.erase'],
   note: ['hint.note'],
   wall: ['hint.wall'],
+  effect: ['hint.effect'],
 };
 
 export function MapCanvas() {
@@ -221,7 +237,21 @@ export function MapCanvas() {
       if (d) r.setDocument(d, assets);
     };
     const pushOverlay = () => r.setOverlay(buildOverlay());
+    const pushEffects = () => {
+      const d = useMapStore.getState().doc;
+      if (!d) return;
+      const ed = useEditorStore.getState();
+      r.setEffects(
+        effectVisuals(
+          d,
+          ed.selection,
+          (e) => effectLabel(t, e),
+          useViewStore.getState().tool === 'effect',
+        ),
+      );
+    };
     pushDoc();
+    pushEffects();
     r.setConditionLabel((id) => t(`condShort.${id}` as MessageKey));
     r.setShowTerrain(useEditorStore.getState().showTerrain);
     r.setCamera(useViewStore.getState().camera);
@@ -230,10 +260,12 @@ export function MapCanvas() {
       if (s.doc !== prev.doc || s.assets !== prev.assets) {
         pushDoc();
         pushOverlay();
+        pushEffects();
       }
     });
     const offView = useViewStore.subscribe((s, prev) => {
       if (s.camera !== prev.camera) r.setCamera(s.camera);
+      if (s.tool !== prev.tool) pushEffects();
       if (
         s.hoverCell !== prev.hoverCell ||
         s.cursorCell !== prev.cursorCell ||
@@ -256,15 +288,24 @@ export function MapCanvas() {
         s.paintMode !== prev.paintMode ||
         s.wallChain !== prev.wallChain ||
         s.spawn !== prev.spawn ||
-        s.movePreview !== prev.movePreview
+        s.movePreview !== prev.movePreview ||
+        s.aoe !== prev.aoe ||
+        s.aoePhase !== prev.aoePhase
       ) {
         pushOverlay();
       }
+      if (s.selection !== prev.selection || s.aoe !== prev.aoe || s.aoePhase !== prev.aoePhase) {
+        pushEffects();
+      }
+    });
+    const offSettings = useSettings.subscribe((s, prev) => {
+      if (s.coverageRule !== prev.coverageRule) pushEffects();
     });
     return () => {
       offMap();
       offView();
       offEditor();
+      offSettings();
     };
     // t wechselt mit der Sprache; Abzeichen werden dann neu beschriftet.
   }, [ready, t]);
@@ -337,6 +378,7 @@ export function MapCanvas() {
     const cell = cellAt(p);
     view.setHoverCell(inBounds(cell, doc.grid) ? cell : null);
     if (tool === 'wall') view.setHoverPoint(cellPoint(p));
+    if (tool === 'effect' && dragRef.current?.kind !== 'edit') aoePointerMove(cellPoint(p));
     const drag = dragRef.current;
     if (drag?.kind === 'pan') {
       view.panBy(p.x - drag.last.x, p.y - drag.last.y, world);
@@ -421,6 +463,7 @@ export function MapCanvas() {
     }
     if (e.key === 'Escape') {
       if (ed.spawn) ed.setSpawn(null);
+      else if (tool === 'effect' && cancelAoe()) return;
       else if (ed.wallChain.length) endWallChain();
       else if (view.ruler.active) view.rulerEnd();
       else if (view.ruler.points.length) view.rulerClear();
@@ -463,6 +506,7 @@ export function MapCanvas() {
       />
       <RulerLabel feetPerCell={doc.grid.feetPerCell} />
       <MoveCostLabel />
+      {tool === 'effect' && <AoeInfo />}
       {ready && spawn && (
         <div className="map-hint map-hint-strong" role="status">
           {t('token.placeHint', { name: spawn.template.name, count: spawn.count })}
@@ -516,6 +560,42 @@ function MoveCostLabel() {
       style={{ transform: `translate(${end.x + 6}px, ${end.y - 30}px)` }}
     >
       {text}
+    </div>
+  );
+}
+
+/** Name, Form, Schadensart und Zähler „N Felder / M Ziele“ der Effekt-Vorschau. */
+function AoeInfo() {
+  const t = useT();
+  const aoe = useEditorStore((s) => s.aoe);
+  useEditorStore((s) => s.aoePhase);
+  useMapStore((s) => s.doc);
+  useSettings((s) => s.coverageRule);
+  const doc = useMapStore.getState().doc;
+  if (!doc) return null;
+  if (!aoe) {
+    return (
+      <div className="aoe-info" role="status">
+        {t('notice.chooseEffect')}
+      </div>
+    );
+  }
+  const prev = previewResult(doc);
+  const tpl = aoe.template;
+  return (
+    <div className="aoe-info" role="status" aria-live="polite">
+      <span className="aoe-swatch" style={{ background: tpl.color }} aria-hidden="true" />
+      <strong>{tpl.name}</strong>{' '}
+      <span>
+        {t(`shape.${tpl.shape}` as MessageKey)}
+        {tpl.shape !== 'free' ? ` ${tpl.size} ft` : ''}
+        {tpl.damageType ? ` · ${t(`damage.${tpl.damageType}` as MessageKey)}` : ''}
+      </span>
+      {prev && (
+        <span className="aoe-count">
+          {t('aoe.count', { cells: prev.cells.size, targets: prev.tokens.length })}
+        </span>
+      )}
     </div>
   );
 }

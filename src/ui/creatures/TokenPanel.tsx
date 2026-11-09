@@ -15,7 +15,6 @@ import {
   duplicateTokens,
   groupTokens,
   healToken,
-  newRound,
   recordDeathSave,
   setTempHp,
   toggleCondition,
@@ -31,6 +30,7 @@ import { useMapStore } from '../state/mapStore';
 import { useNoticeStore } from '../state/noticeStore';
 import { useT } from '../useT';
 import { runOnTokens, type Say } from '../map/tokenTools';
+import { startNewRound } from '../map/effectTools';
 import { conditionLabel, sizeLabel, teamLabel } from './labels';
 
 export function TokenPanel() {
@@ -53,11 +53,7 @@ function RoundPanel() {
     <details className="panel-section" open>
       <summary>{t('token.heading')}</summary>
       <p className="small muted">{t('token.none', { count: doc.tokens.length })}</p>
-      <button
-        type="button"
-        className="btn"
-        onClick={() => runOnTokens(newRound(doc), 'action.round', say)}
-      >
+      <button type="button" className="btn" onClick={() => startNewRound(say)}>
         {t('token.newRound')}
       </button>
     </details>
@@ -355,11 +351,7 @@ function TokenEditor({ tokens, t }: { tokens: Token[]; t: ReturnType<typeof useT
         >
           {t('token.delete')}
         </button>
-        <button
-          type="button"
-          className="btn"
-          onClick={() => runOnTokens(newRound(doc), 'action.round', say)}
-        >
+        <button type="button" className="btn" onClick={() => startNewRound(say)}>
           {t('token.newRound')}
         </button>
       </div>

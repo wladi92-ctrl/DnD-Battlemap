@@ -2,11 +2,12 @@
 import { useId, useRef, useState } from 'react';
 import type { MessageKey } from '../../i18n';
 import { CharacterPanel } from '../creatures/CharacterPanel';
+import { EffectLibraryPanel } from '../effects/EffectLibraryPanel';
 import { CreaturePanel } from '../creatures/CreaturePanel';
 import { useT } from '../useT';
 import { LibraryPanel } from './LibraryPanel';
 
-const TABS = ['elements', 'creatures', 'characters'] as const;
+const TABS = ['elements', 'creatures', 'characters', 'effects'] as const;
 type Tab = (typeof TABS)[number];
 
 export function LeftPanel() {
@@ -67,8 +68,10 @@ export function LeftPanel() {
               <LibraryPanel />
             ) : tb === 'creatures' ? (
               <CreaturePanel />
-            ) : (
+            ) : tb === 'characters' ? (
               <CharacterPanel />
+            ) : (
+              <EffectLibraryPanel />
             ))}
         </div>
       ))}

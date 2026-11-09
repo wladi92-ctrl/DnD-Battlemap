@@ -19,6 +19,8 @@ const paths: Record<IconName, string> = {
   template: 'M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM13 13h8v8h-8z',
   terrain: 'M2 20l6-10 4 6 3-4 7 8z',
   grid: 'M3 3h18v18H3zM9 3v18M15 3v18M3 9h18M3 15h18',
+  effect:
+    'M12 12m-8 0a8 8 0 1 0 16 0a8 8 0 1 0-16 0M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0M12 2v3M12 19v3M2 12h3M19 12h3',
 };
 
 const filled: ReadonlySet<IconName> = new Set(['select', 'pan']);

@@ -7,6 +7,8 @@ import type { Cell, Point } from '../../core/grid';
 import type { WallKind } from '../../core/walls';
 import type { Creature } from '../../data/srd/creatures';
 import type { TokenTemplate } from '../../editor/tokens';
+import type { EffectTemplate } from '../../editor/effects';
+import type { OriginSnap } from '../../core/aoe';
 import type { LayerId, PlacedObject, Rotation, TerrainProps } from '../../storage/mapDocument';
 
 export type PaintMode = 'element' | 'terrain';
@@ -34,6 +36,33 @@ export interface MovePreview {
   /** Kosten in ft (null = kein regulärer Weg). */
   cost: number | null;
   over: boolean;
+}
+
+/** Effekt-Werkzeug: gewählte Vorlage und Einrast-Optionen. */
+export interface AoeTool {
+  template: EffectTemplate;
+  originSnap: OriginSnap;
+  /** Winkelschritt in Grad (0 = frei). */
+  angleStep: number;
+}
+
+/** Laufende Platzierung: Ursprung (bei gerichteten Formen nach dem ersten Klick), Winkel, Zeiger. */
+export interface AoePhase {
+  origin: Point | null;
+  angle: number;
+  pointer: Point | null;
+  /** Freie Fläche: gesammelte Felder. */
+  cells: Cell[];
+}
+
+/** Ergebnis eines ausgelösten Effekts für den Rettungswurf-Assistenten. */
+export interface AoeResult {
+  name: string;
+  template: EffectTemplate;
+  cells: number;
+  tokenIds: string[];
+  /** Gesetzt, wenn der Effekt dauerhaft auf der Karte liegt. */
+  effectId?: string;
 }
 
 export interface EditorState {
@@ -66,6 +95,10 @@ export interface EditorState {
   movePreview: MovePreview | null;
   /** Im Statblock-Dialog angezeigte Kreatur. */
   statblock: Creature | null;
+  aoe: AoeTool | null;
+  aoePhase: AoePhase;
+  /** Offener Rettungswurf-Assistent. */
+  assistant: AoeResult | null;
 
   selectElement: (id: string, layer: LayerId) => void;
   setPaintMode: (mode: PaintMode) => void;
@@ -86,6 +119,9 @@ export interface EditorState {
   setSpawn: (spawn: PendingSpawn | null) => void;
   setMovePreview: (p: MovePreview | null) => void;
   showStatblock: (c: Creature | null) => void;
+  setAoe: (aoe: AoeTool | null) => void;
+  setAoePhase: (p: Partial<AoePhase>) => void;
+  openAssistant: (r: AoeResult | null) => void;
   reset: () => void;
 }
 
@@ -109,6 +145,9 @@ const initial = {
   spawn: null as PendingSpawn | null,
   movePreview: null as MovePreview | null,
   statblock: null as Creature | null,
+  aoe: null as AoeTool | null,
+  aoePhase: { origin: null, angle: 0, pointer: null, cells: [] } as AoePhase,
+  assistant: null as AoeResult | null,
 };
 
 export const useEditorStore = create<EditorState>((set) => ({
@@ -134,5 +173,8 @@ export const useEditorStore = create<EditorState>((set) => ({
   setSpawn: (spawn) => set({ spawn }),
   setMovePreview: (movePreview) => set({ movePreview }),
   showStatblock: (statblock) => set({ statblock }),
+  setAoe: (aoe) => set({ aoe, aoePhase: { origin: null, angle: 0, pointer: null, cells: [] } }),
+  setAoePhase: (p) => set((s) => ({ aoePhase: { ...s.aoePhase, ...p } })),
+  openAssistant: (assistant) => set({ assistant }),
   reset: () => set({ ...initial, selection: new Set(), clipboard: [], preview: [], wallChain: [] }),
 }));

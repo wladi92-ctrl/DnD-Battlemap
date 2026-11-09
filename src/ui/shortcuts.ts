@@ -50,6 +50,8 @@ export const shortcutList: readonly ShortcutInfo[] = [
   { keys: [['V'], ['B'], ['U'], ['L'], ['F'], ['E'], ['N']], label: 'shortcut.tools' },
   { keys: [['W']], label: 'shortcut.wall' },
   { keys: [['D']], label: 'shortcut.door' },
+  { keys: [['A']], label: 'shortcut.effect' },
+  { keys: [[k('arrows')]], label: 'shortcut.tokenMove' },
   { keys: [['H']], label: 'shortcut.pan' },
   { keys: [['R']], label: 'shortcut.ruler' },
   { keys: [['Q']], label: 'shortcut.rotate' },

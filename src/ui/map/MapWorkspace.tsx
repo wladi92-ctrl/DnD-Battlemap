@@ -27,8 +27,11 @@ import {
 } from './editorTools';
 import { GeneratorDialog } from './GeneratorDialog';
 import { LeftPanel } from './LeftPanel';
+import { rotateAoe } from './effectTools';
 import { StatblockDialog } from '../creatures/StatblockDialog';
 import { TokenPanel } from '../creatures/TokenPanel';
+import { EffectListPanel, EffectToolPanel } from '../effects/EffectPanels';
+import { SaveAssistant } from '../effects/SaveAssistant';
 import { MapCanvas } from './MapCanvas';
 import { NewMapDialog } from './NewMapDialog';
 import { NoteDialog } from './NoteDialog';
@@ -116,7 +119,10 @@ export function MapWorkspace() {
         g: () => useMapStore.getState().updateGrid({ visible: !d.grid.visible }),
         d: () => toggleSelectedDoors(notify),
         t: () => useEditorStore.getState().setShowTerrain(!useEditorStore.getState().showTerrain),
-        q: () => rotateSelectionOrPlacement(e.shiftKey ? -1 : 1, notify),
+        q: () =>
+          view.tool === 'effect'
+            ? rotateAoe(e.shiftKey ? -1 : 1)
+            : rotateSelectionOrPlacement(e.shiftKey ? -1 : 1, notify),
         y: () => flipSelection(e.shiftKey ? 'y' : 'x', notify),
         delete: () => deleteSelection(notify),
         backspace: () => deleteSelection(notify),
@@ -191,7 +197,9 @@ export function MapWorkspace() {
             <LeftPanel />
             <MapCanvas />
             <div className="side-panel">
+              <EffectToolPanel />
               <TokenPanel />
+              <EffectListPanel />
               <ToolOptionsPanel />
               <LayersPanel />
               <TerrainPanel />
@@ -202,6 +210,7 @@ export function MapWorkspace() {
           <StatusBar />
           <NoteDialog />
           <StatblockDialog />
+          <SaveAssistant />
           {templateOpen && <GeneratorDialog onClose={() => setTemplateOpen(false)} />}
         </>
       ) : (

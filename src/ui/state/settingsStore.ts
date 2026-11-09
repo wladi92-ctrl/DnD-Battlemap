@@ -3,6 +3,7 @@
  * Persistenz über localStorage der WebView – rein lokal, Fehler werden toleriert.
  */
 import { create } from 'zustand';
+import { COVERAGE_RULES, type CoverageRule } from '../../core/aoe';
 import { diagonalRules, type DiagonalRule } from '../../core/distance';
 import { defaultLocale, isLocale, type Locale } from '../../i18n';
 
@@ -26,6 +27,8 @@ export interface Settings {
   /** Distanzen zusätzlich in Metern anzeigen (5 ft = 1,5 m). */
   showMeters: boolean;
   autosaveSeconds: AutosaveSeconds;
+  /** Flächenregel für Effekte: halbe Abdeckung (Standard) oder Feldmitte. */
+  coverageRule: CoverageRule;
 }
 
 export const defaultSettings: Settings = {
@@ -35,6 +38,7 @@ export const defaultSettings: Settings = {
   diagonalRule: 'standard',
   showMeters: false,
   autosaveSeconds: 60,
+  coverageRule: 'half',
 };
 
 const STORAGE_KEY = 'dnd-battlemap.settings.v1';
@@ -59,6 +63,9 @@ export function parseSettings(raw: unknown): Settings {
   if (typeof r.showMeters === 'boolean') result.showMeters = r.showMeters;
   if (autosaveIntervals.includes(r.autosaveSeconds as AutosaveSeconds)) {
     result.autosaveSeconds = r.autosaveSeconds as AutosaveSeconds;
+  }
+  if (COVERAGE_RULES.includes(r.coverageRule as CoverageRule)) {
+    result.coverageRule = r.coverageRule as CoverageRule;
   }
   return result;
 }
@@ -87,6 +94,7 @@ interface SettingsState extends Settings {
   setDiagonalRule: (rule: DiagonalRule) => void;
   setShowMeters: (show: boolean) => void;
   setAutosaveSeconds: (seconds: AutosaveSeconds) => void;
+  setCoverageRule: (rule: CoverageRule) => void;
   reset: () => void;
 }
 
@@ -98,6 +106,7 @@ export const useSettings = create<SettingsState>((set) => ({
   setDiagonalRule: (diagonalRule) => set({ diagonalRule }),
   setShowMeters: (showMeters) => set({ showMeters }),
   setAutosaveSeconds: (autosaveSeconds) => set({ autosaveSeconds }),
+  setCoverageRule: (coverageRule) => set({ coverageRule }),
   reset: () => set({ ...defaultSettings }),
 }));
 
@@ -109,5 +118,6 @@ useSettings.subscribe((s) =>
     diagonalRule: s.diagonalRule,
     showMeters: s.showMeters,
     autosaveSeconds: s.autosaveSeconds,
+    coverageRule: s.coverageRule,
   }),
 );

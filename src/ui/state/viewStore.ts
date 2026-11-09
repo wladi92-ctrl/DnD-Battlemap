@@ -15,7 +15,17 @@ import { sameCell, type Cell, type Point } from '../../core/grid';
 
 /** Ansichts-Werkzeuge (Verschieben, Lineal) und Editor-Werkzeuge. */
 export type Tool =
-  'pan' | 'ruler' | 'select' | 'brush' | 'rect' | 'line' | 'fill' | 'erase' | 'note' | 'wall';
+  | 'pan'
+  | 'ruler'
+  | 'select'
+  | 'brush'
+  | 'rect'
+  | 'line'
+  | 'fill'
+  | 'erase'
+  | 'note'
+  | 'wall'
+  | 'effect';
 
 export interface RulerState {
   /** Feste Punkte (Start + Wegpunkte). */

@@ -6,16 +6,20 @@ import { create } from 'zustand';
 import {
   deleteEntry,
   listHomebrew,
+  listHomebrewEffects,
+  saveHomebrewEffect,
   listPcs,
   saveHomebrew,
   savePc,
   type HomebrewCreature,
   type PlayerCharacter,
 } from '../../storage/library';
+import type { EffectSource } from '../../data/srd/effects';
 
 export interface LibraryState {
   pcs: PlayerCharacter[];
   homebrew: HomebrewCreature[];
+  effects: EffectSource[];
   status: 'idle' | 'loading' | 'ready' | 'error';
   error: string | null;
   load: (force?: boolean) => Promise<void>;
@@ -23,6 +27,8 @@ export interface LibraryState {
   removePc: (id: string) => Promise<void>;
   putHomebrew: (c: HomebrewCreature) => Promise<void>;
   removeHomebrew: (id: string) => Promise<void>;
+  putEffect: (e: EffectSource) => Promise<EffectSource>;
+  removeEffect: (id: string) => Promise<void>;
 }
 
 const byName = <T extends { name: string }>(list: T[]) =>
@@ -32,14 +38,19 @@ const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 export const useLibraryStore = create<LibraryState>((set, get) => ({
   pcs: [],
   homebrew: [],
+  effects: [],
   status: 'idle',
   error: null,
   load: async (force = false) => {
     if (!force && (get().status === 'loading' || get().status === 'ready')) return;
     set({ status: 'loading', error: null });
     try {
-      const [pcs, homebrew] = await Promise.all([listPcs(), listHomebrew()]);
-      set({ pcs, homebrew, status: 'ready' });
+      const [pcs, homebrew, effects] = await Promise.all([
+        listPcs(),
+        listHomebrew(),
+        listHomebrewEffects(),
+      ]);
+      set({ pcs, homebrew, effects, status: 'ready' });
     } catch (e) {
       set({ status: 'error', error: message(e) });
     }
@@ -59,5 +70,14 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   removeHomebrew: async (id) => {
     await deleteEntry('creature', id);
     set((s) => ({ homebrew: s.homebrew.filter((h) => h.id !== id) }));
+  },
+  putEffect: async (e) => {
+    const saved = await saveHomebrewEffect(e);
+    set((s) => ({ effects: byName([...s.effects.filter((x) => x.id !== saved.id), saved]) }));
+    return saved;
+  },
+  removeEffect: async (id) => {
+    await deleteEntry('effect', id);
+    set((s) => ({ effects: s.effects.filter((x) => x.id !== id) }));
   },
 }));

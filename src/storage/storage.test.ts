@@ -1,5 +1,5 @@
 import Ajv from 'ajv';
-import schema from '../../docs/schema/map.v4.schema.json';
+import schema from '../../docs/schema/map.v5.schema.json';
 import { strToU8, zipSync } from 'fflate';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { startAutosave } from './autosave';
@@ -148,6 +148,76 @@ const richSample = (): MapDocument => {
         pc: { className: 'Schurkin', level: 3 },
       },
     ],
+    effects: [
+      {
+        id: 'e1',
+        name: 'Cloudkill',
+        shape: 'sphere',
+        size: 20,
+        origin: { x: 10, y: 8 },
+        angle: 0,
+        color: '#2e8b57',
+        damageType: 'poison',
+        wallMode: 'spread',
+        rounds: 97,
+        concentration: true,
+        trigger: 'both',
+        save: { ability: 'con', dc: 15, half: true },
+        damage: '5d8',
+        source: 'spell.cloudkill',
+        notes: 'bewegt sich 10 ft pro Runde',
+        hidden: false,
+      },
+      {
+        id: 'e2',
+        name: 'Spirit Guardians',
+        shape: 'emanation',
+        size: 15,
+        origin: { x: 0, y: 0 },
+        angle: 0,
+        attachedTo: 't2',
+        color: '#ffd96a',
+        wallMode: 'line',
+        rounds: null,
+        concentration: true,
+        trigger: 'none',
+        hidden: true,
+      },
+      {
+        id: 'e3',
+        name: 'Fett',
+        shape: 'free',
+        size: 0,
+        origin: { x: 1, y: 1 },
+        angle: 0,
+        cells: [
+          [1, 1],
+          [2, 1],
+        ],
+        color: '#8c6d4f',
+        wallMode: 'ignore',
+        rounds: 10,
+        concentration: false,
+        trigger: 'enter',
+        hidden: false,
+      },
+      {
+        id: 'e4',
+        name: 'Lightning Bolt',
+        shape: 'line',
+        size: 100,
+        width: 5,
+        origin: { x: 3, y: 4.5 },
+        angle: 22.5,
+        color: '#f2c200',
+        damageType: 'lightning',
+        wallMode: 'line',
+        rounds: 0,
+        concentration: false,
+        trigger: 'none',
+        hidden: false,
+      },
+    ],
   };
 };
 
@@ -165,12 +235,20 @@ describe('Kartendokument', () => {
     const doc = createMap({ name: '  ', cols: 5, rows: 999, feetPerCell: 0 });
     expect(doc.name).toBe('Neue Karte');
     expect(doc.grid).toMatchObject({ cols: 10, rows: 200, feetPerCell: 1, visible: true });
-    expect(doc.version).toBe(4);
+    expect(doc.version).toBe(5);
     expect(doc.walls).toEqual([]);
     expect(doc.tokens).toEqual([]);
+    expect(doc.effects).toEqual([]);
     expect(doc.background.image).toBeUndefined();
     expect(doc.floor).toHaveLength(10 * 200);
-    expect(doc.layers.map((l) => l.id)).toEqual(['floor', 'walls', 'decor', 'tokens', 'gm']);
+    expect(doc.layers.map((l) => l.id)).toEqual([
+      'floor',
+      'walls',
+      'decor',
+      'tokens',
+      'effects',
+      'gm',
+    ]);
   });
 
   it('wendet Rasteränderungen begrenzt an', () => {
@@ -208,43 +286,77 @@ describe('Projektdatei (.dndmap)', () => {
     expect(loaded.assets.get('custom/0123abcd.png')).toEqual(new Uint8Array([137, 80, 78, 71]));
   });
 
-  it('Version-3-Dateien werden auf Version 4 migriert (Token-Ebene vor GM)', () => {
+  it('Version-4-Dateien werden auf Version 5 migriert (Effekt-Ebene vor GM)', () => {
     const rich = richSample();
-    const { tokens: _tokens, ...v3 } = {
+    const { effects: _effects, ...v4 } = {
       ...rich,
-      version: 3,
-      layers: rich.layers.filter((l) => l.id !== 'tokens'),
+      version: 4,
+      layers: rich.layers.filter((l) => l.id !== 'effects'),
     };
-    const doc = decodeProject(zipSync({ 'map.json': strToU8(JSON.stringify(v3)) })).doc;
-    expect(doc.version).toBe(4);
-    expect(doc.tokens).toEqual([]);
-    expect(doc.layers.map((l) => l.id)).toEqual(['floor', 'walls', 'decor', 'tokens', 'gm']);
+    const doc = decodeProject(zipSync({ 'map.json': strToU8(JSON.stringify(v4)) })).doc;
+    expect(doc.version).toBe(5);
+    expect(doc.effects).toEqual([]);
+    expect(doc.tokens).toHaveLength(2);
+    expect(doc.layers.map((l) => l.id)).toEqual([
+      'floor',
+      'walls',
+      'decor',
+      'tokens',
+      'effects',
+      'gm',
+    ]);
     expect(doc.layers.find((l) => l.id === 'gm')).toMatchObject({ visible: false, locked: true });
   });
 
-  it('Version-2-Dateien werden auf Version 4 migriert', () => {
+  it('Version-3-Dateien werden über v4 auf Version 5 migriert', () => {
+    const rich = richSample();
+    const {
+      tokens: _tokens,
+      effects: _effects,
+      ...v3
+    } = {
+      ...rich,
+      version: 3,
+      layers: rich.layers.filter((l) => l.id !== 'tokens' && l.id !== 'effects'),
+    };
+    const doc = decodeProject(zipSync({ 'map.json': strToU8(JSON.stringify(v3)) })).doc;
+    expect(doc.version).toBe(5);
+    expect(doc.tokens).toEqual([]);
+    expect(doc.layers.map((l) => l.id)).toEqual([
+      'floor',
+      'walls',
+      'decor',
+      'tokens',
+      'effects',
+      'gm',
+    ]);
+  });
+
+  it('Version-2-Dateien werden auf Version 5 migriert', () => {
     const rich = richSample();
     const {
       walls: _walls,
       tokens: _tokens,
+      effects: _effects,
       ...v2
     } = {
       ...rich,
       version: 2,
-      layers: rich.layers.filter((l) => l.id !== 'tokens'),
+      layers: rich.layers.filter((l) => l.id !== 'tokens' && l.id !== 'effects'),
       background: { color: '#ffffff' },
     };
     const doc = decodeProject(zipSync({ 'map.json': strToU8(JSON.stringify(v2)) })).doc;
     expect(doc).toMatchObject({
-      version: 4,
+      version: 5,
       walls: [],
       tokens: [],
+      effects: [],
       background: { color: '#ffffff' },
     });
     expect(doc.objects).toHaveLength(3);
   });
 
-  it('Version-1-Dateien werden schrittweise auf Version 4 migriert', () => {
+  it('Version-1-Dateien werden schrittweise auf Version 5 migriert', () => {
     const v1 = {
       format: 'dndmap',
       version: 1,
@@ -257,7 +369,7 @@ describe('Projektdatei (.dndmap)', () => {
     };
     const doc = decodeProject(zipSync({ 'map.json': strToU8(JSON.stringify(v1)) })).doc;
     expect(doc).toMatchObject({
-      version: 4,
+      version: 5,
       name: 'Alte Karte',
       objects: [],
       notes: [],
@@ -265,7 +377,7 @@ describe('Projektdatei (.dndmap)', () => {
       walls: [],
     });
     expect(doc.floor).toHaveLength(120);
-    expect(doc.layers).toHaveLength(5);
+    expect(doc.layers).toHaveLength(6);
   });
 
   it('enthält Wiederherstellungsinfos nur in Autosaves', () => {
@@ -382,6 +494,24 @@ describe('Validierung', () => {
       mutate((d) => (d.tokens[1].pc.level = 0)),
       mutate((d) => (d.tokens[1].kind = 'npc')),
       mutate((d) => (d.tokens[0].x = -1)),
+      mutate((d) => delete d.effects),
+      mutate((d) => (d.effects[0].shape = 'stern')),
+      mutate((d) => (d.effects[0].size = -5)),
+      mutate((d) => (d.effects[0].angle = 360)),
+      mutate((d) => (d.effects[0].wallMode = 'durch')),
+      mutate((d) => (d.effects[0].rounds = 1.5)),
+      mutate((d) => (d.effects[0].trigger = 'immer')),
+      mutate((d) => (d.effects[0].save.ability = 'luck')),
+      mutate((d) => (d.effects[0].save.dc = 0)),
+      mutate((d) => (d.effects[0].damage = 'viel')),
+      mutate((d) => (d.effects[0].damage = '2d6 + 3')),
+      mutate((d) => (d.effects[0].damageType = 'holy')),
+      mutate((d) => (d.effects[2].cells = [[1, 1, 1]])),
+      mutate((d) => (d.effects[2].cells = [[-1, 0]])),
+      mutate((d) => (d.effects[3].width = 0)),
+      mutate((d) => delete d.effects[1].hidden),
+      mutate((d) => (d.effects[1].color = 'gelb')),
+      mutate((d) => (d.layers[4].id = 'tokens')),
     ];
     for (const c of cases) {
       let ours = true;

@@ -230,3 +230,53 @@ Neue Tests:
 | `npm run tauri:build`                                     | ✅ MSI de/en (je 3,2 MB, inkl. SQLite), NSIS-Setup (2,4 MB)                           |
 | Start der Release-Exe                                     | ✅ Fenster „DnD Battlemap“                                                            |
 | SQLite-Bibliothek und Bilddialog in der Desktop-App       | ⏳ bitte manuell prüfen (Rust-Tests und Browser-Vorschau grün)                        |
+
+## Phase 6 – Flächeneffekte (2026-11-09)
+
+### Automatisch
+
+| Prüfung                                                                  | Ergebnis                   |
+| ------------------------------------------------------------------------ | -------------------------- |
+| `npm run verify` (Lint, Prettier, `tsc`, Vitest, Build, Offline-Prüfung) | ✅ 210 Tests in 28 Dateien |
+| `npm run test:rust`                                                      | ✅ 6 Tests                 |
+
+Neue Tests:
+
+- `src/core/aoe.test.ts` – **Feuerball** 20 ft von einer Kreuzung = 52 Felder, symmetrisch, Ecken
+  korrekt; **Brennende Hände** 15-ft-Kegel nach Osten = 1-1-3 Felder, diagonal (45°) = 1-2-3;
+  Drehung um 90° = gespiegelte Form; **Blitz** 100 ft × 5 ft = genau 20 Felder einer Reihe,
+  10 ft breit = 12 Felder; Donnerwoge 15-ft-Würfel = 3×3; Aura um mittelgroße/große Kreatur;
+  Quadrat, freie Fläche; Flächenregel halb vs. Feldmitte (1 vs. 5 Felder); **Wand zwischen**
+  Feuerball und Feldern; offene/geschlossene Tür, Fenster; Blitz endet an einer Wand (10 Felder);
+  Ausbreitung um eine kurze Wand (nur mit „um Ecken“); feste Felder; Wand direkt am Ursprung;
+  **große Kreaturen** betroffen, sobald ein Feld im Bereich liegt; Einrasten (Winkel, Kreuzung,
+  Kantenmitte nach Richtung, Feldmitte)
+- `src/core/dice.test.ts` – Ausdrücke (auch „2W6+3“), ungültige Eingaben, Würfeln mit fester
+  Zufallsquelle, Durchschnitt, doppelte Würfel, W20 mit Vorteil/Nachteil, Kryptozufall im Bereich
+- `src/editor/effects.test.ts` – Bibliothek (Feuerball mit Graden, Kegel/Linie/Aura, Odem des
+  roten Drachen SG 21 18d6), Vorlage mit Grad und SG, betroffene Tokens inkl. 2×2-Oger, Wand
+  trennt, **Aura folgt dem Träger**, Runden herunterzählen/ablaufen, Auslöser Betreten und
+  Rundenbeginn, Löschen/Verschieben/Undo, gesperrte Ebene, Verkleinern, Rettungswurfbonus,
+  halber Schaden, Resistenz/Immunität/Anfälligkeit
+- `src/storage/storage.test.ts` – Round-Trip mit 4 Effektarten, **Migration v4 → v5** (und
+  v3/v2/v1 → v5), JSON-Schema v5 = Validator in 67 Fällen
+- `src/ui/effects/Effects.test.tsx` – Feuerball per Tastatur → Assistent „52 Felder / 3 Ziele“,
+  Ergebnisse eintragen (Erfolg/Fehlschlag, genau SG = Erfolg), Schaden anwenden, ein Undo-Schritt;
+  Brennende Hände mit Ursprung, `Q` drehen, Vorschau im Renderer; Wolke des Todes dauerhaft
+  (100 Runden, Konzentration, 52 Felder), „Neue Runde“ → 99 und Hinweis zu Rundenbeginn; eigener
+  Effekt in der Bibliothek; Werkzeugwechsel verwirft einen gesetzten Ursprung
+
+### Manuell (Produktions-Build, Produktions-CSP, Chromium)
+
+| Prüfung                                                              | Ergebnis                                                                                                                                                                         |
+| -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Autosave aus Phase 5 (Version 4) wiederherstellen                    | ✅ migriert, Ebene „Effekte“ zwischen Tokens und GM-Notizen                                                                                                                      |
+| Feuerball über Goblins/Charakter: Vorschau                           | ✅ Feuer-Schraffur, „52 Felder / 2 Ziele“, Ziele orange markiert                                                                                                                 |
+| Assistent: würfeln, anwenden                                         | ✅ Goblin +2 (GES aus Statblock) 21 → Erfolg 15, Charakter 1 → Fehlschlag 30; Charakter bewusstlos                                                                               |
+| Blitz gegen eine gezeichnete Kantenwand                              | ✅ endet an der Wand (6 statt 19 Felder)                                                                                                                                         |
+| Wolke des Todes dauerhaft                                            | ✅ Kreuzschraffur, Beschriftung „Cloudkill · 100 Rd. · K“, Liste mit Zielzahl, Legende                                                                                           |
+| Konsole                                                              | ✅ keine Fehler                                                                                                                                                                  |
+| Gefunden und behoben                                                 | Linie auf einer Rasterlinie traf zwei Reihen (→ Kantenmitte quer zur Richtung, 100 ft = 20 Felder); Werkzeugwechsel ließ einen gesetzten Ursprung stehen (→ zurückgesetzt, Test) |
+| `npm run tauri:build`                                                | ✅ MSI de/en (je 3,3 MB), NSIS-Setup (2,5 MB)                                                                                                                                    |
+| Start der Release-Exe                                                | ✅ Fenster „DnD Battlemap“                                                                                                                                                       |
+| Effekte in der Desktop-App (Maus/Tastatur), eigene Effekte in SQLite | ⏳ bitte manuell prüfen (in Rust-Tests und Browser-Vorschau geprüft)                                                                                                             |

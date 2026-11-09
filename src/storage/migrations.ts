@@ -41,10 +41,21 @@ export function migrateV3toV4(doc: RawDocument): RawDocument {
   return { ...doc, version: 4, layers, tokens: [] };
 }
 
+/** v4 → v5: Ebene "Effekte" (nach Tokens, vor GM-Notizen) und leere Effektliste. */
+export function migrateV4toV5(doc: RawDocument): RawDocument {
+  const layers = Array.isArray(doc.layers) ? [...(doc.layers as RawDocument[])] : [];
+  if (!layers.some((l) => l.id === 'effects')) {
+    const gm = layers.findIndex((l) => l.id === 'gm');
+    layers.splice(gm < 0 ? layers.length : gm, 0, { id: 'effects', visible: true, locked: false });
+  }
+  return { ...doc, version: 5, layers, effects: [] };
+}
+
 export const migrations: Readonly<Record<number, Migration>> = {
   1: migrateV1toV2,
   2: migrateV2toV3,
   3: migrateV3toV4,
+  4: migrateV4toV5,
 };
 
 export function migrate(

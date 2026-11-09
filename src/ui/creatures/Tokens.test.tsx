@@ -50,7 +50,7 @@ function reset() {
   useEditorStore.getState().reset();
   useRecoveryStore.getState().setPending(null);
   useNoticeStore.setState({ notices: [] });
-  useLibraryStore.setState({ pcs: [], homebrew: [], status: 'idle', error: null });
+  useLibraryStore.setState({ pcs: [], homebrew: [], effects: [], status: 'idle', error: null });
   setLibrary(createLocalStorageLibrary(memoryStorage()));
   fa = createFakeFileAccess();
   setFileAccess(fa);

@@ -2,6 +2,7 @@
 import type { Camera } from '../../core/camera';
 import type { MapDocument } from '../../storage/mapDocument';
 import type { MapVisual, OverlayState } from '../../render/MapRenderer';
+import type { EffectVisual } from '../../render/effectLayer';
 
 export class MapRenderer {
   static last: MapRenderer | null = null;
@@ -9,6 +10,7 @@ export class MapRenderer {
   doc: MapDocument | null = null;
   camera: Camera | null = null;
   overlay: OverlayState | null = null;
+  effects: readonly EffectVisual[] = [];
   showTerrain = false;
   destroyed = false;
 
@@ -34,6 +36,9 @@ export class MapRenderer {
     this.showTerrain = show;
   }
   setConditionLabel(): void {}
+  setEffects(items: readonly EffectVisual[]): void {
+    this.effects = items;
+  }
   setCamera(camera: Camera): void {
     this.camera = camera;
   }

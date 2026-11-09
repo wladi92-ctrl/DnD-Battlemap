@@ -14,6 +14,8 @@ import {
   type MoveOutcome,
 } from '../../editor/tokens';
 import type { OpResult } from '../../editor/ops';
+import { effectsEntered } from '../../editor/effects';
+import { saveText } from './effectTools';
 import type { MessageKey } from '../../i18n';
 import { dataUrlToBytes } from '../../storage/library';
 import type { MapDocument, Token } from '../../storage/mapDocument';
@@ -188,6 +190,7 @@ function applyMove(doc: MapDocument, token: Token, out: MoveOutcome, say: Say) {
   const reason = useMapStore.getState().run(out.result, 'action.tokenMove', undefined);
   report(reason, say);
   if (reason) return;
+  announceEnteredEffects(doc, token.id, say);
   if (out.opportunity.length) {
     const names = out.opportunity.map((id) => doc.tokens.find((t) => t.id === id)?.name ?? '?');
     say('notice.opportunity', { names: names.join(', ') });
@@ -219,6 +222,20 @@ export function stepSelectedTokens(dx: number, dy: number, say: Say): boolean {
     report(useMapStore.getState().run(shiftTokens(doc, sel, dx, dy), 'action.tokenMove'), say);
   }
   return true;
+}
+
+/** Hinweis, wenn ein Token einen dauerhaften Effekt mit Auslöser „Betreten“ neu betritt. */
+export function announceEnteredEffects(before: MapDocument, tokenId: string, say: Say): void {
+  const after = useMapStore.getState().doc;
+  if (!after) return;
+  const name = after.tokens.find((t) => t.id === tokenId)?.name ?? '?';
+  for (const e of effectsEntered(before, after, tokenId, useSettings.getState().coverageRule)) {
+    say('notice.enteredEffect', {
+      name,
+      effect: e.name,
+      save: saveText(e),
+    });
+  }
 }
 
 /** Änderung an ausgewählten Tokens als ein Undo-Schritt (mit Zusammenfassung bei Eingaben). */

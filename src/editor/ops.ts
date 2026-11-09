@@ -422,10 +422,23 @@ export function resizeGrid(doc: MapDocument, colsRaw: number, rowsRaw: number): 
     const y = Math.max(0, Math.min(rows - n, t.y));
     return x === t.x && y === t.y ? t : { ...t, x, y };
   });
+  // Effekte: Ursprung auf die Karte begrenzen, Felder freier Flächen außerhalb entfernen.
+  const effects = doc.effects.map((e) => {
+    const origin = { x: Math.min(cols, e.origin.x), y: Math.min(rows, e.origin.y) };
+    const cells = e.cells?.filter(([x, y]) => x < cols && y < rows);
+    const same =
+      origin.x === e.origin.x &&
+      origin.y === e.origin.y &&
+      (cells?.length ?? 0) === (e.cells?.length ?? 0);
+    return same ? e : { ...e, origin, ...(cells ? { cells } : {}) };
+  });
   return done({
     whole: {
       ...(tokens.some((t, i) => t !== doc.tokens[i])
         ? { tokens: { b: doc.tokens, a: tokens } }
+        : {}),
+      ...(effects.some((e, i) => e !== doc.effects[i])
+        ? { effects: { b: doc.effects, a: effects } }
         : {}),
       grid: { b: doc.grid, a: { ...doc.grid, cols, rows } },
       floor: { b: doc.floor, a: floor },

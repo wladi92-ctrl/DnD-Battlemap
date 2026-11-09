@@ -1275,3 +1275,188 @@ input[type='color'] {
 .ruler-label-over {
   background: rgba(176, 32, 24, 0.92);
 }
+
+/* ---------------------------------------------------------------- Phase 6: Flächeneffekte */
+
+.side-tabs {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.aoe-info {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  max-width: 22rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 0.35rem;
+  background: rgba(20, 20, 24, 0.85);
+  color: #fff;
+  font-size: 0.85rem;
+  pointer-events: none;
+}
+
+.aoe-count {
+  flex-basis: 100%;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.aoe-swatch {
+  display: inline-block;
+  width: 0.9rem;
+  height: 0.9rem;
+  flex: none;
+  border-radius: 0.2rem;
+  border: 1px solid #0008;
+  vertical-align: -0.1em;
+}
+
+.aoe-swatch.pattern-diag {
+  background-image: repeating-linear-gradient(-45deg, #0006 0 2px, transparent 2px 5px) !important;
+}
+
+.aoe-swatch.pattern-antidiag {
+  background-image: repeating-linear-gradient(45deg, #0006 0 2px, transparent 2px 5px) !important;
+}
+
+.aoe-swatch.pattern-horizontal {
+  background-image: repeating-linear-gradient(0deg, #0006 0 2px, transparent 2px 5px) !important;
+}
+
+.aoe-swatch.pattern-vertical {
+  background-image: repeating-linear-gradient(90deg, #0006 0 2px, transparent 2px 5px) !important;
+}
+
+.aoe-swatch.pattern-dots {
+  background-image: radial-gradient(#0008 1.2px, transparent 1.5px) !important;
+  background-size: 5px 5px !important;
+}
+
+.quick-shapes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+}
+
+.quick-shapes .btn {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.4rem;
+}
+
+.effect-desc {
+  max-height: 10rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  margin: 0.3rem 0;
+}
+
+.input-narrow {
+  width: 5rem;
+}
+
+.effect-list {
+  list-style: none;
+  margin: 0 0 0.4rem;
+  padding: 0;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.effect-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 0.35rem;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.effect-row .muted {
+  margin-left: auto;
+}
+
+.effect-row.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.effect-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.6rem;
+  margin-bottom: 0.4rem;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.effect-form textarea {
+  width: 100%;
+}
+
+.assist-settings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.6rem;
+  margin-bottom: 0.5rem;
+}
+
+.assist-settings .panel-check {
+  margin-bottom: 0;
+}
+
+.assist-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.assist-table th {
+  text-align: left;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.assist-table td {
+  padding: 0.2rem 0.3rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.assist-table .panel-check {
+  margin-bottom: 0;
+}
+
+.assist-damage {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.save-ok {
+  color: #2e7d4f;
+  font-weight: 700;
+}
+
+.save-fail {
+  color: #c0392b;
+  font-weight: 700;
+}
+
+.map-canvas.tool-effect {
+  cursor: crosshair;
+}

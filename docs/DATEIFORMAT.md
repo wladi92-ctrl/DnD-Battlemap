@@ -11,10 +11,10 @@ Eine Karte wird als **ZIP-Archiv** mit der Endung `.dndmap` gespeichert:
 Bilder in `assets/` werden unkomprimiert abgelegt (sie sind bereits komprimiert), `map.json`
 mit Deflate. Unbekannte Einträge werden beim Laden ignoriert.
 
-## `map.json` – Version 4 (aktuell)
+## `map.json` – Version 5 (aktuell)
 
-JSON-Schema: [`schema/map.v4.schema.json`](schema/map.v4.schema.json)
-(ältere Versionen: [`v3`](schema/map.v3.schema.json), [`v2`](schema/map.v2.schema.json),
+JSON-Schema: [`schema/map.v5.schema.json`](schema/map.v5.schema.json)
+(ältere Versionen: [`v4`](schema/map.v4.schema.json), [`v3`](schema/map.v3.schema.json), [`v2`](schema/map.v2.schema.json),
 [`v1`](schema/map.v1.schema.json) – werden beim Laden migriert). Version 4 ergänzt gegenüber
 Version 3 die Ebene `tokens` und die Liste `tokens` (siehe unten); Version 3 brachte das
 optionale `background.image` und die Liste `walls`.
@@ -22,7 +22,7 @@ optionale `background.image` und die Liste `walls`.
 ```json
 {
   "format": "dndmap",
-  "version": 4,
+  "version": 5,
   "id": "0b6f8c1e-…",
   "name": "Taverne zum Grünen Drachen",
   "createdAt": "2026-11-09T10:00:00.000Z",
@@ -41,6 +41,7 @@ optionale `background.image` und die Liste `walls`.
     { "id": "walls", "visible": true, "locked": false },
     { "id": "decor", "visible": true, "locked": false },
     { "id": "tokens", "visible": true, "locked": false },
+    { "id": "effects", "visible": true, "locked": false },
     { "id": "gm", "visible": true, "locked": false }
   ],
   "floor": ["floor.wood", "floor.wood", "", "…"],
@@ -190,6 +191,48 @@ Bewegung), `door`/`secret` mit `state` `closed`/`open`/`locked` (offen = blockie
 
 Höchstens 2000 Tokens pro Karte; IDs sind eindeutig.
 
+### Effekte (`effects`)
+
+Dauerhafte Flächeneffekte (Wolken, Zonen, Auren). Die betroffenen Felder werden **nicht**
+gespeichert, sondern beim Laden aus Form, Ursprung, Wänden und der Flächenregel berechnet.
+
+```json
+"effects": [
+  {
+    "id": "e1", "name": "Cloudkill", "shape": "sphere", "size": 20,
+    "origin": { "x": 10, "y": 8 }, "angle": 0,
+    "color": "#2e8b57", "damageType": "poison", "wallMode": "spread",
+    "rounds": 97, "concentration": true, "trigger": "both",
+    "save": { "ability": "con", "dc": 15, "half": true }, "damage": "5d8",
+    "source": "spell.cloudkill", "hidden": false
+  },
+  {
+    "id": "e2", "name": "Spirit Guardians", "shape": "emanation", "size": 15,
+    "origin": { "x": 0, "y": 0 }, "angle": 0, "attachedTo": "t2", "…": "…"
+  }
+]
+```
+
+| Feld                        | Bedeutung                                                                                                | Grenzen                       |
+| --------------------------- | -------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| `shape`                     | `sphere`, `cylinder`, `cone`, `cube`, `line`, `emanation` (Aura), `square`, `free`                       |                               |
+| `size`                      | ft: Radius (Kugel/Zylinder), Länge (Kegel/Linie), Kante (Würfel/Quadrat), Abstand (Aura)                 | 0–5000                        |
+| `width`                     | optional: Linienbreite in ft                                                                             | 1–5000                        |
+| `origin`                    | Ursprung in Feldern (ganzzahlig = Rasterkreuzung, .5 = Feldmitte/Kantenmitte); Quadrat: linke obere Ecke | 0…cols bzw. 0…rows            |
+| `angle`                     | Richtung in Grad, 0 = Osten, 90 = Süden (Kegel, Würfel, Linie)                                           | 0 ≤ angle < 360               |
+| `cells`                     | nur `free`: Felder als `[x, y]`                                                                          | ≤ 40 000, innerhalb der Karte |
+| `attachedTo`                | optional: Token-ID; die Aura folgt dem Token (fehlt das Token, bleibt der Effekt am Ursprung)            |                               |
+| `color`, `damageType`       | Farbe `#rrggbb`, optionale SRD-Schadensart (bestimmt das Muster)                                         |                               |
+| `wallMode`                  | `line` (Wände blockieren), `spread` (zusätzlich um Ecken), `ignore`                                      |                               |
+| `rounds`                    | verbleibende Runden; `null` = unbegrenzt                                                                 | ganzzahlig ≥ 0                |
+| `concentration`             | Konzentration                                                                                            |                               |
+| `trigger`                   | Hinweis `none`, `enter` (Betreten), `turnStart` (Rundenbeginn), `both`                                   |                               |
+| `save`                      | optional: Attribut, SG, halber Schaden bei Erfolg                                                        | SG 1–40                       |
+| `damage`                    | optional: Würfelausdruck („8d6“, „2d6+3“)                                                                | ≤ 60 Zeichen                  |
+| `source`, `notes`, `hidden` | Herkunft in der Effektbibliothek, Notiz, vor Spielern verborgen                                          | Notiz ≤ 2000 Zeichen          |
+
+Höchstens 500 Effekte pro Karte; IDs sind eindeutig.
+
 ## Versionierung und Migration
 
 - Jede inkompatible Änderung erhöht `version`.
@@ -203,6 +246,7 @@ Höchstens 2000 Tokens pro Karte; IDs sind eindeutig.
 - **v2 → v3**: ergänzt eine leere Wandliste; ältere Karten haben kein Hintergrundbild.
 - **v3 → v4**: fügt die Ebene `tokens` vor `gm` ein (sichtbar, entsperrt) und eine leere
   Token-Liste; Sichtbarkeit/Sperre der übrigen Ebenen bleibt erhalten.
+- **v4 → v5**: fügt die Ebene `effects` vor `gm` ein und eine leere Effektliste.
 
 ## Speichern und Wiederherstellung
 
@@ -217,8 +261,8 @@ Höchstens 2000 Tokens pro Karte; IDs sind eindeutig.
 
 ## Lokale Bibliothek (nicht Teil der Karte)
 
-Spielercharaktere und eigene Kreaturen liegen in `bibliothek.sqlite` im App-Datenordner
-(Tabelle `entries`: `kind` = `pc`/`creature`, `id`, `name`, `data` = JSON, `modified_at`;
+Spielercharaktere, eigene Kreaturen und eigene Effekte liegen in `bibliothek.sqlite` im App-Datenordner
+(Tabelle `entries`: `kind` = `pc`/`creature`/`effect`, `id`, `name`, `data` = JSON, `modified_at`;
 `PRAGMA user_version` = Schema-Version 1). Eine neuere Schema-Version wird nicht überschrieben,
 sondern mit Meldung abgelehnt. Beim Setzen eines Tokens werden alle nötigen Werte (und das
 Bild) in die Karte kopiert – Karten bleiben ohne Bibliothek vollständig.

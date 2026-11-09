@@ -7,6 +7,9 @@
  * geänderte Datenbank bringt die App nicht zum Absturz, fehlerhafte Einträge werden übersprungen.
  */
 import { invoke, isTauri } from '@tauri-apps/api/core';
+import { parseDice } from '../core/dice';
+import type { EffectSource } from '../data/srd/effects';
+import { DAMAGE_TYPES, type DamageType, type SaveAbility } from './mapDocument';
 import {
   SIZE_CATEGORIES,
   type Creature,
@@ -14,7 +17,7 @@ import {
   type SizeCategory,
 } from '../data/srd/creatures';
 
-export type LibraryKind = 'pc' | 'creature';
+export type LibraryKind = 'pc' | 'creature' | 'effect';
 
 export interface RawEntry {
   kind: LibraryKind;
@@ -257,4 +260,95 @@ export function dataUrlToBytes(url: string): { bytes: Uint8Array; ext: string } 
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   return { bytes, ext: m[1] === 'jpeg' ? 'jpg' : m[1] };
+}
+
+// ------------------------------------------------------------------ Eigene Effekte
+
+const EFFECT_SHAPES = [
+  'sphere',
+  'cylinder',
+  'cone',
+  'cube',
+  'line',
+  'emanation',
+  'square',
+] as const;
+const ABILITIES = ['str', 'dex', 'con', 'int', 'wis', 'cha'] as const;
+
+/** Eigener Effekt (Homebrew-Zauber, Falle, Gegenstand …) im Format der Effektbibliothek. */
+export function normalizeEffect(id: string, name: string, raw: unknown): EffectSource {
+  const o = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  const shape = EFFECT_SHAPES.includes(o.shape as (typeof EFFECT_SHAPES)[number])
+    ? (o.shape as EffectSource['shape'])
+    : 'sphere';
+  const dmg = (o.damage && typeof o.damage === 'object' ? o.damage : null) as Record<
+    string,
+    unknown
+  > | null;
+  // Gespeichert als Text, im Bibliotheksformat als { base: '…' }.
+  const rawDice = dmg?.dice as unknown;
+  const dice = (
+    typeof rawDice === 'string'
+      ? rawDice
+      : rawDice && typeof (rawDice as { base?: unknown }).base === 'string'
+        ? (rawDice as { base: string }).base
+        : ''
+  ).slice(0, 60);
+  const damageType = DAMAGE_TYPES.includes(dmg?.type as DamageType)
+    ? (dmg?.type as DamageType)
+    : null;
+  const sv = (o.save && typeof o.save === 'object' ? o.save : null) as Record<
+    string,
+    unknown
+  > | null;
+  const ability = ABILITIES.includes(sv?.ability as SaveAbility)
+    ? (sv?.ability as SaveAbility)
+    : null;
+  const rounds = o.rounds === null ? null : int(o.rounds, 0, 1_000_000, 0);
+  return {
+    id,
+    kind: 'custom',
+    name: name.trim().slice(0, 120) || 'Effekt',
+    shape,
+    size: int(o.size, 5, 5000, 20),
+    ...(shape === 'line' ? { width: int(o.width, 5, 5000, 5) } : {}),
+    ...(damageType && dice && parseDice(dice)
+      ? { damage: { type: damageType, dice: { base: parseDice(dice)?.text ?? dice } } }
+      : {}),
+    ...(ability
+      ? {
+          save: {
+            ability,
+            dc: int(sv?.dc, 1, 40, 13),
+            success: sv?.success === 'none' ? ('none' as const) : ('half' as const),
+          },
+        }
+      : {}),
+    duration: rounds === 0 ? 'Instantaneous' : rounds === null ? 'Special' : `${rounds} rounds`,
+    rounds,
+    concentration: o.concentration === true,
+    spreads: o.spreads === true,
+    desc: str(o.desc, 5000),
+  };
+}
+
+export async function listHomebrewEffects(lib = getLibrary()): Promise<EffectSource[]> {
+  return (await lib.list('effect'))
+    .filter((e) => parse(e.data))
+    .map((e) => normalizeEffect(e.id, e.name, parse(e.data)));
+}
+
+export async function saveHomebrewEffect(
+  e: EffectSource,
+  lib = getLibrary(),
+): Promise<EffectSource> {
+  const clean = normalizeEffect(e.id, e.name, e);
+  const { id, name, ...data } = clean;
+  // Für das Speicherformat Würfel als Text ablegen.
+  const stored = {
+    ...data,
+    ...(clean.damage ? { damage: { type: clean.damage.type, dice: clean.damage.dice.base } } : {}),
+  };
+  await lib.put('effect', id, name, JSON.stringify(stored));
+  return clean;
 }
