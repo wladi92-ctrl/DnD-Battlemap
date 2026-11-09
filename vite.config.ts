@@ -54,5 +54,7 @@ export default defineConfig({
     setupFiles: ['./vitest.setup.ts'],
     poolOptions: { forks: { execArgv: testExecArgv } },
     include: ['src/**/*.test.{ts,tsx}', 'scripts/**/*.test.mjs'],
+    // UI-Abläufe mit vielen Klicks brauchen auf langsamen CI-Runnern deutlich länger als lokal.
+    testTimeout: 30_000,
   },
 });

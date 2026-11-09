@@ -170,7 +170,7 @@ describe('Kampf', () => {
     const md = new TextDecoder().decode(fa.files.get('D:\\Logs\\arena.md'));
     expect(md).toContain('# Kampflog – Arena');
     expect(md).toContain('| Zug | Ork ist am Zug. |');
-  }, 20_000); // langer Ablauf mit vielen Klicks
+  });
 
   it('Angriff: Ziel vorausgewählt, würfeln, Schaden anpassen und anwenden', async () => {
     const user = await setup();
