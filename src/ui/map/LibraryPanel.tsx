@@ -69,7 +69,7 @@ export function LibraryPanel() {
   const tabStop = filtered.find((e) => e.id === elementId)?.id ?? filtered[0]?.id;
 
   return (
-    <aside className="library-panel" aria-labelledby={`${id}-h`}>
+    <section className="library-content" aria-labelledby={`${id}-h`}>
       <h2 id={`${id}-h`}>{t('library.heading')}</h2>
       <input
         type="search"
@@ -129,6 +129,6 @@ export function LibraryPanel() {
       {importOpen && (
         <ImportElementDialog onClose={() => setImportOpen(false)} onCreated={choose} />
       )}
-    </aside>
+    </section>
   );
 }

@@ -2,13 +2,14 @@
  * Kartendokument – Inhalt von map.json in einer .dndmap-Datei.
  * Das Format ist versioniert; Änderungen erhöhen MAP_FORMAT_VERSION und erhalten
  * eine Migration in migrations.ts. Beschreibung: docs/DATEIFORMAT.md,
- * JSON-Schema: docs/schema/map.v3.schema.json.
+ * JSON-Schema: docs/schema/map.v4.schema.json.
  */
 import { clampGridDimension } from '../core/grid';
 import type { DoorState, WallKind } from '../core/walls';
+import type { SizeCategory } from '../data/srd/creatures';
 
 export const MAP_FORMAT = 'dndmap';
-export const MAP_FORMAT_VERSION = 3;
+export const MAP_FORMAT_VERSION = 4;
 
 export const FEET_PER_CELL_MIN = 1;
 export const FEET_PER_CELL_MAX = 100;
@@ -29,9 +30,9 @@ export interface GridSettings {
   opacity: number;
 }
 
-/** Ebenen von unten nach oben. Tokens, Effekte und Nebel folgen in späteren Phasen. */
-export type LayerId = 'floor' | 'walls' | 'decor' | 'gm';
-export const LAYER_IDS: readonly LayerId[] = ['floor', 'walls', 'decor', 'gm'];
+/** Ebenen von unten nach oben. Effekte und Nebel folgen in späteren Phasen. */
+export type LayerId = 'floor' | 'walls' | 'decor' | 'tokens' | 'gm';
+export const LAYER_IDS: readonly LayerId[] = ['floor', 'walls', 'decor', 'tokens', 'gm'];
 /** Ebenen, auf denen Objekte (statt Bodenkacheln) liegen. */
 export type ObjectLayerId = 'walls' | 'decor';
 export const OBJECT_LAYERS: readonly ObjectLayerId[] = ['walls', 'decor'];
@@ -165,6 +166,54 @@ export interface EdgeWall {
   state?: DoorState;
 }
 
+export type Team = 'player' | 'ally' | 'enemy' | 'neutral';
+export const TEAMS: readonly Team[] = ['player', 'ally', 'enemy', 'neutral'];
+export type TokenKind = 'creature' | 'pc';
+
+/** Eigener Marker an einem Token (zusätzlich zu den SRD-Zuständen). */
+export interface TokenMarker {
+  label: string;
+  color: string;
+}
+
+/** Figur auf der Karte (Kreatur oder Spielercharakter). Position = linke obere Ecke in Feldern. */
+export interface Token {
+  id: string;
+  name: string;
+  kind: TokenKind;
+  /** SRD-Kreatur-ID, ID einer eigenen Kreatur ("custom:…") oder eines Charakters ("pc:…"). */
+  source?: string;
+  size: SizeCategory;
+  x: number;
+  y: number;
+  team: Team;
+  color: string;
+  /** Eigenes Bild unter assets/ (z. B. "tokens/…png"). */
+  image?: string;
+  hp: { current: number; max: number; temp: number };
+  ac: number;
+  /** Geschwindigkeit zu Fuß in ft. */
+  speed: number;
+  /** Nahkampfreichweite in ft. */
+  reach: number;
+  initiativeBonus: number;
+  passivePerception: number;
+  darkvision: number;
+  conditions: string[];
+  markers: TokenMarker[];
+  deathSaves: { success: number; failure: number };
+  /** Nur für die Spielleitung sichtbar. */
+  hidden: boolean;
+  /** Blickrichtung in Grad (0 = oben, im Uhrzeigersinn). */
+  facing: number;
+  /** In dieser Runde verbrauchte Bewegung (ft). */
+  movementUsed: number;
+  actionsUsed: { action: boolean; bonus: boolean; reaction: boolean };
+  groupId?: string;
+  /** Nur bei Spielercharakteren. */
+  pc?: { className: string; level: number };
+}
+
 export const WALL_KINDS: readonly WallKind[] = ['wall', 'door', 'window', 'secret'];
 export const DOOR_STATES: readonly DoorState[] = ['closed', 'open', 'locked'];
 export const IMAGE_MAX_SIDE = 16384;
@@ -188,6 +237,8 @@ export interface MapDocument {
   customElements: CustomElement[];
   /** Kantenwände, Türen und Fenster (gehören zur Ebene "Wände/Objekte"). */
   walls: EdgeWall[];
+  /** Figuren auf der Ebene "Tokens". */
+  tokens: Token[];
 }
 
 export interface NewMapOptions {
@@ -269,6 +320,7 @@ export function createMap(opts: NewMapOptions, now = new Date()): MapDocument {
     notes: [],
     customElements: [],
     walls: [],
+    tokens: [],
   };
 }
 

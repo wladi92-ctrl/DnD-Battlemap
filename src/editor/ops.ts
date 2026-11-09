@@ -5,6 +5,7 @@
 import { clampGridDimension, type Cell } from '../core/grid';
 import { clipCells, floodFill } from '../core/shapes';
 import type { ElementInfo } from '../data/elements';
+import { SIZE_CELLS } from '../data/srd/creatures';
 import {
   cellKey,
   layerState,
@@ -414,8 +415,18 @@ export function resizeGrid(doc: MapDocument, colsRaw: number, rowsRaw: number): 
   const walls = doc.walls.filter(
     (w) => Math.max(w.x1, w.x2) <= cols && Math.max(w.y1, w.y2) <= rows,
   );
+  // Tokens werden nicht gelöscht, sondern an den Rand der verkleinerten Karte geschoben.
+  const tokens = doc.tokens.map((t) => {
+    const n = Math.max(1, SIZE_CELLS[t.size]);
+    const x = Math.max(0, Math.min(cols - n, t.x));
+    const y = Math.max(0, Math.min(rows - n, t.y));
+    return x === t.x && y === t.y ? t : { ...t, x, y };
+  });
   return done({
     whole: {
+      ...(tokens.some((t, i) => t !== doc.tokens[i])
+        ? { tokens: { b: doc.tokens, a: tokens } }
+        : {}),
       grid: { b: doc.grid, a: { ...doc.grid, cols, rows } },
       floor: { b: doc.floor, a: floor },
       objects: { b: doc.objects, a: objects },

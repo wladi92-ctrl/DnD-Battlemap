@@ -6,3 +6,5 @@ src-tauri/gen
 src-tauri/icons
 src/data/licenses/third-party.json
 package-lock.json
+# Generierte SRD-Daten (scripts/build-srd.mjs)
+src/data/srd/*.json

@@ -174,3 +174,59 @@ Testbild: per Canvas erzeugtes Verlies 3000 × 2400 px, Raster alle 60 px ab 23 
 | Start der Release-Exe                           | ✅                                                                                                                                                           |
 | Drag & Drop und Dateidialoge in der Desktop-App | ⏳ bitte manuell prüfen (Tauri-Drop auf HTML5 umgestellt)                                                                                                    |
 | Echte 8000×8000-Bilder, WebKit (macOS/Linux)    | ⏳ nicht geprüft                                                                                                                                             |
+
+## Phase 5 – Tokens & Bewegung (2026-11-09)
+
+### Automatisch
+
+| Prüfung                                                                  | Ergebnis                   |
+| ------------------------------------------------------------------------ | -------------------------- |
+| `npm run verify` (Lint, Prettier, `tsc`, Vitest, Build, Offline-Prüfung) | ✅ 171 Tests in 24 Dateien |
+| `npm run test:rust`                                                      | ✅ 6 Tests                 |
+
+Neue Tests:
+
+- `src/core/movement.test.ts` – 30 ft = 6 Felder (Standard), 5/10/5 diagonal nur 4 Felder,
+  schwieriges Gelände doppelt, Umweg um Kantenwand (25 ft, Weg zusammenhängend, nie durch
+  Wände), kein Durchquetschen zwischen zwei Blöcken, Feinde blockieren / Verbündete passierbar
+  aber kein Endfeld, 2×2-Kreaturen brauchen Platz; Abstand zwischen Figuren, Gelegenheitsangriff
+  nur beim Verlassen der Reichweite und nur von Feinden (Oger mit 10 ft Reichweite)
+- `src/editor/tokens.test.ts` – mehrere Kreaturen durchnummeriert auf freie Felder, große
+  Kreaturen ohne Überlappung, Werte aus dem SRD-Statblock (Goblin), gesperrte Ebene; temporäre
+  TP zuerst, Heilung bis Maximum, nicht kumulative temporäre TP; SC bewusstlos →
+  Todesrettungswürfe → stabil → Heilung setzt zurück; kritisch bei 0 TP = zwei Fehlschläge,
+  massiver Schaden tötet; Kreaturen sterben bei 0 TP; Zustände umschalten, Gruppen, neue Runde,
+  Löschen + Undo; Duplizieren; Bewegungskosten und Restreichweite; Gelegenheitsangriff +
+  Umweg um Feind; Winzig-Treffertest; Verkleinern der Karte schiebt Tokens an den Rand
+- `src/storage/storage.test.ts` – Round-Trip mit Tokens, **Migration v3 → v4** (Ebene vor GM,
+  Ebenenzustände bleiben), v2/v1 → v4, JSON-Schema v4 = Validator in 49 Fällen
+- `src/storage/library.test.ts` – Normalisierung von Charakteren/eigenen Kreaturen (Grenzen,
+  nur gültige Bild-Data-URLs), localStorage-Backend (sortiert, ersetzt, löscht, überspringt
+  kaputte Einträge), Data-URL → Bytes
+- `src-tauri/src/library.rs` – SQLite: anlegen/auflisten/ändern/löschen, ungültige Eingaben
+  (Art, leere ID/Name, kein JSON-Objekt, > 4 MB), Persistenz auf Platte, neuere Schema-Version
+  wird abgelehnt
+- `src/ui/creatures/Tokens.test.tsx` – Kreaturen-Reiter: 334 Kreaturen, Umgebungsfilter
+  deaktiviert, Suche, Statblock, **3 Goblins setzen** per Eingabetaste, Schaden auf alle →
+  0 TP, Zustand für alle, Undo; **Charakter anlegen mit Bild**, setzen, Pfeiltaste = 5 ft,
+  Bild wird mit der Karte gespeichert; eigene Kreatur anlegen (EP/Übungsbonus aus HG, Aktionen)
+
+### Manuell (Produktions-Build, Produktions-CSP, Chromium)
+
+| Prüfung                                                   | Ergebnis                                                                              |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Autosave aus Phase 4 (Version 3) wiederherstellen         | ✅ migriert, Ebene „Tokens“ erscheint                                                 |
+| Kreaturen-Reiter, Suche „goblin“, Statblock               | ✅ englischer Text, deutsche Beschriftungen                                           |
+| 4 Goblins setzen                                          | ✅ „Goblin 1–4“ auf freien Feldern, alle ausgewählt                                   |
+| Token-Darstellung bei 112 %                               | ✅ Initialen, Namen, TP-Balken, Reichweite, Zustands-Abzeichen                        |
+| Einzelnes Token: Reichweite, Ziehen 4 Felder + 2 diagonal | ✅ 20 ft verbucht, Reichweite schrumpft auf Rest                                      |
+| 10 Schaden auf Goblin (7 TP)                              | ✅ tot (rotes X)                                                                      |
+| Charakter anlegen, neben Goblin setzen, wegziehen         | ✅ Hinweis „Gelegenheitsangriff möglich durch: Goblin 4“                              |
+| 30 Schaden auf SC (24 TP), Fehlschlag eintragen           | ✅ bewusstlos, Todesrettungswürfe 0/1                                                 |
+| Strg+Z ×3                                                 | ✅ TP und Bewegung zurück                                                             |
+| Pfeiltasten mit ausgewähltem Token                        | ✅ 2 Felder = 10 ft                                                                   |
+| Konsole                                                   | ✅ keine Fehler (nur Pixi-Hinweise beim Neuaufbau von Texten)                         |
+| Gefunden und behoben                                      | Anzahl-Feld sprang beim Leeren auf 1, „3“ wurde zu „13“ (Test); `layer.tokens` fehlte |
+| `npm run tauri:build`                                     | ✅ MSI de/en (je 3,2 MB, inkl. SQLite), NSIS-Setup (2,4 MB)                           |
+| Start der Release-Exe                                     | ✅ Fenster „DnD Battlemap“                                                            |
+| SQLite-Bibliothek und Bilddialog in der Desktop-App       | ⏳ bitte manuell prüfen (Rust-Tests und Browser-Vorschau grün)                        |

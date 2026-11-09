@@ -26,7 +26,9 @@ import {
   type Notify,
 } from './editorTools';
 import { GeneratorDialog } from './GeneratorDialog';
-import { LibraryPanel } from './LibraryPanel';
+import { LeftPanel } from './LeftPanel';
+import { StatblockDialog } from '../creatures/StatblockDialog';
+import { TokenPanel } from '../creatures/TokenPanel';
 import { MapCanvas } from './MapCanvas';
 import { NewMapDialog } from './NewMapDialog';
 import { NoteDialog } from './NoteDialog';
@@ -47,7 +49,7 @@ export function MapWorkspace() {
   const [templateOpen, setTemplateOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
-  const notify: Notify = (key) => useNoticeStore.getState().push('info', t(key));
+  const notify: Notify = (key, params) => useNoticeStore.getState().push('info', t(key, params));
 
   const requestNew = async () => {
     if (await actions.confirmDiscard()) setNewOpen(true);
@@ -186,9 +188,10 @@ export function MapWorkspace() {
       {doc ? (
         <>
           <div className="workspace-body">
-            <LibraryPanel />
+            <LeftPanel />
             <MapCanvas />
             <div className="side-panel">
+              <TokenPanel />
               <ToolOptionsPanel />
               <LayersPanel />
               <TerrainPanel />
@@ -198,6 +201,7 @@ export function MapWorkspace() {
           </div>
           <StatusBar />
           <NoteDialog />
+          <StatblockDialog />
           {templateOpen && <GeneratorDialog onClose={() => setTemplateOpen(false)} />}
         </>
       ) : (

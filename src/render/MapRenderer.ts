@@ -3,7 +3,8 @@
  * gerendert wird nur bei Änderungen (kein Dauer-Ticker) – spart CPU/GPU im Leerlauf.
  *
  * Ebenen (von unten): Hintergrundfarbe → Hintergrundbild → Boden → Raster → Wände/Objekte
- * (inkl. Kantenwände) → Dekoration → Gelände-Overlay → GM-Notizen → Overlay.
+ * (inkl. Kantenwände) → Dekoration → Gelände-Overlay → Bewegungsreichweite → Tokens →
+ * GM-Notizen → Overlay.
  * Bodenkacheln liegen in 16×16-Blöcken, die außerhalb des Sichtbereichs ausgeblendet werden.
  */
 import 'pixi.js/unsafe-eval';
@@ -28,6 +29,7 @@ import {
   type PlacedObject,
 } from '../storage/mapDocument';
 import { BackgroundImageLayer } from './backgroundImage';
+import { TokenLayer, type ConditionLabel } from './tokenLayer';
 import { RENDERER_PREFERENCE } from './graphicsSupport';
 import { ElementTextures, TEXTURE_PX_PER_CELL } from './textures';
 
@@ -63,6 +65,16 @@ export interface OverlayState {
   wallPreview?: readonly SegmentF[];
   /** Einrastpunkt unter dem Zeiger beim Wandzeichnen. */
   wallVertex?: { x: number; y: number } | null;
+  /** Erreichbare Felder des ausgewählten Tokens (Restbewegung), unter den Tokens gezeichnet. */
+  moveRange?: readonly Cell[];
+  /** Größe des Tokens für die Reichweitenanzeige (Felder). */
+  moveSize?: number;
+  /** Geplanter bzw. gezogener Weg (Feldmitten der linken oberen Ecke). */
+  movePath?: readonly Cell[];
+  /** true = Weg übersteigt die Restbewegung (rot). */
+  moveOver?: boolean;
+  /** Nahkampfreichweiten ausgewählter Tokens (Rechtecke in Feldern). */
+  reach?: readonly CellRectF[];
 }
 
 export interface SegmentF {
@@ -142,6 +154,8 @@ export class MapRenderer {
   private readonly notesLayer = new Container();
   private readonly overlay = new Graphics();
   private readonly edgeWalls = new Graphics();
+  private readonly rangeGfx = new Graphics();
+  private readonly tokens: TokenLayer;
   private readonly bgImage: BackgroundImageLayer;
 
   private readonly textures: ElementTextures;
@@ -161,6 +175,7 @@ export class MapRenderer {
   private constructor(private readonly app: Application) {
     this.textures = new ElementTextures(() => this.refreshTextures());
     this.bgImage = new BackgroundImageLayer(() => this.requestRender());
+    this.tokens = new TokenLayer(() => this.requestRender());
     this.terrainLayer.addChild(this.terrainGfx);
     // Kantenwände über allen Objekten der Wand-Ebene.
     this.edgeWalls.zIndex = 1_000_000;
@@ -173,6 +188,8 @@ export class MapRenderer {
       this.objectLayers.walls,
       this.objectLayers.decor,
       this.terrainLayer,
+      this.rangeGfx,
+      this.tokens.container,
       this.notesLayer,
       this.overlay,
     );
@@ -250,6 +267,8 @@ export class MapRenderer {
       this.syncObjects();
     if (!prev || prev.notes !== doc.notes) this.syncNotes();
     if (!prev || prev.walls !== doc.walls) this.drawEdgeWalls(doc.walls);
+    if (!prev || prev.tokens !== doc.tokens || prevAssets !== assets)
+      this.tokens.sync(doc.tokens, assets);
     if (
       !prev ||
       prev.background !== doc.background ||
@@ -273,6 +292,7 @@ export class MapRenderer {
     this.objectLayers.walls.visible = layerState(doc, 'walls').visible;
     this.objectLayers.decor.visible = layerState(doc, 'decor').visible;
     this.notesLayer.visible = layerState(doc, 'gm').visible;
+    this.tokens.container.visible = layerState(doc, 'tokens').visible;
     this.requestRender();
   }
 
@@ -280,6 +300,12 @@ export class MapRenderer {
     this.showTerrain = show;
     this.terrainLayer.visible = show;
     if (show) this.drawTerrain();
+    this.requestRender();
+  }
+
+  /** Beschriftung der Zustands-Abzeichen (sprachabhängig). */
+  setConditionLabel(fn: ConditionLabel): void {
+    this.tokens.setConditionLabel(fn);
     this.requestRender();
   }
 
@@ -307,6 +333,7 @@ export class MapRenderer {
     this.destroyed = true;
     cancelAnimationFrame(this.frame);
     this.bgImage.destroy();
+    this.tokens.destroy();
     this.app.destroy(true, { children: true });
     this.textures.destroy();
   }
@@ -555,11 +582,56 @@ export class MapRenderer {
 
   // ---------------------------------------------------------------- Overlay
 
+  /** Bewegungsreichweite (Flächen unter den Tokens) und Nahkampfreichweite (gestrichelt). */
+  private drawMoveRange(px: number): void {
+    const g = this.rangeGfx;
+    g.clear();
+    const { moveRange, moveSize = 1, reach, movePath, moveOver } = this.overlayState;
+    if (moveRange?.length) {
+      // Jede erreichbare Position färbt den ganzen Platzbedarf.
+      const cells = new Set<string>();
+      for (const c of moveRange)
+        for (let y = 0; y < moveSize; y++)
+          for (let x = 0; x < moveSize; x++) cells.add(`${c.x + x},${c.y + y}`);
+      for (const k of cells) {
+        const [x = 0, y = 0] = k.split(',').map(Number);
+        g.rect(x * CELL_PX, y * CELL_PX, CELL_PX, CELL_PX);
+      }
+      g.fill({ color: 0x2f7de1, alpha: 0.16 });
+    }
+    for (const r of reach ?? []) {
+      g.rect(r.x * CELL_PX, r.y * CELL_PX, r.w * CELL_PX, r.h * CELL_PX).stroke({
+        color: 0xc0392b,
+        width: 2 * px,
+        alpha: 0.7,
+      });
+    }
+    if (movePath && movePath.length > 1) {
+      const half = (moveSize * CELL_PX) / 2;
+      const pts = movePath.map((c) => ({ x: c.x * CELL_PX + half, y: c.y * CELL_PX + half }));
+      const trace = () => {
+        g.moveTo(pts[0]?.x ?? 0, pts[0]?.y ?? 0);
+        for (const p of pts.slice(1)) g.lineTo(p.x, p.y);
+      };
+      const color = moveOver ? 0xd0302a : 0x1a5fb4;
+      trace();
+      g.stroke({ color: 0xffffff, width: 8 * px, alpha: 0.9, cap: 'round', join: 'round' });
+      trace();
+      g.stroke({ color, width: 4 * px, cap: 'round', join: 'round' });
+      const end = pts[pts.length - 1];
+      if (end)
+        g.circle(end.x, end.y, 7 * px)
+          .fill({ color })
+          .stroke({ color: 0xffffff, width: 2 * px });
+    }
+  }
+
   private drawOverlay(): void {
     const g = this.overlay;
     const px = 1 / this.camera.zoom; // 1 Bildschirmpixel in Weltkoordinaten
     const { hover, cursor, ruler, preview, placement, selection, marquee } = this.overlayState;
     g.clear();
+    this.drawMoveRange(px);
 
     if (hover) {
       g.rect(hover.x * CELL_PX, hover.y * CELL_PX, CELL_PX, CELL_PX).fill({

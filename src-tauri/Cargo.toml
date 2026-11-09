@@ -18,9 +18,12 @@ tauri-build = { version = "2", features = [] }
 # Bewusst ohne Netzwerk-Plugins (http, updater, websocket, shell/opener).
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
+# Lokale Bibliothek (Spielercharaktere, eigene Kreaturen); SQLite wird mitkompiliert.
+rusqlite = { version = "0.32", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 
 [dev-dependencies]
-serde_json = "1"
 # Mock-Runtime für IPC-Integrationstests der Commands.
 tauri = { version = "2", features = ["test"] }
 

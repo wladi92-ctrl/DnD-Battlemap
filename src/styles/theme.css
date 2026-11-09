@@ -357,7 +357,7 @@ input[type='color'] {
 
 .workspace-body {
   display: grid;
-  grid-template-columns: 14rem 1fr 18rem;
+  grid-template-columns: 16rem 1fr 18rem;
   min-height: 0;
 }
 
@@ -906,4 +906,372 @@ input[type='color'] {
 
 .bg-sliders input[type='range'] {
   width: 100%;
+}
+
+/* ---------------------------------------------------------------- Phase 5: Tokens, Kreaturen */
+
+.side-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.2rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.35rem;
+}
+
+.side-tabs [role='tab'] {
+  padding: 0.3rem 0.2rem;
+  border: 1px solid var(--border);
+  border-radius: 0.35rem;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.side-tabs [role='tab'][aria-selected='true'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 700;
+}
+
+.side-tab-panel:not([hidden]),
+.library-content,
+.creature-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  flex: 1;
+  min-height: 0;
+}
+
+.library-content h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.3rem;
+}
+
+.filter-grid select {
+  min-width: 0;
+}
+
+.filter-cr {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+}
+
+.filter-cr select {
+  flex: 1;
+}
+
+.filter-grid select[disabled] {
+  grid-column: 1 / -1;
+  font-size: 0.75rem;
+  opacity: 0.75;
+}
+
+.creature-list {
+  flex: 1;
+  min-height: 6rem;
+  overflow: auto;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 0.35rem;
+}
+
+.creature-item {
+  display: grid;
+  gap: 0.05rem;
+  padding: 0.3rem 0.45rem;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.creature-item:hover {
+  background: var(--surface-2);
+}
+
+.creature-item.selected {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.creature-item.selected .muted {
+  color: inherit;
+}
+
+.creature-item:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.creature-name {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 600;
+}
+
+.creature-actions {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 0.35rem;
+  background: var(--surface-2);
+}
+
+.place-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+}
+
+.place-controls label {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.place-controls input {
+  width: 100%;
+}
+
+.place-controls .btn {
+  grid-column: 1 / -1;
+}
+
+.token-thumb {
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--border);
+}
+
+.token-thumb.small {
+  width: 1.4rem;
+  height: 1.4rem;
+}
+
+.error-text {
+  color: #c0392b;
+  font-weight: 600;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.4rem 0.75rem;
+  align-items: center;
+}
+
+.form-grid-wide {
+  grid-template-columns: auto 1fr auto 1fr;
+}
+
+.form-grid .span-all,
+.form-grid .modal-actions {
+  grid-column: 1 / -1;
+}
+
+.form-grid input,
+.form-grid select {
+  min-width: 0;
+}
+
+.ability-row {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 0.35rem;
+}
+
+.ability-row span {
+  display: grid;
+  gap: 0.15rem;
+  text-align: center;
+}
+
+.ability-row input {
+  width: 100%;
+  text-align: center;
+}
+
+.statblock {
+  max-height: 65vh;
+  overflow: auto;
+  padding-right: 0.4rem;
+}
+
+.statblock h3 {
+  margin: 0.8rem 0 0.3rem;
+  border-bottom: 2px solid var(--accent);
+  color: var(--accent);
+  font-size: 1rem;
+}
+
+.statblock p {
+  margin: 0.3rem 0;
+}
+
+.sb-sub {
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+.sb-core {
+  margin: 0.4rem 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.15rem 0.6rem;
+}
+
+.sb-core .sb-row {
+  display: contents;
+}
+
+.sb-core dt {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.sb-core dd {
+  margin: 0;
+}
+
+.sb-abilities {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: center;
+  margin: 0.4rem 0;
+  border-block: 2px solid var(--accent);
+}
+
+.sb-abilities th {
+  color: var(--accent);
+  padding-top: 0.2rem;
+}
+
+.sb-abilities td {
+  padding-bottom: 0.2rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.panel-fieldset {
+  border: 1px solid var(--border);
+  border-radius: 0.35rem;
+  margin: 0.4rem 0;
+  padding: 0.35rem 0.55rem;
+}
+
+.panel-fieldset legend {
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0 0.2rem;
+}
+
+.token-panel .panel-check {
+  margin-bottom: 0.3rem;
+}
+
+.token-hp {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.status-chip {
+  padding: 0 0.4rem;
+  border-radius: 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #fff;
+  background: #6a3d8a;
+}
+
+.status-dead {
+  background: #7a1f16;
+}
+
+.status-stable {
+  background: #2e7d4f;
+}
+
+.death-saves {
+  display: grid;
+  gap: 0.15rem;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.condition-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 0.4rem;
+  font-size: 0.82rem;
+}
+
+.marker-list {
+  list-style: none;
+  margin: 0 0 0.3rem;
+  padding: 0;
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.85rem;
+}
+
+.marker-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.marker-list .btn-small {
+  margin-left: auto;
+}
+
+.marker-dot {
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 50%;
+  border: 1px solid #0006;
+}
+
+.btn-small {
+  padding: 0 0.4rem;
+  line-height: 1.4;
+}
+
+.token-panel .field-inline input:not([type='color']) {
+  flex: 1;
+  min-width: 0;
+}
+
+.map-hint-strong {
+  bottom: auto;
+  top: 0.75rem;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.ruler-label-over {
+  background: rgba(176, 32, 24, 0.92);
 }

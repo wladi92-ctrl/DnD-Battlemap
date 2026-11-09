@@ -31,9 +31,20 @@ export function migrateV2toV3(doc: RawDocument): RawDocument {
   return { ...doc, version: 3, walls: [] };
 }
 
+/** v3 → v4: Ebene "Tokens" (zwischen Dekoration und GM-Notizen) und leere Token-Liste. */
+export function migrateV3toV4(doc: RawDocument): RawDocument {
+  const layers = Array.isArray(doc.layers) ? [...(doc.layers as RawDocument[])] : [];
+  if (!layers.some((l) => l.id === 'tokens')) {
+    const gm = layers.findIndex((l) => l.id === 'gm');
+    layers.splice(gm < 0 ? layers.length : gm, 0, { id: 'tokens', visible: true, locked: false });
+  }
+  return { ...doc, version: 4, layers, tokens: [] };
+}
+
 export const migrations: Readonly<Record<number, Migration>> = {
   1: migrateV1toV2,
   2: migrateV2toV3,
+  3: migrateV3toV4,
 };
 
 export function migrate(

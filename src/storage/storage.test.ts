@@ -1,5 +1,5 @@
 import Ajv from 'ajv';
-import schema from '../../docs/schema/map.v3.schema.json';
+import schema from '../../docs/schema/map.v4.schema.json';
 import { strToU8, zipSync } from 'fflate';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { startAutosave } from './autosave';
@@ -94,6 +94,60 @@ const richSample = (): MapDocument => {
       { id: 'w2', x1: 5, y1: 1, x2: 5, y2: 2, kind: 'door', state: 'locked' },
       { id: 'w3', x1: 5, y1: 2, x2: 5.5, y2: 3.25, kind: 'window' },
     ],
+    tokens: [
+      {
+        id: 't1',
+        name: 'Goblin 1',
+        kind: 'creature',
+        source: 'goblin',
+        size: 'small',
+        x: 3,
+        y: 4,
+        team: 'enemy',
+        color: '#c0392b',
+        hp: { current: 4, max: 7, temp: 2 },
+        ac: 15,
+        speed: 30,
+        reach: 5,
+        initiativeBonus: 2,
+        passivePerception: 9,
+        darkvision: 60,
+        conditions: ['prone', 'frightened'],
+        markers: [{ label: 'Hexenfluch', color: '#8e44ad' }],
+        deathSaves: { success: 0, failure: 0 },
+        hidden: true,
+        facing: 90,
+        movementUsed: 15,
+        actionsUsed: { action: true, bonus: false, reaction: true },
+        groupId: 'g1',
+      },
+      {
+        id: 't2',
+        name: 'Mira',
+        kind: 'pc',
+        size: 'medium',
+        x: 10,
+        y: 10,
+        team: 'player',
+        color: '#2f7de1',
+        image: 'tokens/mira.png',
+        hp: { current: 0, max: 24, temp: 0 },
+        ac: 16,
+        speed: 30,
+        reach: 5,
+        initiativeBonus: 3,
+        passivePerception: 14,
+        darkvision: 0,
+        conditions: ['unconscious'],
+        markers: [],
+        deathSaves: { success: 1, failure: 2 },
+        hidden: false,
+        facing: 0,
+        movementUsed: 0,
+        actionsUsed: { action: false, bonus: false, reaction: false },
+        pc: { className: 'Schurkin', level: 3 },
+      },
+    ],
   };
 };
 
@@ -111,11 +165,12 @@ describe('Kartendokument', () => {
     const doc = createMap({ name: '  ', cols: 5, rows: 999, feetPerCell: 0 });
     expect(doc.name).toBe('Neue Karte');
     expect(doc.grid).toMatchObject({ cols: 10, rows: 200, feetPerCell: 1, visible: true });
-    expect(doc.version).toBe(3);
+    expect(doc.version).toBe(4);
     expect(doc.walls).toEqual([]);
+    expect(doc.tokens).toEqual([]);
     expect(doc.background.image).toBeUndefined();
     expect(doc.floor).toHaveLength(10 * 200);
-    expect(doc.layers.map((l) => l.id)).toEqual(['floor', 'walls', 'decor', 'gm']);
+    expect(doc.layers.map((l) => l.id)).toEqual(['floor', 'walls', 'decor', 'tokens', 'gm']);
   });
 
   it('wendet Rasteränderungen begrenzt an', () => {
@@ -153,18 +208,43 @@ describe('Projektdatei (.dndmap)', () => {
     expect(loaded.assets.get('custom/0123abcd.png')).toEqual(new Uint8Array([137, 80, 78, 71]));
   });
 
-  it('Version-2-Dateien werden auf Version 3 migriert', () => {
-    const { walls: _walls, ...v2 } = {
-      ...richSample(),
+  it('Version-3-Dateien werden auf Version 4 migriert (Token-Ebene vor GM)', () => {
+    const rich = richSample();
+    const { tokens: _tokens, ...v3 } = {
+      ...rich,
+      version: 3,
+      layers: rich.layers.filter((l) => l.id !== 'tokens'),
+    };
+    const doc = decodeProject(zipSync({ 'map.json': strToU8(JSON.stringify(v3)) })).doc;
+    expect(doc.version).toBe(4);
+    expect(doc.tokens).toEqual([]);
+    expect(doc.layers.map((l) => l.id)).toEqual(['floor', 'walls', 'decor', 'tokens', 'gm']);
+    expect(doc.layers.find((l) => l.id === 'gm')).toMatchObject({ visible: false, locked: true });
+  });
+
+  it('Version-2-Dateien werden auf Version 4 migriert', () => {
+    const rich = richSample();
+    const {
+      walls: _walls,
+      tokens: _tokens,
+      ...v2
+    } = {
+      ...rich,
       version: 2,
+      layers: rich.layers.filter((l) => l.id !== 'tokens'),
       background: { color: '#ffffff' },
     };
     const doc = decodeProject(zipSync({ 'map.json': strToU8(JSON.stringify(v2)) })).doc;
-    expect(doc).toMatchObject({ version: 3, walls: [], background: { color: '#ffffff' } });
+    expect(doc).toMatchObject({
+      version: 4,
+      walls: [],
+      tokens: [],
+      background: { color: '#ffffff' },
+    });
     expect(doc.objects).toHaveLength(3);
   });
 
-  it('Version-1-Dateien werden über v2 auf Version 3 migriert', () => {
+  it('Version-1-Dateien werden schrittweise auf Version 4 migriert', () => {
     const v1 = {
       format: 'dndmap',
       version: 1,
@@ -177,7 +257,7 @@ describe('Projektdatei (.dndmap)', () => {
     };
     const doc = decodeProject(zipSync({ 'map.json': strToU8(JSON.stringify(v1)) })).doc;
     expect(doc).toMatchObject({
-      version: 3,
+      version: 4,
       name: 'Alte Karte',
       objects: [],
       notes: [],
@@ -185,7 +265,7 @@ describe('Projektdatei (.dndmap)', () => {
       walls: [],
     });
     expect(doc.floor).toHaveLength(120);
-    expect(doc.layers).toHaveLength(4);
+    expect(doc.layers).toHaveLength(5);
   });
 
   it('enthält Wiederherstellungsinfos nur in Autosaves', () => {
@@ -289,6 +369,19 @@ describe('Validierung', () => {
       mutate((d) => (d.walls[1].state = 'ajar')),
       mutate((d) => (d.walls[2].x2 = -1)),
       mutate((d) => delete d.walls),
+      mutate((d) => delete d.tokens),
+      mutate((d) => (d.tokens[0].size = 'riesig')),
+      mutate((d) => (d.tokens[0].team = 'boss')),
+      mutate((d) => (d.tokens[0].hp.max = 7.5)),
+      mutate((d) => (d.tokens[0].conditions = ['vergiftet'])),
+      mutate((d) => (d.tokens[0].deathSaves.failure = 4)),
+      mutate((d) => (d.tokens[0].markers[0].color = 'lila')),
+      mutate((d) => (d.tokens[0].facing = 360)),
+      mutate((d) => delete d.tokens[0].actionsUsed),
+      mutate((d) => (d.tokens[1].image = '../geheim.png')),
+      mutate((d) => (d.tokens[1].pc.level = 0)),
+      mutate((d) => (d.tokens[1].kind = 'npc')),
+      mutate((d) => (d.tokens[0].x = -1)),
     ];
     for (const c of cases) {
       let ours = true;

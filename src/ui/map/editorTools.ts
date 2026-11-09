@@ -34,8 +34,18 @@ import { OBJECT_LAYERS } from '../../storage/mapDocument';
 import { useEditorStore } from '../state/editorStore';
 import { useMapStore } from '../state/mapStore';
 import { useViewStore, type Tool } from '../state/viewStore';
+import { duplicateTokens } from '../../editor/tokens';
+import { SIZE_CELLS } from '../../data/srd/creatures';
+import {
+  beginTokenDrag,
+  cancelTokenDrag,
+  endTokenDrag,
+  placeSpawnAt,
+  tokenAt,
+  tokenDragMove,
+} from './tokenTools';
 
-export type Notify = (key: MessageKey) => void;
+export type Notify = (key: MessageKey, params?: Record<string, string | number>) => void;
 
 export const EDIT_TOOLS: readonly Tool[] = [
   'select',
@@ -88,7 +98,7 @@ function snapValue(v: number): number {
 // ------------------------------------------------------------------ Zeiger
 
 interface DragState {
-  kind: 'paint' | 'erase' | 'shape' | 'move' | 'marquee';
+  kind: 'paint' | 'erase' | 'shape' | 'move' | 'marquee' | 'token';
   lastCell: Cell;
   start: { x: number; y: number };
   /** Bereits angewendete Verschiebung beim Bewegen. */
@@ -118,6 +128,12 @@ export function pointerDown(
   const doc = map.doc;
   if (!doc) return;
   const base = { lastCell: cell, start: point, applied: { x: 0, y: 0 }, additive: shift };
+
+  // Wartende Tokens werden mit dem nächsten Klick gesetzt (gleich mit welchem Werkzeug).
+  if (ed.spawn) {
+    placeSpawnAt(cell, notify);
+    return;
+  }
 
   switch (tool) {
     case 'brush':
@@ -152,6 +168,21 @@ export function pointerDown(
       addWallPoint(snapPoint(point), notify);
       return;
     case 'select': {
+      // Tokens liegen über Objekten und Wänden und haben Vorrang.
+      const token = tokenAt(point);
+      if (token) {
+        const sel = new Set(ed.selection);
+        if (shift) {
+          if (sel.has(token.id)) sel.delete(token.id);
+          else sel.add(token.id);
+          ed.setSelection(sel);
+          return;
+        }
+        if (!sel.has(token.id)) ed.setSelection([token.id]);
+        beginTokenDrag(token, point);
+        drag = { kind: 'token', ...base };
+        return;
+      }
       const hit = itemAt(point);
       if (hit) {
         const sel = new Set(ed.selection);
@@ -214,6 +245,9 @@ export function pointerMove(
       if (map.strokeApply(r) === null) d.applied = { x: d.applied.x + dx, y: d.applied.y + dy };
       return;
     }
+    case 'token':
+      tokenDragMove(point);
+      return;
     case 'marquee':
       ed.setMarquee({
         x: Math.min(d.start.x, point.x),
@@ -238,6 +272,9 @@ export function pointerUp(tool: Tool, notify: Notify) {
     case 'move':
       map.endStroke();
       return;
+    case 'token':
+      endTokenDrag(notify);
+      return;
     case 'shape': {
       const source = currentSource();
       if (source && ed.preview.length) {
@@ -260,6 +297,7 @@ export function pointerUp(tool: Tool, notify: Notify) {
       const found = [
         ...objectsInRect(doc, m).map((o) => o.id),
         ...wallsInRect(doc, m).map((w) => w.id),
+        ...tokensInRect(m),
       ];
       ed.setSelection(d.additive ? [...ed.selection, ...found] : found);
       return;
@@ -275,6 +313,10 @@ export function activateAt(tool: Tool, cell: Cell, shift: boolean, notify: Notif
   const map = useMapStore.getState();
   const doc = map.doc;
   if (!doc) return;
+  if (ed.spawn) {
+    placeSpawnAt(cell, notify);
+    return;
+  }
   if (tool === 'rect' || tool === 'line') {
     const source = currentSource();
     if (!source) return notify('notice.chooseElement');
@@ -314,7 +356,8 @@ export function activateAt(tool: Tool, cell: Cell, shift: boolean, notify: Notif
     return;
   }
   if (tool === 'select') {
-    const hit = itemAt({ x: cell.x + 0.5, y: cell.y + 0.5 });
+    const center = { x: cell.x + 0.5, y: cell.y + 0.5 };
+    const hit = tokenAt(center) ?? itemAt(center);
     if (!hit) return ed.setSelection(shift ? ed.selection : []);
     const sel = new Set(shift ? ed.selection : []);
     if (ed.selection.has(hit.id) && shift) sel.delete(hit.id);
@@ -396,6 +439,15 @@ export function paste(target: Cell | null, notify: Notify) {
 }
 
 export function duplicateSelection(notify: Notify) {
+  const doc = useMapStore.getState().doc;
+  const sel = useEditorStore.getState().selection;
+  if (doc?.tokens.some((t) => sel.has(t.id))) {
+    const { result, ids } = duplicateTokens(doc, sel);
+    const reason = useMapStore.getState().run(result, 'action.tokenAdd');
+    report(reason, notify);
+    if (!reason) useEditorStore.getState().setSelection(ids);
+    return;
+  }
   if (!copySelection()) return;
   const clip = useEditorStore.getState().clipboard;
   const minX = Math.min(...clip.map((o) => o.x));
@@ -410,7 +462,23 @@ export function selectAll() {
   const ids = objectsInRect(doc, all)
     .filter((o) => OBJECT_LAYERS.includes(o.layer))
     .map((o) => o.id);
-  useEditorStore.getState().setSelection([...ids, ...wallsInRect(doc, all).map((w) => w.id)]);
+  useEditorStore
+    .getState()
+    .setSelection([...ids, ...wallsInRect(doc, all).map((w) => w.id), ...tokensInRect(all)]);
+}
+
+/** Tokens, die ein Rechteck (in Feldern) schneiden; ausgeblendete/gesperrte Ebene → keine. */
+function tokensInRect(r: { x: number; y: number; w: number; h: number }): string[] {
+  const doc = useMapStore.getState().doc;
+  if (!doc) return [];
+  const st = doc.layers.find((l) => l.id === 'tokens');
+  if (!st?.visible || st.locked) return [];
+  return doc.tokens
+    .filter((t) => {
+      const s = SIZE_CELLS[t.size];
+      return t.x < r.x + r.w && t.x + s > r.x && t.y < r.y + r.h && t.y + s > r.y;
+    })
+    .map((t) => t.id);
 }
 
 // ------------------------------------------------------------------ Kantenwände
@@ -498,6 +566,7 @@ export function cancelEditing() {
   const ed = useEditorStore.getState();
   if (drag?.kind === 'paint' || drag?.kind === 'erase' || drag?.kind === 'move')
     useMapStore.getState().endStroke();
+  if (drag?.kind === 'token') cancelTokenDrag();
   drag = null;
   ed.setShapeAnchor(null);
   ed.setPreview([]);

@@ -33,6 +33,7 @@ export class MapRenderer {
   setShowTerrain(show: boolean): void {
     this.showTerrain = show;
   }
+  setConditionLabel(): void {}
   setCamera(camera: Camera): void {
     this.camera = camera;
   }

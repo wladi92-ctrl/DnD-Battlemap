@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useState } from 'react';
 import { SRD_ATTRIBUTION, SRD_LICENSE } from '../data/licenses/srd-attribution';
+import { SRD_DATA_SOURCE } from '../data/srd/creatures';
 import { detectGraphicsSupport, type GraphicsSupport } from '../render/graphicsSupport';
 import { useT } from './useT';
 
@@ -75,6 +76,9 @@ export function AboutPage() {
         </p>
         <p className="muted">
           {SRD_LICENSE.name} – {t('about.srd.note')}
+        </p>
+        <p className="muted small">
+          {t('about.srd.data', { commit: SRD_DATA_SOURCE.commit.slice(0, 7) })}
         </p>
       </div>
 

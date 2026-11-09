@@ -41,6 +41,9 @@ import {
   pointerUp,
   type Notify,
 } from './editorTools';
+import { SIZE_CELLS } from '../../data/srd/creatures';
+import { tokenCells } from '../../editor/tokens';
+import { moveRangeFor, selectedTokens, stepSelectedTokens } from './tokenTools';
 
 const KEY_PAN_PX = 64;
 const WHEEL_ZOOM_SPEED = 0.0015;
@@ -54,9 +57,23 @@ function buildOverlay(): OverlayState {
   const doc = useMapStore.getState().doc;
   const tool = view.tool;
   const selection = doc ? doc.objects.filter((o) => ed.selection.has(o.id)).map(footprintRect) : [];
+  const tokens = selectedTokens(doc);
+  for (const tk of tokens) {
+    const s = SIZE_CELLS[tk.size];
+    const off = s < 1 ? (1 - s) / 2 : 0;
+    selection.push({ x: tk.x + off, y: tk.y + off, w: s, h: s });
+  }
   let placement: OverlayState['placement'] = null;
   const at = view.hoverCell ?? view.cursorCell;
-  if (
+  if (ed.spawn && at && doc) {
+    const n = tokenCells(ed.spawn.template);
+    placement = {
+      x: Math.min(at.x, doc.grid.cols - n),
+      y: Math.min(at.y, doc.grid.rows - n),
+      w: n,
+      h: n,
+    };
+  } else if (
     at &&
     (tool === 'brush' || tool === 'rect' || tool === 'line') &&
     ed.paintMode === 'element'
@@ -74,6 +91,32 @@ function buildOverlay(): OverlayState {
     marquee: ed.marquee,
     selectedWalls: doc ? doc.walls.filter((w) => ed.selection.has(w.id)) : [],
     ...wallOverlay(tool),
+    ...tokenOverlay(tool),
+  };
+}
+
+/** Bewegungsreichweite, gezogener Weg und Nahkampfreichweite der ausgewählten Tokens. */
+function tokenOverlay(
+  tool: string,
+): Pick<OverlayState, 'moveRange' | 'moveSize' | 'movePath' | 'moveOver' | 'reach'> {
+  const doc = useMapStore.getState().doc;
+  const ed = useEditorStore.getState();
+  if (!doc || tool !== 'select') return {};
+  const tokens = selectedTokens(doc);
+  const fpc = doc.grid.feetPerCell;
+  const reach = tokens.map((tk) => {
+    const n = tokenCells(tk);
+    const k = Math.max(1, Math.round(tk.reach / fpc));
+    return { x: tk.x - k, y: tk.y - k, w: n + 2 * k, h: n + 2 * k };
+  });
+  const [single] = tokens;
+  const mp = ed.movePreview;
+  return {
+    reach,
+    moveRange: single && tokens.length === 1 && !mp ? moveRangeFor(doc, single) : [],
+    moveSize: single ? tokenCells(single) : 1,
+    movePath: mp?.path ?? [],
+    moveOver: mp?.over ?? false,
   };
 }
 
@@ -118,7 +161,8 @@ export function MapCanvas() {
   const cols = doc?.grid.cols ?? 0;
   const rows = doc?.grid.rows ?? 0;
 
-  const notify: Notify = (key) => useNoticeStore.getState().push('info', t(key));
+  const notify: Notify = (key, params) => useNoticeStore.getState().push('info', t(key, params));
+  const spawn = useEditorStore((s) => s.spawn);
 
   // Renderer anlegen/abbauen (StrictMode-sicher).
   useEffect(() => {
@@ -178,6 +222,7 @@ export function MapCanvas() {
     };
     const pushOverlay = () => r.setOverlay(buildOverlay());
     pushDoc();
+    r.setConditionLabel((id) => t(`condShort.${id}` as MessageKey));
     r.setShowTerrain(useEditorStore.getState().showTerrain);
     r.setCamera(useViewStore.getState().camera);
     pushOverlay();
@@ -209,7 +254,9 @@ export function MapCanvas() {
         s.elementId !== prev.elementId ||
         s.rotation !== prev.rotation ||
         s.paintMode !== prev.paintMode ||
-        s.wallChain !== prev.wallChain
+        s.wallChain !== prev.wallChain ||
+        s.spawn !== prev.spawn ||
+        s.movePreview !== prev.movePreview
       ) {
         pushOverlay();
       }
@@ -219,7 +266,8 @@ export function MapCanvas() {
       offView();
       offEditor();
     };
-  }, [ready]);
+    // t wechselt mit der Sprache; Abzeichen werden dann neu beschriftet.
+  }, [ready, t]);
 
   // Mausrad-Zoom (nicht-passiver Listener, damit die Seite nicht scrollt).
   useEffect(() => {
@@ -325,8 +373,11 @@ export function MapCanvas() {
         view.panBy(-dir[0] * KEY_PAN_PX, -dir[1] * KEY_PAN_PX, world);
         return;
       }
-      // Mit Auswahl verschieben die Pfeiltasten die Objekte (wie Schachfiguren).
-      if (tool === 'select' && ed.selection.size && moveSelection(dir[0], dir[1], notify)) return;
+      // Mit Auswahl verschieben die Pfeiltasten Tokens (mit Bewegungskosten) bzw. Objekte.
+      if (tool === 'select' && ed.selection.size) {
+        if (stepSelectedTokens(dir[0], dir[1], notify)) return;
+        if (moveSelection(dir[0], dir[1], notify)) return;
+      }
       const start =
         view.cursorCell ??
         view.hoverCell ??
@@ -369,7 +420,8 @@ export function MapCanvas() {
       return;
     }
     if (e.key === 'Escape') {
-      if (ed.wallChain.length) endWallChain();
+      if (ed.spawn) ed.setSpawn(null);
+      else if (ed.wallChain.length) endWallChain();
       else if (view.ruler.active) view.rulerEnd();
       else if (view.ruler.points.length) view.rulerClear();
       else if (ed.shapeAnchor || isDragging()) cancelEditing();
@@ -382,7 +434,7 @@ export function MapCanvas() {
     if (e.key === ' ') spaceRef.current = false;
   };
 
-  const hints = HINTS[tool] ?? [];
+  const hints = spawn ? [] : (HINTS[tool] ?? []);
 
   return (
     <div className="map-canvas-wrap">
@@ -410,6 +462,12 @@ export function MapCanvas() {
         onBlur={() => (spaceRef.current = false)}
       />
       <RulerLabel feetPerCell={doc.grid.feetPerCell} />
+      <MoveCostLabel />
+      {ready && spawn && (
+        <div className="map-hint map-hint-strong" role="status">
+          {t('token.placeHint', { name: spawn.template.name, count: spawn.count })}
+        </div>
+      )}
       {!ready && (
         <div className="map-hint" role="status">
           {t('canvas.loading')}
@@ -422,6 +480,42 @@ export function MapCanvas() {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Kosten des gezogenen Token-Wegs (ft) am Ziel; rot, wenn die Restbewegung nicht reicht. */
+function MoveCostLabel() {
+  const t = useT();
+  const preview = useEditorStore((s) => s.movePreview);
+  const camera = useViewStore((s) => s.camera);
+  const doc = useMapStore((s) => s.doc);
+  const locale = useSettings((s) => s.locale);
+  if (!preview || !doc) return null;
+  const token = doc.tokens.find((x) => x.id === preview.tokenId);
+  if (!token) return null;
+  const n = tokenCells(token);
+  const end = worldToScreen(camera, {
+    x: (preview.target.x + n) * CELL_PX,
+    y: preview.target.y * CELL_PX,
+  });
+  const text =
+    preview.cost === null
+      ? t('token.moveFree')
+      : t('token.moveCost', {
+          cost: formatDistance(preview.cost, { locale, showMeters: false }),
+          left: formatDistance(Math.max(0, token.speed - token.movementUsed), {
+            locale,
+            showMeters: false,
+          }),
+        });
+  return (
+    <div
+      className={preview.over ? 'ruler-label ruler-label-over' : 'ruler-label'}
+      role="status"
+      style={{ transform: `translate(${end.x + 6}px, ${end.y - 30}px)` }}
+    >
+      {text}
     </div>
   );
 }

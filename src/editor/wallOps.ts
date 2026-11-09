@@ -12,6 +12,7 @@ import {
 } from '../storage/mapDocument';
 import { deleteObjects, moveObjects, newId, resizeGrid, type OpResult } from './ops';
 import { isEmptyPatch, mergePatches, replaceField, type DocPatch } from './patch';
+import { deleteTokens, shiftTokens } from './tokens';
 
 const nothing: OpResult = { ok: false, reason: 'nothing' };
 const done = (patch: DocPatch): OpResult => (isEmptyPatch(patch) ? nothing : { ok: true, patch });
@@ -123,18 +124,23 @@ function combine(...results: OpResult[]): OpResult {
   return results.find((r) => !r.ok && r.reason === 'locked') ?? nothing;
 }
 
-/** Verschiebt ausgewählte Objekte und Wände gemeinsam. */
+/** Verschiebt ausgewählte Objekte, Wände und Tokens gemeinsam. */
 export function moveItems(
   doc: MapDocument,
   ids: ReadonlySet<string>,
   dx: number,
   dy: number,
 ): OpResult {
-  return combine(moveObjects(doc, ids, dx, dy), moveWalls(doc, ids, dx, dy));
+  return combine(
+    moveObjects(doc, ids, dx, dy),
+    moveWalls(doc, ids, dx, dy),
+    shiftTokens(doc, ids, dx, dy),
+  );
 }
 
 export function deleteItems(doc: MapDocument, ids: ReadonlySet<string>): OpResult {
-  return combine(deleteObjects(doc, ids), deleteWalls(doc, ids));
+  const tokens = doc.tokens.some((t) => ids.has(t.id)) ? deleteTokens(doc, ids) : nothing;
+  return combine(deleteObjects(doc, ids), deleteWalls(doc, ids), tokens);
 }
 
 // ------------------------------------------------------------------ Hintergrundbild

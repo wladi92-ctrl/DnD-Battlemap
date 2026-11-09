@@ -5,6 +5,8 @@
 import { create } from 'zustand';
 import type { Cell, Point } from '../../core/grid';
 import type { WallKind } from '../../core/walls';
+import type { Creature } from '../../data/srd/creatures';
+import type { TokenTemplate } from '../../editor/tokens';
 import type { LayerId, PlacedObject, Rotation, TerrainProps } from '../../storage/mapDocument';
 
 export type PaintMode = 'element' | 'terrain';
@@ -14,6 +16,24 @@ export interface Marquee {
   y: number;
   w: number;
   h: number;
+}
+
+/** Wartendes Setzen von Tokens: der nächste Klick auf die Karte platziert sie. */
+export interface PendingSpawn {
+  template: TokenTemplate;
+  count: number;
+  /** Bild als Data-URL (Spielercharaktere/Homebrew), wird beim Setzen eingebettet. */
+  imageData?: string;
+}
+
+/** Vorschau beim Ziehen eines Tokens. */
+export interface MovePreview {
+  tokenId: string;
+  target: Cell;
+  path: Cell[];
+  /** Kosten in ft (null = kein regulärer Weg). */
+  cost: number | null;
+  over: boolean;
 }
 
 export interface EditorState {
@@ -42,6 +62,10 @@ export interface EditorState {
   wallKind: WallKind;
   /** Bereits gesetzte Eckpunkte der aktuellen Wandkette (Feldkoordinaten). */
   wallChain: Point[];
+  spawn: PendingSpawn | null;
+  movePreview: MovePreview | null;
+  /** Im Statblock-Dialog angezeigte Kreatur. */
+  statblock: Creature | null;
 
   selectElement: (id: string, layer: LayerId) => void;
   setPaintMode: (mode: PaintMode) => void;
@@ -59,6 +83,9 @@ export interface EditorState {
   setNoteCell: (cell: Cell | null) => void;
   setWallKind: (kind: WallKind) => void;
   setWallChain: (chain: Point[]) => void;
+  setSpawn: (spawn: PendingSpawn | null) => void;
+  setMovePreview: (p: MovePreview | null) => void;
+  showStatblock: (c: Creature | null) => void;
   reset: () => void;
 }
 
@@ -79,6 +106,9 @@ const initial = {
   noteCell: null,
   wallKind: 'wall' as WallKind,
   wallChain: [] as Point[],
+  spawn: null as PendingSpawn | null,
+  movePreview: null as MovePreview | null,
+  statblock: null as Creature | null,
 };
 
 export const useEditorStore = create<EditorState>((set) => ({
@@ -101,5 +131,8 @@ export const useEditorStore = create<EditorState>((set) => ({
   setNoteCell: (noteCell) => set({ noteCell }),
   setWallKind: (wallKind) => set({ wallKind }),
   setWallChain: (wallChain) => set({ wallChain }),
+  setSpawn: (spawn) => set({ spawn }),
+  setMovePreview: (movePreview) => set({ movePreview }),
+  showStatblock: (statblock) => set({ statblock }),
   reset: () => set({ ...initial, selection: new Set(), clipboard: [], preview: [], wallChain: [] }),
 }));

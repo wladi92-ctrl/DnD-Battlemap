@@ -20,6 +20,7 @@ export type WholeFields = Pick<
   | 'notes'
   | 'customElements'
   | 'walls'
+  | 'tokens'
 >;
 
 export type FloorChange = [index: number, before: string, after: string];

@@ -5,8 +5,14 @@
 import { GRID_MAX, GRID_MIN } from '../core/grid';
 import { isCategoryId } from '../data/elements/categories';
 import type { DoorState, WallKind } from '../core/walls';
+import { CONDITION_IDS, SIZE_CATEGORIES, type SizeCategory } from '../data/srd/creatures';
 import { ProjectFileError } from './errors';
 import {
+  TEAMS,
+  type Team,
+  type Token,
+  type TokenKind,
+  type TokenMarker,
   COVER_LEVELS,
   DAMAGE_TYPES,
   DOOR_STATES,
@@ -328,6 +334,107 @@ function checkWalls(c: Checker, raw: unknown, cols: number, rows: number): EdgeW
   return out;
 }
 
+const TOKEN_PATH = /^tokens\/[A-Za-z0-9._-]{1,100}$/;
+const TOKENS_MAX = 2000;
+const STAT_MAX = 100_000;
+
+function checkTokens(c: Checker, raw: unknown, cols: number, rows: number): Token[] {
+  const list = c.array(raw, 'tokens', TOKENS_MAX);
+  const ids = new Set<string>();
+  const out: Token[] = [];
+  list.forEach((entry, i) => {
+    const p = `tokens[${i}]`;
+    const t = c.object(entry, p);
+    const hp = c.object(t.hp, `${p}.hp`);
+    const ds = c.object(t.deathSaves, `${p}.deathSaves`);
+    const au = c.object(t.actionsUsed, `${p}.actionsUsed`);
+    const conds = c.array(t.conditions, `${p}.conditions`, CONDITION_IDS.length + 1);
+    const markers = c.array(t.markers, `${p}.markers`, 20);
+    const pc = t.pc === undefined ? undefined : c.object(t.pc, `${p}.pc`);
+    const ok = [
+      c.string(t.id, `${p}.id`, { min: 1, max: ID_MAX }),
+      c.string(t.name, `${p}.name`, { min: 1, max: NAME_MAX }),
+      c.oneOf(t.kind, `${p}.kind`, ['creature', 'pc']),
+      t.source === undefined || c.string(t.source, `${p}.source`, { min: 1, max: ID_MAX }),
+      c.oneOf(t.size, `${p}.size`, SIZE_CATEGORIES),
+      c.number(t.x, `${p}.x`, 0, cols),
+      c.number(t.y, `${p}.y`, 0, rows),
+      c.oneOf(t.team, `${p}.team`, TEAMS),
+      c.string(t.color, `${p}.color`, { pattern: HEX_COLOR }),
+      t.image === undefined || c.string(t.image, `${p}.image`, { pattern: TOKEN_PATH }),
+      c.number(hp.current, `${p}.hp.current`, -STAT_MAX, STAT_MAX, true),
+      c.number(hp.max, `${p}.hp.max`, 0, STAT_MAX, true),
+      c.number(hp.temp, `${p}.hp.temp`, 0, STAT_MAX, true),
+      c.number(t.ac, `${p}.ac`, 0, 99, true),
+      c.number(t.speed, `${p}.speed`, 0, 1000, true),
+      c.number(t.reach, `${p}.reach`, 0, 1000, true),
+      c.number(t.initiativeBonus, `${p}.initiativeBonus`, -99, 99, true),
+      c.number(t.passivePerception, `${p}.passivePerception`, 0, 99, true),
+      c.number(t.darkvision, `${p}.darkvision`, 0, 1000, true),
+      conds.every((x, k) => c.oneOf(x, `${p}.conditions[${k}]`, CONDITION_IDS)),
+      markers.every((m, k) => {
+        const mo = c.object(m, `${p}.markers[${k}]`);
+        return (
+          c.string(mo.label, `${p}.markers[${k}].label`, { min: 1, max: 40 }) &&
+          c.string(mo.color, `${p}.markers[${k}].color`, { pattern: HEX_COLOR })
+        );
+      }),
+      c.number(ds.success, `${p}.deathSaves.success`, 0, 3, true),
+      c.number(ds.failure, `${p}.deathSaves.failure`, 0, 3, true),
+      c.boolean(t.hidden, `${p}.hidden`),
+      c.number(t.facing, `${p}.facing`, 0, 359.999),
+      c.number(t.movementUsed, `${p}.movementUsed`, 0, STAT_MAX),
+      c.boolean(au.action, `${p}.actionsUsed.action`),
+      c.boolean(au.bonus, `${p}.actionsUsed.bonus`),
+      c.boolean(au.reaction, `${p}.actionsUsed.reaction`),
+      t.groupId === undefined || c.string(t.groupId, `${p}.groupId`, { min: 1, max: ID_MAX }),
+      !pc ||
+        (c.string(pc.className, `${p}.pc.className`, { max: 60 }) &&
+          c.number(pc.level, `${p}.pc.level`, 1, 30, true)),
+    ].every(Boolean);
+    if (ok && ids.has(t.id as string)) return void c.fail(`${p}.id: doppelt`);
+    if (!ok) return;
+    ids.add(t.id as string);
+    const token: Token = {
+      id: t.id as string,
+      name: t.name as string,
+      kind: t.kind as TokenKind,
+      size: t.size as SizeCategory,
+      x: t.x as number,
+      y: t.y as number,
+      team: t.team as Team,
+      color: (t.color as string).toLowerCase(),
+      hp: { current: hp.current as number, max: hp.max as number, temp: hp.temp as number },
+      ac: t.ac as number,
+      speed: t.speed as number,
+      reach: t.reach as number,
+      initiativeBonus: t.initiativeBonus as number,
+      passivePerception: t.passivePerception as number,
+      darkvision: t.darkvision as number,
+      conditions: [...new Set(conds as string[])],
+      markers: (markers as TokenMarker[]).map((m) => ({
+        label: m.label,
+        color: m.color.toLowerCase(),
+      })),
+      deathSaves: { success: ds.success as number, failure: ds.failure as number },
+      hidden: t.hidden as boolean,
+      facing: t.facing as number,
+      movementUsed: t.movementUsed as number,
+      actionsUsed: {
+        action: au.action as boolean,
+        bonus: au.bonus as boolean,
+        reaction: au.reaction as boolean,
+      },
+      ...(t.source !== undefined ? { source: t.source as string } : {}),
+      ...(t.image !== undefined ? { image: t.image as string } : {}),
+      ...(t.groupId !== undefined ? { groupId: t.groupId as string } : {}),
+      ...(pc ? { pc: { className: pc.className as string, level: pc.level as number } } : {}),
+    };
+    out.push(token);
+  });
+  return out;
+}
+
 /** Prüft, migriert und liefert ein gültiges Kartendokument. */
 export function parseMapDocument(raw: unknown): MapDocument {
   if (!isObject(raw)) throw new ProjectFileError('invalidContent', ['Wurzel: Objekt erwartet']);
@@ -370,13 +477,14 @@ export function parseMapDocument(raw: unknown): MapDocument {
   const notes = checkNotes(c, doc.notes, cols, rows);
   const customElements = checkCustomElements(c, doc.customElements);
   const walls = checkWalls(c, doc.walls, cols, rows);
+  const tokens = checkTokens(c, doc.tokens, cols, rows);
 
   if (c.errors.length) throw new ProjectFileError('invalidContent', c.errors);
 
   // Nur bekannte Felder übernehmen – unbekannte Zusatzdaten werden verworfen.
   return {
     format: MAP_FORMAT,
-    version: 3,
+    version: 4,
     id: doc.id as string,
     name: doc.name as string,
     createdAt: doc.createdAt as string,
@@ -400,5 +508,6 @@ export function parseMapDocument(raw: unknown): MapDocument {
     notes,
     customElements,
     walls,
+    tokens,
   };
 }

@@ -223,6 +223,7 @@ export function referencedAssets(
   const out = new Map<string, Uint8Array>();
   const paths = doc.customElements.map((el) => el.asset);
   if (doc.background.image) paths.push(doc.background.image.asset);
+  for (const t of doc.tokens) if (t.image) paths.push(t.image);
   for (const path of paths) {
     const bytes = assets.get(path);
     if (bytes) out.set(path, bytes);
