@@ -1,33 +1,52 @@
 import { worldSize } from '../../core/grid';
+import type { MessageKey } from '../../i18n';
+import { useEditorStore } from '../state/editorStore';
 import { useMapStore } from '../state/mapStore';
 import { useViewStore, type Tool } from '../state/viewStore';
 import { useT } from '../useT';
+import { setTool } from './editorTools';
+import { ToolIcon } from './ToolIcon';
 
 interface Props {
   onNew: () => void;
   onOpen: () => void;
   onSave: () => void;
   onSaveAs: () => void;
+  onTemplate: () => void;
+  onUndo: () => void;
+  onRedo: () => void;
 }
 
 export const ZOOM_STEP = 1.25;
 
-export function Toolbar({ onNew, onOpen, onSave, onSaveAs }: Props) {
+/** Werkzeuge in Anzeigereihenfolge mit Tastenkürzel. */
+export const TOOLS: readonly { id: Tool; key: string }[] = [
+  { id: 'pan', key: 'H' },
+  { id: 'select', key: 'V' },
+  { id: 'brush', key: 'B' },
+  { id: 'rect', key: 'U' },
+  { id: 'line', key: 'L' },
+  { id: 'fill', key: 'F' },
+  { id: 'erase', key: 'E' },
+  { id: 'note', key: 'N' },
+  { id: 'ruler', key: 'R' },
+];
+
+export function Toolbar({ onNew, onOpen, onSave, onSaveAs, onTemplate, onUndo, onRedo }: Props) {
   const t = useT();
   const tool = useViewStore((s) => s.tool);
   const zoom = useViewStore((s) => s.camera.zoom);
   const doc = useMapStore((s) => s.doc);
+  const undoTop = useMapStore((s) => s.history.undo[s.history.undo.length - 1]);
+  const redoTop = useMapStore((s) => s.history.redo[s.history.redo.length - 1]);
+  const showTerrain = useEditorStore((s) => s.showTerrain);
 
   const zoomBy = (factor: number) => {
     if (!doc) return;
     const v = useViewStore.getState();
     v.zoomAt({ x: v.viewport.width / 2, y: v.viewport.height / 2 }, factor, worldSize(doc.grid));
   };
-
-  const tools: { id: Tool; label: string; key: string }[] = [
-    { id: 'pan', label: t('tool.pan'), key: 'H' },
-    { id: 'ruler', label: t('tool.ruler'), key: 'R' },
-  ];
+  const actionLabel = (label: string | undefined) => (label ? t(label as MessageKey) : '');
 
   return (
     <div className="toolbar" role="toolbar" aria-label={t('toolbar.label')}>
@@ -59,31 +78,79 @@ export function Toolbar({ onNew, onOpen, onSave, onSaveAs }: Props) {
       </div>
       {doc && (
         <>
+          <div className="toolbar-group" role="group" aria-label={t('toolbar.edit')}>
+            <button
+              type="button"
+              className="btn btn-icon"
+              onClick={onUndo}
+              disabled={!undoTop}
+              aria-label={t('edit.undo')}
+              aria-keyshortcuts="Control+Z"
+              title={`${t('edit.undo')}${undoTop ? `: ${actionLabel(undoTop.label)}` : ''} (Strg+Z)`}
+            >
+              <ToolIcon name="undo" />
+            </button>
+            <button
+              type="button"
+              className="btn btn-icon"
+              onClick={onRedo}
+              disabled={!redoTop}
+              aria-label={t('edit.redo')}
+              aria-keyshortcuts="Control+Y"
+              title={`${t('edit.redo')}${redoTop ? `: ${actionLabel(redoTop.label)}` : ''} (Strg+Y)`}
+            >
+              <ToolIcon name="redo" />
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={onTemplate}
+              title={t('generator.heading')}
+            >
+              <ToolIcon name="template" /> {t('generator.button')}
+            </button>
+          </div>
           <div className="toolbar-group" role="group" aria-label={t('toolbar.tools')}>
-            {tools.map((tl) => (
-              <button
-                key={tl.id}
-                type="button"
-                className="btn"
-                aria-pressed={tool === tl.id}
-                aria-keyshortcuts={tl.key}
-                title={`${tl.label} (${tl.key})`}
-                onClick={() => useViewStore.getState().setTool(tl.id)}
-              >
-                {tl.label}
-              </button>
-            ))}
+            {TOOLS.map((tl) => {
+              const label = t(`tool.${tl.id}` as MessageKey);
+              return (
+                <button
+                  key={tl.id}
+                  type="button"
+                  className="btn btn-icon"
+                  aria-pressed={tool === tl.id}
+                  aria-label={label}
+                  aria-keyshortcuts={tl.key}
+                  title={`${label} (${tl.key})`}
+                  onClick={() => setTool(tl.id)}
+                >
+                  <ToolIcon name={tl.id} />
+                </button>
+              );
+            })}
           </div>
           <div className="toolbar-group" role="group" aria-label={t('toolbar.view')}>
             <button
               type="button"
-              className="btn"
+              className="btn btn-icon"
               aria-pressed={doc.grid.visible}
+              aria-label={t('view.grid')}
               aria-keyshortcuts="G"
               title={`${t('view.grid')} (G)`}
               onClick={() => useMapStore.getState().updateGrid({ visible: !doc.grid.visible })}
             >
-              {t('view.grid')}
+              <ToolIcon name="grid" />
+            </button>
+            <button
+              type="button"
+              className="btn btn-icon"
+              aria-pressed={showTerrain}
+              aria-label={t('layers.showTerrain')}
+              aria-keyshortcuts="T"
+              title={`${t('layers.showTerrain')} (T)`}
+              onClick={() => useEditorStore.getState().setShowTerrain(!showTerrain)}
+            >
+              <ToolIcon name="terrain" />
             </button>
             <button
               type="button"

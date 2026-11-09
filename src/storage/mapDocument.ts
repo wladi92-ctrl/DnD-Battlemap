@@ -2,16 +2,19 @@
  * Kartendokument – Inhalt von map.json in einer .dndmap-Datei.
  * Das Format ist versioniert; Änderungen erhöhen MAP_FORMAT_VERSION und erhalten
  * eine Migration in migrations.ts. Beschreibung: docs/DATEIFORMAT.md,
- * JSON-Schema: docs/schema/map.v1.schema.json.
+ * JSON-Schema: docs/schema/map.v2.schema.json.
  */
 import { clampGridDimension } from '../core/grid';
 
 export const MAP_FORMAT = 'dndmap';
-export const MAP_FORMAT_VERSION = 1;
+export const MAP_FORMAT_VERSION = 2;
 
 export const FEET_PER_CELL_MIN = 1;
 export const FEET_PER_CELL_MAX = 100;
 export const NAME_MAX = 120;
+export const NOTE_MAX = 2000;
+export const ELEMENT_SIZE_MAX = 10;
+export const ELEVATION_LIMIT = 1000;
 
 export interface GridSettings {
   cols: number;
@@ -25,6 +28,92 @@ export interface GridSettings {
   opacity: number;
 }
 
+/** Ebenen von unten nach oben. Tokens, Effekte und Nebel folgen in späteren Phasen. */
+export type LayerId = 'floor' | 'walls' | 'decor' | 'gm';
+export const LAYER_IDS: readonly LayerId[] = ['floor', 'walls', 'decor', 'gm'];
+/** Ebenen, auf denen Objekte (statt Bodenkacheln) liegen. */
+export type ObjectLayerId = 'walls' | 'decor';
+export const OBJECT_LAYERS: readonly ObjectLayerId[] = ['walls', 'decor'];
+/** Ebenen, auf die Elemente gemalt werden können. */
+export type ElementLayerId = 'floor' | ObjectLayerId;
+
+export interface LayerState {
+  id: LayerId;
+  visible: boolean;
+  locked: boolean;
+}
+
+export type Rotation = 0 | 90 | 180 | 270;
+
+/** Ein platziertes Element auf einer Objekt-Ebene. Position/Größe in Feldern. */
+export interface PlacedObject {
+  id: string;
+  element: string;
+  layer: ObjectLayerId;
+  /** Linke obere Ecke des (gedrehten) Platzbedarfs; mit Raster-Snap ganzzahlig. */
+  x: number;
+  y: number;
+  /** Ungedrehte Größe in Feldern. */
+  w: number;
+  h: number;
+  rotation: Rotation;
+  flipX: boolean;
+  flipY: boolean;
+}
+
+/** Deckungsstufen nach SRD 5.1. */
+export type CoverLevel = 'half' | 'threeQuarters' | 'full';
+export const COVER_LEVELS: readonly CoverLevel[] = ['half', 'threeQuarters', 'full'];
+
+/** Schadensarten nach SRD 5.1. */
+export const DAMAGE_TYPES = [
+  'acid',
+  'bludgeoning',
+  'cold',
+  'fire',
+  'force',
+  'lightning',
+  'necrotic',
+  'piercing',
+  'poison',
+  'psychic',
+  'radiant',
+  'slashing',
+  'thunder',
+] as const;
+export type DamageType = (typeof DAMAGE_TYPES)[number];
+
+/** Geländeeigenschaften eines Feldes. Nicht gesetzte Felder = Standard/keine. */
+export interface TerrainProps {
+  difficult?: boolean;
+  cover?: CoverLevel;
+  /** Höhe in Fuß (negativ = Vertiefung). */
+  elevation?: number;
+  damage?: DamageType;
+  blocksSight?: boolean;
+  blocksMovement?: boolean;
+}
+
+/** GM-Notiz an einem Feld (nur für die Spielleitung sichtbar). */
+export interface MapNote {
+  id: string;
+  x: number;
+  y: number;
+  text: string;
+}
+
+/** Vom Nutzer importiertes Element; Bilddaten liegen unter assets/<asset>. */
+export interface CustomElement {
+  id: string;
+  name: string;
+  category: string;
+  layer: ElementLayerId;
+  w: number;
+  h: number;
+  /** Pfad innerhalb von assets/, z. B. "custom/3f…a1.png". */
+  asset: string;
+}
+
 export interface MapDocument {
   format: typeof MAP_FORMAT;
   version: typeof MAP_FORMAT_VERSION;
@@ -34,6 +123,14 @@ export interface MapDocument {
   modifiedAt: string;
   grid: GridSettings;
   background: { color: string };
+  layers: LayerState[];
+  /** Bodenkachel je Feld (Index y·cols+x), '' = leer. */
+  floor: string[];
+  objects: PlacedObject[];
+  /** Geländeeigenschaften, Schlüssel "x,y". */
+  terrain: Record<string, TerrainProps>;
+  notes: MapNote[];
+  customElements: CustomElement[];
 }
 
 export interface NewMapOptions {
@@ -55,6 +152,19 @@ export const defaultGrid: Omit<GridSettings, 'cols' | 'rows'> = {
 
 export const DEFAULT_BACKGROUND = '#d9cfb8';
 
+export function defaultLayers(): LayerState[] {
+  return LAYER_IDS.map((id) => ({ id, visible: true, locked: false }));
+}
+
+export function cellKey(x: number, y: number): string {
+  return `${x},${y}`;
+}
+
+export function parseCellKey(key: string): { x: number; y: number } | null {
+  const m = /^(-?\d+),(-?\d+)$/.exec(key);
+  return m ? { x: Number(m[1]), y: Number(m[2]) } : null;
+}
+
 export function clampFeetPerCell(n: number): number {
   if (!Number.isFinite(n)) return defaultGrid.feetPerCell;
   return Math.min(FEET_PER_CELL_MAX, Math.max(FEET_PER_CELL_MIN, Math.round(n)));
@@ -72,6 +182,8 @@ export function normalizeName(name: string, fallback: string): string {
 
 export function createMap(opts: NewMapOptions, now = new Date()): MapDocument {
   const ts = now.toISOString();
+  const cols = clampGridDimension(opts.cols);
+  const rows = clampGridDimension(opts.rows);
   return {
     format: MAP_FORMAT,
     version: MAP_FORMAT_VERSION,
@@ -81,8 +193,8 @@ export function createMap(opts: NewMapOptions, now = new Date()): MapDocument {
     modifiedAt: ts,
     grid: {
       ...defaultGrid,
-      cols: clampGridDimension(opts.cols),
-      rows: clampGridDimension(opts.rows),
+      cols,
+      rows,
       feetPerCell: clampFeetPerCell(opts.feetPerCell ?? defaultGrid.feetPerCell),
     },
     background: {
@@ -91,10 +203,16 @@ export function createMap(opts: NewMapOptions, now = new Date()): MapDocument {
           ? opts.backgroundColor.toLowerCase()
           : DEFAULT_BACKGROUND,
     },
+    layers: defaultLayers(),
+    floor: new Array<string>(cols * rows).fill(''),
+    objects: [],
+    terrain: {},
+    notes: [],
+    customElements: [],
   };
 }
 
-/** Wendet Rastereinstellungen geprüft und begrenzt an. */
+/** Wendet Rastereinstellungen geprüft und begrenzt an (ohne Inhalte anzupassen). */
 export function applyGridChanges(grid: GridSettings, changes: Partial<GridSettings>): GridSettings {
   const next = { ...grid, ...changes };
   return {
@@ -113,4 +231,8 @@ export function suggestFileName(name: string): string {
   // eslint-disable-next-line no-control-regex
   const base = name.replace(/[<>:"/\\|?*\u0000-\u001f]/g, '').trim() || 'Karte';
   return `${base}.dndmap`;
+}
+
+export function layerState(doc: MapDocument, id: LayerId): LayerState {
+  return doc.layers.find((l) => l.id === id) ?? { id, visible: true, locked: false };
 }

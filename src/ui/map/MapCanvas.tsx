@@ -1,9 +1,10 @@
 /**
  * Kartenansicht: verbindet den Pixi-Renderer mit Maus/Tastatur und den Stores.
- * Kamera-/Overlay-Updates laufen über Store-Abos direkt in den Renderer (ohne React-Render).
+ * Kamera-/Overlay-/Dokument-Updates laufen über Store-Abos direkt in den Renderer
+ * (ohne React-Render), damit Malen und Verschieben flüssig bleiben.
  */
 import { useEffect, useRef, useState } from 'react';
-import { screenToWorld, worldToScreen, ensureVisible } from '../../core/camera';
+import { ensureVisible, screenToWorld, worldToScreen } from '../../core/camera';
 import { measurePath } from '../../core/distance';
 import {
   CELL_PX,
@@ -16,16 +17,72 @@ import {
   type Point,
 } from '../../core/grid';
 import { formatDistance } from '../../core/units';
-import { MapRenderer } from '../../render/MapRenderer';
+import { footprintRect } from '../../editor/footprint';
+import type { MessageKey } from '../../i18n';
+import { MapRenderer, type OverlayState } from '../../render/MapRenderer';
+import { useEditorStore } from '../state/editorStore';
 import { useMapStore } from '../state/mapStore';
+import { useNoticeStore } from '../state/noticeStore';
 import { useSettings } from '../state/settingsStore';
 import { rulerPath, useViewStore } from '../state/viewStore';
 import { useT } from '../useT';
+import {
+  activateAt,
+  cancelEditing,
+  cursorMoved,
+  EDIT_TOOLS,
+  isDragging,
+  moveSelection,
+  placementSize,
+  pointerDown,
+  pointerMove,
+  pointerUp,
+  type Notify,
+} from './editorTools';
 
 const KEY_PAN_PX = 64;
 const WHEEL_ZOOM_SPEED = 0.0015;
 
-type Drag = { kind: 'pan'; last: Point } | { kind: 'ruler' };
+type Drag = { kind: 'pan'; last: Point } | { kind: 'ruler' } | { kind: 'edit' };
+
+/** Overlay aus Ansicht, Editor und Dokument zusammensetzen. */
+function buildOverlay(): OverlayState {
+  const view = useViewStore.getState();
+  const ed = useEditorStore.getState();
+  const doc = useMapStore.getState().doc;
+  const tool = view.tool;
+  const selection = doc ? doc.objects.filter((o) => ed.selection.has(o.id)).map(footprintRect) : [];
+  let placement: OverlayState['placement'] = null;
+  const at = view.hoverCell ?? view.cursorCell;
+  if (
+    at &&
+    (tool === 'brush' || tool === 'rect' || tool === 'line') &&
+    ed.paintMode === 'element'
+  ) {
+    const size = placementSize();
+    if (size) placement = { x: at.x, y: at.y, ...size };
+  }
+  return {
+    hover: tool === 'pan' ? null : view.hoverCell,
+    cursor: view.cursorCell,
+    ruler: rulerPath(view.ruler),
+    preview: ed.preview,
+    placement,
+    selection,
+    marquee: ed.marquee,
+  };
+}
+
+const HINTS: Partial<Record<string, MessageKey[]>> = {
+  ruler: ['ruler.hintMouse', 'ruler.hintKeyboard'],
+  select: ['hint.select'],
+  brush: ['hint.brush'],
+  rect: ['hint.shape'],
+  line: ['hint.shape'],
+  fill: ['hint.fill'],
+  erase: ['hint.erase'],
+  note: ['hint.note'],
+};
 
 export function MapCanvas() {
   const t = useT();
@@ -40,6 +97,8 @@ export function MapCanvas() {
   const docId = doc?.id;
   const cols = doc?.grid.cols ?? 0;
   const rows = doc?.grid.rows ?? 0;
+
+  const notify: Notify = (key) => useNoticeStore.getState().push('info', t(key));
 
   // Renderer anlegen/abbauen (StrictMode-sicher).
   useEffect(() => {
@@ -74,49 +133,69 @@ export function MapCanvas() {
     return () => ro.disconnect();
   }, [ready]);
 
-  // Kartendaten → Renderer.
-  useEffect(() => {
-    if (!ready || !doc) return;
-    rendererRef.current?.setMap({
-      cols: doc.grid.cols,
-      rows: doc.grid.rows,
-      backgroundColor: doc.background.color,
-      grid: { visible: doc.grid.visible, color: doc.grid.color, opacity: doc.grid.opacity },
-    });
-  }, [ready, doc]);
-
-  // Neue Karte geöffnet → Ansicht zurücksetzen und einpassen.
+  // Neue Karte geöffnet → Ansicht und Editorzustand zurücksetzen, einpassen.
   useEffect(() => {
     if (!ready || !docId) return;
     const view = useViewStore.getState();
     view.rulerClear();
     view.setCursorCell(null);
     view.setHoverCell(null);
+    useEditorStore.getState().setSelection([]);
+    cancelEditing();
     view.fit(worldSize({ cols, rows }));
     // Nur beim Wechsel des Dokuments, nicht bei Größenänderung.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, docId]);
 
-  // Kamera und Overlay → Renderer (direktes Store-Abo, kein React-Render).
+  // Stores → Renderer (direkte Abos, kein React-Render).
   useEffect(() => {
     if (!ready) return;
-    const push = (s = useViewStore.getState()) => {
-      const r = rendererRef.current;
-      if (!r) return;
-      r.setCamera(s.camera);
-      r.setOverlay({ hover: s.hoverCell, cursor: s.cursorCell, ruler: rulerPath(s.ruler) });
+    const r = rendererRef.current;
+    if (!r) return;
+    const pushDoc = () => {
+      const { doc: d, assets } = useMapStore.getState();
+      if (d) r.setDocument(d, assets);
     };
-    push();
-    return useViewStore.subscribe((s, prev) => {
-      if (
-        s.camera !== prev.camera ||
-        s.hoverCell !== prev.hoverCell ||
-        s.cursorCell !== prev.cursorCell ||
-        s.ruler !== prev.ruler
-      ) {
-        push(s);
+    const pushOverlay = () => r.setOverlay(buildOverlay());
+    pushDoc();
+    r.setShowTerrain(useEditorStore.getState().showTerrain);
+    r.setCamera(useViewStore.getState().camera);
+    pushOverlay();
+    const offMap = useMapStore.subscribe((s, prev) => {
+      if (s.doc !== prev.doc || s.assets !== prev.assets) {
+        pushDoc();
+        pushOverlay();
       }
     });
+    const offView = useViewStore.subscribe((s, prev) => {
+      if (s.camera !== prev.camera) r.setCamera(s.camera);
+      if (
+        s.hoverCell !== prev.hoverCell ||
+        s.cursorCell !== prev.cursorCell ||
+        s.ruler !== prev.ruler ||
+        s.tool !== prev.tool
+      ) {
+        pushOverlay();
+      }
+    });
+    const offEditor = useEditorStore.subscribe((s, prev) => {
+      if (s.showTerrain !== prev.showTerrain) r.setShowTerrain(s.showTerrain);
+      if (
+        s.preview !== prev.preview ||
+        s.selection !== prev.selection ||
+        s.marquee !== prev.marquee ||
+        s.elementId !== prev.elementId ||
+        s.rotation !== prev.rotation ||
+        s.paintMode !== prev.paintMode
+      ) {
+        pushOverlay();
+      }
+    });
+    return () => {
+      offMap();
+      offView();
+      offEditor();
+    };
   }, [ready]);
 
   // Mausrad-Zoom (nicht-passiver Listener, damit die Seite nicht scrollt).
@@ -148,6 +227,11 @@ export function MapCanvas() {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
   };
+  /** Position in Feldern (gebrochen). */
+  const cellPoint = (p: Point) => {
+    const w = screenToWorld(useViewStore.getState().camera, p);
+    return { x: w.x / CELL_PX, y: w.y / CELL_PX };
+  };
   const cellAt = (p: Point): Cell => worldToCell(screenToWorld(useViewStore.getState().camera, p));
 
   const onPointerDown = (e: React.PointerEvent) => {
@@ -161,6 +245,9 @@ export function MapCanvas() {
     } else if (e.button === 0 && tool === 'ruler') {
       view.rulerBegin(clampCell(cellAt(p), doc.grid));
       dragRef.current = { kind: 'ruler' };
+    } else if (e.button === 0 && EDIT_TOOLS.includes(tool)) {
+      pointerDown(tool, clampCell(cellAt(p), doc.grid), cellPoint(p), e.shiftKey, notify);
+      dragRef.current = { kind: 'edit' };
     } else {
       return;
     }
@@ -179,19 +266,23 @@ export function MapCanvas() {
       dragRef.current = { kind: 'pan', last: p };
     } else if (drag?.kind === 'ruler') {
       view.rulerMove(clampCell(cell, doc.grid));
+    } else if (drag?.kind === 'edit') {
+      pointerMove(tool, clampCell(cell, doc.grid), cellPoint(p), notify);
     }
   };
 
   const endDrag = (e: React.PointerEvent) => {
-    if (dragRef.current?.kind === 'ruler') useViewStore.getState().rulerEnd();
+    const drag = dragRef.current;
+    if (drag?.kind === 'ruler') useViewStore.getState().rulerEnd();
+    if (drag?.kind === 'edit') pointerUp(tool, notify);
     dragRef.current = null;
-    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+    if (e.currentTarget.hasPointerCapture(e.pointerId))
       e.currentTarget.releasePointerCapture(e.pointerId);
-    }
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     const view = useViewStore.getState();
+    const ed = useEditorStore.getState();
     const arrows: Record<string, [number, number]> = {
       ArrowLeft: [-1, 0],
       ArrowRight: [1, 0],
@@ -205,6 +296,8 @@ export function MapCanvas() {
         view.panBy(-dir[0] * KEY_PAN_PX, -dir[1] * KEY_PAN_PX, world);
         return;
       }
+      // Mit Auswahl verschieben die Pfeiltasten die Objekte (wie Schachfiguren).
+      if (tool === 'select' && ed.selection.size && moveSelection(dir[0], dir[1], notify)) return;
       const start =
         view.cursorCell ??
         view.hoverCell ??
@@ -227,6 +320,7 @@ export function MapCanvas() {
         }),
       );
       if (view.ruler.active) view.rulerMove(next);
+      cursorMoved(tool, next);
       return;
     }
     if (e.key === ' ') {
@@ -235,15 +329,21 @@ export function MapCanvas() {
       else spaceRef.current = true;
       return;
     }
-    if (e.key === 'Enter' && tool === 'ruler' && view.cursorCell) {
+    if (e.key === 'Enter' && view.cursorCell) {
       e.preventDefault();
-      if (view.ruler.active) view.rulerAddWaypoint();
-      else view.rulerBegin(view.cursorCell);
+      if (tool === 'ruler') {
+        if (view.ruler.active) view.rulerAddWaypoint();
+        else view.rulerBegin(view.cursorCell);
+      } else if (EDIT_TOOLS.includes(tool)) {
+        activateAt(tool, view.cursorCell, e.shiftKey, notify);
+      }
       return;
     }
     if (e.key === 'Escape') {
       if (view.ruler.active) view.rulerEnd();
       else if (view.ruler.points.length) view.rulerClear();
+      else if (ed.shapeAnchor || isDragging()) cancelEditing();
+      else if (ed.selection.size) ed.setSelection([]);
       else view.setCursorCell(null);
     }
   };
@@ -251,6 +351,8 @@ export function MapCanvas() {
   const onKeyUp = (e: React.KeyboardEvent) => {
     if (e.key === ' ') spaceRef.current = false;
   };
+
+  const hints = HINTS[tool] ?? [];
 
   return (
     <div className="map-canvas-wrap">
@@ -277,11 +379,11 @@ export function MapCanvas() {
           {t('canvas.loading')}
         </div>
       )}
-      {ready && tool === 'ruler' && (
+      {ready && hints.length > 0 && (
         <div className="map-hint" aria-hidden="true">
-          {t('ruler.hintMouse')}
-          <br />
-          {t('ruler.hintKeyboard')}
+          {hints.map((h, i) => (
+            <div key={i}>{t(h)}</div>
+          ))}
         </div>
       )}
     </div>

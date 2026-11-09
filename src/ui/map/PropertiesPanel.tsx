@@ -59,8 +59,8 @@ export function PropertiesPanel() {
   const range = t('props.range', { min: GRID_MIN, max: GRID_MAX });
 
   return (
-    <aside className="side-panel" aria-labelledby={`${id}-h`}>
-      <h2 id={`${id}-h`}>{t('props.heading')}</h2>
+    <details className="panel-section">
+      <summary>{t('props.heading')}</summary>
 
       <div className="panel-field">
         <label htmlFor={`${id}-name`}>{t('props.name')}</label>
@@ -155,6 +155,6 @@ export function PropertiesPanel() {
           </output>
         </div>
       </div>
-    </aside>
+    </details>
   );
 }

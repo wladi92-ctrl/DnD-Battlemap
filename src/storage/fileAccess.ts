@@ -15,9 +15,15 @@ export interface OpenedFile {
   bytes: Uint8Array;
 }
 
+export const IMAGE_EXTENSIONS = ['png', 'svg', 'webp', 'jpg', 'jpeg'] as const;
+/** Obergrenze für importierte Bilder (Bytes). */
+export const IMAGE_MAX_BYTES = 20 * 1024 * 1024;
+
 export interface FileAccess {
   /** Zeigt "Öffnen"-Dialog; null bei Abbruch. */
   openProject(title: string, filterName: string): Promise<OpenedFile | null>;
+  /** Bilddatei wählen und lesen; null bei Abbruch. */
+  openImage(title: string, filterName: string): Promise<OpenedFile | null>;
   /**
    * Speichert unter `path`; ist `path` null, wird ein "Speichern unter"-Dialog gezeigt.
    * Liefert den verwendeten Pfad bzw. Dateinamen oder null bei Abbruch.
@@ -77,6 +83,18 @@ export function createTauriFileAccess(): FileAccess {
         multiple: false,
         directory: false,
         filters: [{ name: filterName, extensions: [PROJECT_EXTENSION] }],
+      });
+      if (typeof path !== 'string') return null;
+      const data = await ioError(() => invoke<ArrayBuffer>('read_file', { path }));
+      return { path, name: baseName(path), bytes: toBytes(data) };
+    },
+    async openImage(title, filterName) {
+      const { open } = await dialog();
+      const path = await open({
+        title,
+        multiple: false,
+        directory: false,
+        filters: [{ name: filterName, extensions: [...IMAGE_EXTENSIONS] }],
       });
       if (typeof path !== 'string') return null;
       const data = await ioError(() => invoke<ArrayBuffer>('read_file', { path }));
@@ -153,6 +171,11 @@ export function createBrowserFileAccess(): FileAccess {
     canSaveInPlace: false,
     async openProject() {
       const file = await pickFile(`.${PROJECT_EXTENSION}`);
+      if (!file) return null;
+      return { path: null, name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) };
+    },
+    async openImage() {
+      const file = await pickFile(IMAGE_EXTENSIONS.map((e) => `.${e}`).join(','));
       if (!file) return null;
       return { path: null, name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) };
     },

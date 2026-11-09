@@ -26,6 +26,9 @@ export function createFakeFileAccess(): FakeFileAccess {
       if (!bytes) throw new Error(`nicht gefunden: ${path}`);
       return { path, name: path.split('\\').pop()!, bytes };
     },
+    async openImage() {
+      return fake.openProject('', '');
+    },
     async saveProject(bytes, path) {
       const target = path ?? fake.nextDialogPath;
       if (!target) return null;

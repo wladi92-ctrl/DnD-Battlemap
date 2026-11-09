@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { useMapStore } from './mapStore';
+import { referencedAssets, useMapStore } from './mapStore';
 import { rulerPath, useViewStore } from './viewStore';
 
 describe('mapStore', () => {
@@ -20,9 +20,62 @@ describe('mapStore', () => {
     const rev = useMapStore.getState().revision;
     updateGrid({ cols: 20 });
     expect(useMapStore.getState()).toMatchObject({ revision: rev, dirty: false });
+    // Größe und Darstellung sind zwei getrennte Undo-Schritte.
     updateGrid({ cols: 25, visible: false });
-    expect(useMapStore.getState()).toMatchObject({ revision: rev + 1, dirty: true });
+    expect(useMapStore.getState()).toMatchObject({ revision: rev + 2, dirty: true });
     expect(useMapStore.getState().doc?.grid).toMatchObject({ cols: 25, visible: false });
+    expect(useMapStore.getState().history.undo.map((e) => e.label)).toEqual([
+      'action.resize',
+      'action.grid',
+    ]);
+  });
+
+  it('Undo/Redo stellen den Zustand wieder her; Striche sind ein Schritt', () => {
+    const s = useMapStore.getState();
+    s.newMap({ name: 'Wald', cols: 20, rows: 15 });
+    const before = useMapStore.getState().doc;
+    s.rename('Höhle');
+    expect(useMapStore.getState().undo()).toBe('action.rename');
+    expect(useMapStore.getState().doc?.name).toBe(before?.name);
+    expect(useMapStore.getState().redo()).toBe('action.rename');
+    expect(useMapStore.getState().doc?.name).toBe('Höhle');
+
+    s.beginStroke('action.paint');
+    const patch = (i: number) => ({
+      ok: true as const,
+      patch: { floor: [[i, '', 'floor.grass'] as [number, string, string]] },
+    });
+    s.strokeApply(patch(0));
+    s.strokeApply(patch(1));
+    s.endStroke();
+    expect(useMapStore.getState().doc?.floor.slice(0, 2)).toEqual(['floor.grass', 'floor.grass']);
+    expect(useMapStore.getState().history.undo.at(-1)?.label).toBe('action.paint');
+    useMapStore.getState().undo();
+    expect(useMapStore.getState().doc?.floor.slice(0, 2)).toEqual(['', '']);
+  });
+
+  it('nur referenzierte Assets werden gespeichert', () => {
+    const s = useMapStore.getState();
+    s.newMap({ name: 'A', cols: 10, rows: 10 });
+    s.addAsset('custom/a.png', new Uint8Array([1]));
+    s.addAsset('custom/b.png', new Uint8Array([2]));
+    const doc = {
+      ...useMapStore.getState().doc!,
+      customElements: [
+        {
+          id: 'custom.aaaaaaaa',
+          name: 'A',
+          category: 'custom',
+          layer: 'decor' as const,
+          w: 1,
+          h: 1,
+          asset: 'custom/a.png',
+        },
+      ],
+    };
+    expect([...referencedAssets(doc, useMapStore.getState().assets).keys()]).toEqual([
+      'custom/a.png',
+    ]);
   });
 
   it('Name und Hintergrund werden geprüft', () => {

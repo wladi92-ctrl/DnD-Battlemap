@@ -8,7 +8,7 @@ import { startAutosave } from '../storage/autosave';
 import { getFileAccess } from '../storage/fileAccess';
 import { decodeProject } from '../storage/projectFile';
 import { reportError } from './map/useFileActions';
-import { useMapStore } from './state/mapStore';
+import { referencedAssets, useMapStore } from './state/mapStore';
 import { useNoticeStore } from './state/noticeStore';
 import { useRecoveryStore } from './state/recoveryStore';
 import { useSettings } from './state/settingsStore';
@@ -50,7 +50,13 @@ export function useAppLifecycle() {
       getSnapshot: () => {
         const s = useMapStore.getState();
         return s.doc
-          ? { doc: s.doc, filePath: s.filePath, dirty: s.dirty, revision: s.revision }
+          ? {
+              doc: s.doc,
+              filePath: s.filePath,
+              dirty: s.dirty,
+              revision: s.revision,
+              assets: referencedAssets(s.doc, s.assets),
+            }
           : null;
       },
       write: (bytes) => getFileAccess().autosaveWrite(bytes),

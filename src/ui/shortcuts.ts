@@ -3,7 +3,19 @@ import type { MessageKey } from '../i18n';
 
 /** Benannte Tasten werden übersetzt (key.*), alle anderen wörtlich angezeigt. */
 export type KeyToken =
-  | { name: 'ctrl' | 'shift' | 'alt' | 'space' | 'enter' | 'esc' | 'arrows' | 'wheel' | 'drag' }
+  | {
+      name:
+        | 'ctrl'
+        | 'shift'
+        | 'alt'
+        | 'space'
+        | 'enter'
+        | 'esc'
+        | 'arrows'
+        | 'wheel'
+        | 'drag'
+        | 'delete';
+    }
   | string;
 
 export interface ShortcutInfo {
@@ -19,9 +31,31 @@ export const shortcutList: readonly ShortcutInfo[] = [
   { keys: [[k('ctrl'), 'O']], label: 'shortcut.open' },
   { keys: [[k('ctrl'), 'S']], label: 'shortcut.save' },
   { keys: [[k('ctrl'), k('shift'), 'S']], label: 'shortcut.saveAs' },
+  {
+    keys: [
+      [k('ctrl'), 'Z'],
+      [k('ctrl'), 'Y'],
+    ],
+    label: 'shortcut.undoRedo',
+  },
+  {
+    keys: [
+      [k('ctrl'), 'C'],
+      [k('ctrl'), 'V'],
+      [k('ctrl'), 'D'],
+      [k('ctrl'), 'A'],
+    ],
+    label: 'shortcut.clipboard',
+  },
+  { keys: [['V'], ['B'], ['U'], ['L'], ['F'], ['E'], ['N']], label: 'shortcut.tools' },
   { keys: [['H']], label: 'shortcut.pan' },
   { keys: [['R']], label: 'shortcut.ruler' },
+  { keys: [['Q']], label: 'shortcut.rotate' },
+  { keys: [['Y']], label: 'shortcut.flip' },
+  { keys: [[k('delete')]], label: 'shortcut.delete' },
   { keys: [['G']], label: 'shortcut.grid' },
+  { keys: [['T']], label: 'shortcut.terrainOverlay' },
+  { keys: [[k('enter')]], label: 'shortcut.apply' },
   { keys: [['+'], ['−']], label: 'shortcut.zoom' },
   { keys: [['0']], label: 'shortcut.fit' },
   { keys: [[k('wheel')]], label: 'shortcut.wheel' },

@@ -1,5 +1,5 @@
 import Ajv from 'ajv';
-import schema from '../../docs/schema/map.v1.schema.json';
+import schema from '../../docs/schema/map.v2.schema.json';
 import { strToU8, zipSync } from 'fflate';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { startAutosave } from './autosave';
@@ -12,6 +12,70 @@ import { parseMapDocument } from './validate';
 
 const sample = () =>
   createMap({ name: 'Taverne', cols: 30, rows: 20 }, new Date('2026-11-09T10:00:00.000Z'));
+
+/** Karte mit allen Inhaltsarten (Boden, Objekte, Gelände, Notizen, eigene Elemente). */
+const richSample = (): MapDocument => {
+  const d = sample();
+  const floor = d.floor.slice();
+  floor[0] = 'floor.grass';
+  floor[31] = 'floor.stone';
+  return {
+    ...d,
+    layers: d.layers.map((l) => (l.id === 'gm' ? { ...l, visible: false, locked: true } : l)),
+    floor,
+    objects: [
+      {
+        id: 'o1',
+        element: 'wall.stone',
+        layer: 'walls',
+        x: 1,
+        y: 1,
+        w: 1,
+        h: 1,
+        rotation: 0,
+        flipX: false,
+        flipY: false,
+      },
+      {
+        id: 'o2',
+        element: 'furniture.table_long',
+        layer: 'walls',
+        x: 4.5,
+        y: 2,
+        w: 2,
+        h: 1,
+        rotation: 90,
+        flipX: true,
+        flipY: false,
+      },
+      {
+        id: 'o3',
+        element: 'custom.0123abcd',
+        layer: 'decor',
+        x: 7,
+        y: 7,
+        w: 1,
+        h: 1,
+        rotation: 0,
+        flipX: false,
+        flipY: true,
+      },
+    ],
+    terrain: { '3,4': { difficult: true, cover: 'half', elevation: -10, damage: 'fire' } },
+    notes: [{ id: 'n1', x: 2, y: 2, text: 'Geheimgang hinter dem Regal' }],
+    customElements: [
+      {
+        id: 'custom.0123abcd',
+        name: 'Brunnen',
+        category: 'furniture',
+        layer: 'decor',
+        w: 1,
+        h: 1,
+        asset: 'custom/0123abcd.png',
+      },
+    ],
+  };
+};
 
 function errorCode(fn: () => unknown): string | undefined {
   try {
@@ -27,7 +91,9 @@ describe('Kartendokument', () => {
     const doc = createMap({ name: '  ', cols: 5, rows: 999, feetPerCell: 0 });
     expect(doc.name).toBe('Neue Karte');
     expect(doc.grid).toMatchObject({ cols: 10, rows: 200, feetPerCell: 1, visible: true });
-    expect(doc.version).toBe(1);
+    expect(doc.version).toBe(2);
+    expect(doc.floor).toHaveLength(10 * 200);
+    expect(doc.layers.map((l) => l.id)).toEqual(['floor', 'walls', 'decor', 'gm']);
   });
 
   it('wendet Rasteränderungen begrenzt an', () => {
@@ -57,6 +123,37 @@ describe('Projektdatei (.dndmap)', () => {
     expect(loaded.recovery).toBeNull();
   });
 
+  it('Round-Trip mit allen Inhaltsarten ist identisch', () => {
+    const doc = richSample();
+    const assets = new Map([['custom/0123abcd.png', new Uint8Array([137, 80, 78, 71])]]);
+    const loaded = decodeProject(encodeProject(doc, assets));
+    expect(loaded.doc).toEqual(doc);
+    expect(loaded.assets.get('custom/0123abcd.png')).toEqual(new Uint8Array([137, 80, 78, 71]));
+  });
+
+  it('Version-1-Dateien werden auf Version 2 migriert', () => {
+    const v1 = {
+      format: 'dndmap',
+      version: 1,
+      id: 'alt',
+      name: 'Alte Karte',
+      createdAt: '2026-11-09T10:00:00.000Z',
+      modifiedAt: '2026-11-09T10:00:00.000Z',
+      grid: { cols: 12, rows: 10, feetPerCell: 5, visible: true, color: '#000000', opacity: 0.35 },
+      background: { color: '#d9cfb8' },
+    };
+    const doc = decodeProject(zipSync({ 'map.json': strToU8(JSON.stringify(v1)) })).doc;
+    expect(doc).toMatchObject({
+      version: 2,
+      name: 'Alte Karte',
+      objects: [],
+      notes: [],
+      terrain: {},
+    });
+    expect(doc.floor).toHaveLength(120);
+    expect(doc.layers).toHaveLength(4);
+  });
+
   it('enthält Wiederherstellungsinfos nur in Autosaves', () => {
     const rec = { savedAt: '2026-11-09T10:01:00.000Z', filePath: 'C:\\k.dndmap' };
     expect(decodeProject(encodeProject(sample(), new Map(), rec)).recovery).toEqual(rec);
@@ -83,7 +180,7 @@ describe('Validierung', () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   type Loose = Record<string, any>;
   const mutate = (fn: (d: Loose) => void) => {
-    const d = structuredClone(sample()) as unknown as Loose;
+    const d = structuredClone(richSample()) as unknown as Loose;
     fn(d);
     return d;
   };
@@ -130,6 +227,23 @@ describe('Validierung', () => {
       mutate((d) => (d.createdAt = 'gestern')),
       mutate((d) => delete d.background),
       mutate((d) => (d.grid.visible = 'ja')),
+      richSample(),
+      mutate((d) => (d.objects[0].rotation = 45)),
+      mutate((d) => (d.objects[1].layer = 'floor')),
+      mutate((d) => (d.objects[0].w = 0)),
+      mutate((d) => delete d.objects[2].flipY),
+      mutate((d) => (d.terrain['3,4'].cover = 'viel')),
+      mutate((d) => (d.terrain['3,4'].fliegen = true)),
+      mutate((d) => (d.terrain['3,4'].damage = 'holy')),
+      mutate((d) => (d.terrain['a,b'] = {})),
+      mutate((d) => (d.layers[0].id = 'tokens')),
+      mutate((d) => d.layers.pop()),
+      mutate((d) => (d.notes[0].x = 1.5)),
+      mutate((d) => (d.notes[0].text = 'x'.repeat(2001))),
+      mutate((d) => (d.customElements[0].category = 'zauber')),
+      mutate((d) => (d.customElements[0].asset = '../../etc/passwd')),
+      mutate((d) => (d.customElements[0].id = 'kein-prefix')),
+      mutate((d) => (d.floor[5] = 42)),
     ];
     for (const c of cases) {
       let ours = true;

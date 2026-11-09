@@ -8,7 +8,7 @@ import { ProjectFileError } from '../../storage/errors';
 import { baseName, getFileAccess } from '../../storage/fileAccess';
 import { suggestFileName, type NewMapOptions } from '../../storage/mapDocument';
 import { decodeProject, encodeProject } from '../../storage/projectFile';
-import { useMapStore } from '../state/mapStore';
+import { referencedAssets, useMapStore } from '../state/mapStore';
 import { useNoticeStore } from '../state/noticeStore';
 import { useRecoveryStore } from '../state/recoveryStore';
 import { useT } from '../useT';
@@ -61,8 +61,8 @@ export function useFileActions() {
       const fa = getFileAccess();
       const file = await fa.openProject(t('file.openTitle'), t('file.filterName'));
       if (!file) return;
-      const { doc } = decodeProject(file.bytes);
-      useMapStore.getState().loadMap(doc, { path: file.path, name: file.name });
+      const { doc, assets } = decodeProject(file.bytes);
+      useMapStore.getState().loadMap(doc, { path: file.path, name: file.name }, false, assets);
       await fa.autosaveClear().catch(() => undefined);
       useNoticeStore.getState().push('info', t('notice.opened', { name: file.name }));
     } catch (e) {
@@ -72,12 +72,12 @@ export function useFileActions() {
 
   const saveInternal = useCallback(
     async (forceDialog: boolean): Promise<boolean> => {
-      const { doc, filePath } = useMapStore.getState();
+      const { doc, filePath, assets } = useMapStore.getState();
       if (!doc) return false;
       const fa = getFileAccess();
       try {
         const target = forceDialog || !fa.canSaveInPlace ? null : filePath;
-        const bytes = encodeProject(doc);
+        const bytes = encodeProject(doc, referencedAssets(doc, assets));
         const saved = await fa.saveProject(
           bytes,
           target,
@@ -110,7 +110,9 @@ export function useFileActions() {
     const pending = useRecoveryStore.getState().pending;
     if (!pending) return;
     const path = pending.recovery?.filePath ?? null;
-    useMapStore.getState().loadMap(pending.doc, { path, name: path ? baseName(path) : null }, true);
+    useMapStore
+      .getState()
+      .loadMap(pending.doc, { path, name: path ? baseName(path) : null }, true, pending.assets);
     useRecoveryStore.getState().setPending(null);
     useNoticeStore.getState().push('info', t('notice.restored', { name: pending.doc.name }));
   }, [t]);

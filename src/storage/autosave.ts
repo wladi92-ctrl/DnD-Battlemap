@@ -10,6 +10,8 @@ export interface AutosaveSnapshot {
   filePath: string | null;
   dirty: boolean;
   revision: number;
+  /** Eingebettete Dateien, die mitgesichert werden. */
+  assets?: ReadonlyMap<string, Uint8Array>;
 }
 
 export interface AutosaveOptions {
@@ -36,7 +38,9 @@ export function startAutosave(opts: AutosaveOptions): AutosaveHandle {
     busy = true;
     try {
       const savedAt = (opts.now?.() ?? new Date()).toISOString();
-      await opts.write(encodeProject(snap.doc, new Map(), { savedAt, filePath: snap.filePath }));
+      await opts.write(
+        encodeProject(snap.doc, snap.assets ?? new Map(), { savedAt, filePath: snap.filePath }),
+      );
       lastRevision = snap.revision;
       return true;
     } catch (e) {

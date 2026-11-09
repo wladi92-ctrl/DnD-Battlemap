@@ -1,6 +1,9 @@
 import { measurePath } from '../../core/distance';
 import { formatDistance } from '../../core/units';
+import { resolveElement } from '../../data/elements';
+import { objectsAt } from '../../editor/ops';
 import type { MessageKey } from '../../i18n';
+import { layerState } from '../../storage/mapDocument';
 import { useMapStore } from '../state/mapStore';
 import { useSettings } from '../state/settingsStore';
 import { rulerPath, useViewStore } from '../state/viewStore';
@@ -28,6 +31,7 @@ export function StatusBar() {
         {/* Anzeige 1-basiert, intern 0-basiert */}
         {cell ? t('status.cell', { x: cell.x + 1, y: cell.y + 1 }) : '–'}
       </span>
+      {cell && <HoverInfo x={cell.x} y={cell.y} />}
       {path.length > 1 && (
         <span>
           {t('status.ruler', {
@@ -49,5 +53,32 @@ export function StatusBar() {
         {dirty && <span className="status-dirty"> • {t('status.unsaved')}</span>}
       </span>
     </footer>
+  );
+}
+
+/** Oberstes Objekt und GM-Notiz unter dem Zeiger/Fokusfeld. */
+function HoverInfo({ x, y }: { x: number; y: number }) {
+  const t = useT();
+  const doc = useMapStore((s) => s.doc);
+  const locale = useSettings((s) => s.locale);
+  if (!doc) return null;
+  const top = objectsAt(doc, x + 0.5, y + 0.5)[0];
+  const floorId = doc.floor[y * doc.grid.cols + x];
+  const elementId = top?.element ?? floorId;
+  const name = elementId ? resolveElement(elementId, doc.customElements, locale)?.name : undefined;
+  const note = layerState(doc, 'gm').visible
+    ? doc.notes.find((n) => n.x === x && n.y === y)
+    : undefined;
+  return (
+    <>
+      {name && <span>{name}</span>}
+      {note && (
+        <span className="status-note" title={note.text}>
+          {t('status.note', {
+            text: note.text.length > 60 ? `${note.text.slice(0, 60)}…` : note.text,
+          })}
+        </span>
+      )}
+    </>
   );
 }

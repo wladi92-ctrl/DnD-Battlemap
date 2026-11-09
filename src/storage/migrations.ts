@@ -1,8 +1,6 @@
 /**
  * Migrationen alter Dateiversionen auf die aktuelle.
  * Schlüssel = Ausgangsversion; jede Migration hebt genau um eine Version an.
- * Beispiel für eine spätere Version 2:
- *   migrations[1] = (doc) => ({ ...doc, version: 2, layers: [] });
  */
 import { ProjectFileError } from './errors';
 import { MAP_FORMAT_VERSION } from './mapDocument';
@@ -10,7 +8,27 @@ import { MAP_FORMAT_VERSION } from './mapDocument';
 export type RawDocument = Record<string, unknown>;
 export type Migration = (doc: RawDocument) => RawDocument;
 
-export const migrations: Readonly<Record<number, Migration>> = {};
+/** v1 → v2: Ebenen, Bodenkacheln, Objekte, Gelände, Notizen, eigene Elemente (alle leer). */
+export function migrateV1toV2(doc: RawDocument): RawDocument {
+  const grid = (doc.grid ?? {}) as { cols?: unknown; rows?: unknown };
+  const cols = typeof grid.cols === 'number' ? grid.cols : 0;
+  const rows = typeof grid.rows === 'number' ? grid.rows : 0;
+  const size = Number.isInteger(cols * rows) && cols * rows > 0 ? cols * rows : 0;
+  return {
+    ...doc,
+    version: 2,
+    layers: ['floor', 'walls', 'decor', 'gm'].map((id) => ({ id, visible: true, locked: false })),
+    floor: new Array<string>(size).fill(''),
+    objects: [],
+    terrain: {},
+    notes: [],
+    customElements: [],
+  };
+}
+
+export const migrations: Readonly<Record<number, Migration>> = {
+  1: migrateV1toV2,
+};
 
 export function migrate(
   doc: RawDocument,

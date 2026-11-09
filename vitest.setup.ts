@@ -1,5 +1,16 @@
 import '@testing-library/jest-dom/vitest';
 
+// jsdom hat keine Blob-URLs und kein Canvas; für UI-Tests genügen Attrappen.
+if (typeof URL.createObjectURL !== 'function') {
+  let n = 0;
+  URL.createObjectURL = () => `blob:test/${++n}`;
+  URL.revokeObjectURL = () => undefined;
+}
+if (typeof HTMLCanvasElement !== 'undefined') {
+  HTMLCanvasElement.prototype.getContext = (() =>
+    null) as typeof HTMLCanvasElement.prototype.getContext;
+}
+
 // Ab Node 25 überdeckt das eingebaute (ohne --localstorage-file leere) localStorage
 // das von jsdom. Für Tests wird dann ein In-Memory-Storage eingesetzt.
 if (typeof globalThis.localStorage?.getItem !== 'function') {
