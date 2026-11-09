@@ -11,10 +11,10 @@ Eine Karte wird als **ZIP-Archiv** mit der Endung `.dndmap` gespeichert:
 Bilder in `assets/` werden unkomprimiert abgelegt (sie sind bereits komprimiert), `map.json`
 mit Deflate. Unbekannte Einträge werden beim Laden ignoriert.
 
-## `map.json` – Version 5 (aktuell)
+## `map.json` – Version 6 (aktuell)
 
-JSON-Schema: [`schema/map.v5.schema.json`](schema/map.v5.schema.json)
-(ältere Versionen: [`v4`](schema/map.v4.schema.json), [`v3`](schema/map.v3.schema.json), [`v2`](schema/map.v2.schema.json),
+JSON-Schema: [`schema/map.v6.schema.json`](schema/map.v6.schema.json)
+(ältere Versionen: [`v5`](schema/map.v5.schema.json), [`v4`](schema/map.v4.schema.json), [`v3`](schema/map.v3.schema.json), [`v2`](schema/map.v2.schema.json),
 [`v1`](schema/map.v1.schema.json) – werden beim Laden migriert). Version 4 ergänzt gegenüber
 Version 3 die Ebene `tokens` und die Liste `tokens` (siehe unten); Version 3 brachte das
 optionale `background.image` und die Liste `walls`.
@@ -22,7 +22,7 @@ optionale `background.image` und die Liste `walls`.
 ```json
 {
   "format": "dndmap",
-  "version": 5,
+  "version": 6,
   "id": "0b6f8c1e-…",
   "name": "Taverne zum Grünen Drachen",
   "createdAt": "2026-11-09T10:00:00.000Z",
@@ -233,6 +233,35 @@ gespeichert, sondern beim Laden aus Form, Ursprung, Wänden und der Flächenrege
 
 Höchstens 500 Effekte pro Karte; IDs sind eindeutig.
 
+### Kampf (`combat`) und Kampflog (`combatLog`)
+
+```json
+"combat": {
+  "started": true, "round": 3, "turn": 1,
+  "entries": [
+    { "id": "c1", "tokenId": "t2", "name": "Mira", "initiative": 18, "bonus": 3, "tiebreak": 512, "delayed": false },
+    { "id": "c3", "name": "Hortaktion", "initiative": 20, "bonus": 0, "tiebreak": 0, "delayed": true }
+  ]
+},
+"combatLog": [
+  { "id": "l1", "time": "2026-11-09T10:05:00.000Z", "round": 1, "kind": "combat", "text": "Kampf beginnt" }
+]
+```
+
+| Feld                          | Bedeutung                                                                                                                  | Grenzen                             |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| `combat`                      | `null` = kein Kampf                                                                                                        |                                     |
+| `combat.started`              | `false` = Vorbereitung (Initiative wird gesammelt), `true` = Runde 1 hat begonnen                                          |                                     |
+| `combat.round`, `combat.turn` | Runde (ab 1) und Index des aktiven Eintrags in `entries`                                                                   | turn < Anzahl                       |
+| `entries[].tokenId`           | optional: Token; fehlt es (gelöscht oder z. B. Hortaktion), bleibt der Name                                                |                                     |
+| `entries[].initiative`        | Wert oder `null` (noch offen)                                                                                              | −99…999, ganzzahlig                 |
+| `entries[].bonus`, `tiebreak` | Initiativebonus; Zufallswert für Gleichstände                                                                              | −99…99; 0…1000                      |
+| `entries[].delayed`           | Zug verzögert                                                                                                              |                                     |
+| `combatLog[]`                 | `time` (UTC), `round` oder `null`, `kind` (`combat`, `turn`, `roll`, `attack`, `damage`, `heal`, `effect`, `note`), `text` | ≤ 2000 Einträge, Text ≤ 500 Zeichen |
+
+Die Reihenfolge in `entries` ist die Zugreihenfolge (sie kann manuell von der Sortierung nach
+Initiative abweichen, z. B. nach „jetzt handeln“).
+
 ## Versionierung und Migration
 
 - Jede inkompatible Änderung erhöht `version`.
@@ -247,6 +276,7 @@ Höchstens 500 Effekte pro Karte; IDs sind eindeutig.
 - **v3 → v4**: fügt die Ebene `tokens` vor `gm` ein (sichtbar, entsperrt) und eine leere
   Token-Liste; Sichtbarkeit/Sperre der übrigen Ebenen bleibt erhalten.
 - **v4 → v5**: fügt die Ebene `effects` vor `gm` ein und eine leere Effektliste.
+- **v5 → v6**: kein laufender Kampf (`combat: null`), leeres Kampflog.
 
 ## Speichern und Wiederherstellung
 

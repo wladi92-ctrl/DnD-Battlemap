@@ -22,6 +22,7 @@ export type WholeFields = Pick<
   | 'walls'
   | 'tokens'
   | 'effects'
+  | 'combat'
 >;
 
 export type FloorChange = [index: number, before: string, after: string];

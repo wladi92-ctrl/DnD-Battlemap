@@ -32,6 +32,10 @@ import { StatblockDialog } from '../creatures/StatblockDialog';
 import { TokenPanel } from '../creatures/TokenPanel';
 import { EffectListPanel, EffectToolPanel } from '../effects/EffectPanels';
 import { SaveAssistant } from '../effects/SaveAssistant';
+import { InitiativePanel } from '../combat/InitiativePanel';
+import { DiceRoller } from '../combat/DiceRoller';
+import { AttackDialog } from '../combat/AttackDialog';
+import { advanceTurn, previousTurn } from '../combat/combatTools';
 import { MapCanvas } from './MapCanvas';
 import { NewMapDialog } from './NewMapDialog';
 import { NoteDialog } from './NoteDialog';
@@ -130,6 +134,9 @@ export function MapWorkspace() {
         '=': () => view.zoomAt(center, ZOOM_STEP, world),
         '-': () => view.zoomAt(center, 1 / ZOOM_STEP, world),
         '0': () => view.fit(world),
+        x: () => useEditorStore.getState().setDiceOpen(!useEditorStore.getState().diceOpen),
+        pagedown: () => d.combat && advanceTurn(),
+        pageup: () => d.combat && previousTurn(),
       };
       for (const tl of TOOLS) handlers[tl.key.toLowerCase()] = () => setTool(tl.id);
       const handler = handlers[key];
@@ -197,6 +204,7 @@ export function MapWorkspace() {
             <LeftPanel />
             <MapCanvas />
             <div className="side-panel">
+              <InitiativePanel />
               <EffectToolPanel />
               <TokenPanel />
               <EffectListPanel />
@@ -211,6 +219,8 @@ export function MapWorkspace() {
           <NoteDialog />
           <StatblockDialog />
           <SaveAssistant />
+          <AttackDialog />
+          <DiceRoller />
           {templateOpen && <GeneratorDialog onClose={() => setTemplateOpen(false)} />}
         </>
       ) : (

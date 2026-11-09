@@ -95,7 +95,20 @@ function buildOverlay(): OverlayState {
     ...wallOverlay(tool),
     ...tokenOverlay(tool),
     targets: aoeTargets(tool),
+    current: currentTurnRect(),
   };
+}
+
+/** Rahmen um das Token, das im Kampf am Zug ist. */
+function currentTurnRect(): NonNullable<OverlayState['current']> | null {
+  const doc = useMapStore.getState().doc;
+  const c = doc?.combat;
+  if (!doc || !c?.started) return null;
+  const e = c.entries[c.turn];
+  const tk = e?.tokenId ? doc.tokens.find((x) => x.id === e.tokenId) : undefined;
+  if (!tk) return null;
+  const s = Math.max(1, SIZE_CELLS[tk.size]);
+  return { x: tk.x, y: tk.y, w: s, h: s };
 }
 
 /** Tokens im Vorschaubereich des Effekt-Werkzeugs (zum Hervorheben). */

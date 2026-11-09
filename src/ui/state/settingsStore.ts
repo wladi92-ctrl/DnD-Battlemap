@@ -5,6 +5,7 @@
 import { create } from 'zustand';
 import { COVERAGE_RULES, type CoverageRule } from '../../core/aoe';
 import { diagonalRules, type DiagonalRule } from '../../core/distance';
+import { TIE_RULES, type TieRule } from '../../editor/combat';
 import { defaultLocale, isLocale, type Locale } from '../../i18n';
 
 export type ThemeSetting = 'system' | 'light' | 'dark' | 'contrast';
@@ -29,6 +30,12 @@ export interface Settings {
   autosaveSeconds: AutosaveSeconds;
   /** Flächenregel für Effekte: halbe Abdeckung (Standard) oder Feldmitte. */
   coverageRule: CoverageRule;
+  /** Gleichstand bei der Initiative. */
+  tieRule: TieRule;
+  /** Tote Kreaturen in der Zugreihenfolge überspringen. */
+  skipDead: boolean;
+  /** Kamera folgt dem Token, das am Zug ist. */
+  cameraFollow: boolean;
 }
 
 export const defaultSettings: Settings = {
@@ -39,6 +46,9 @@ export const defaultSettings: Settings = {
   showMeters: false,
   autosaveSeconds: 60,
   coverageRule: 'half',
+  tieRule: 'bonus',
+  skipDead: true,
+  cameraFollow: true,
 };
 
 const STORAGE_KEY = 'dnd-battlemap.settings.v1';
@@ -67,6 +77,9 @@ export function parseSettings(raw: unknown): Settings {
   if (COVERAGE_RULES.includes(r.coverageRule as CoverageRule)) {
     result.coverageRule = r.coverageRule as CoverageRule;
   }
+  if (TIE_RULES.includes(r.tieRule as TieRule)) result.tieRule = r.tieRule as TieRule;
+  if (typeof r.skipDead === 'boolean') result.skipDead = r.skipDead;
+  if (typeof r.cameraFollow === 'boolean') result.cameraFollow = r.cameraFollow;
   return result;
 }
 
@@ -95,6 +108,7 @@ interface SettingsState extends Settings {
   setShowMeters: (show: boolean) => void;
   setAutosaveSeconds: (seconds: AutosaveSeconds) => void;
   setCoverageRule: (rule: CoverageRule) => void;
+  setCombatOptions: (o: Partial<Pick<Settings, 'tieRule' | 'skipDead' | 'cameraFollow'>>) => void;
   reset: () => void;
 }
 
@@ -107,6 +121,7 @@ export const useSettings = create<SettingsState>((set) => ({
   setShowMeters: (showMeters) => set({ showMeters }),
   setAutosaveSeconds: (autosaveSeconds) => set({ autosaveSeconds }),
   setCoverageRule: (coverageRule) => set({ coverageRule }),
+  setCombatOptions: (o) => set(o),
   reset: () => set({ ...defaultSettings }),
 }));
 
@@ -119,5 +134,8 @@ useSettings.subscribe((s) =>
     showMeters: s.showMeters,
     autosaveSeconds: s.autosaveSeconds,
     coverageRule: s.coverageRule,
+    tieRule: s.tieRule,
+    skipDead: s.skipDead,
+    cameraFollow: s.cameraFollow,
   }),
 );

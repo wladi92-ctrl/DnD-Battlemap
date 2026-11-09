@@ -38,6 +38,11 @@ export function createFakeFileAccess(): FakeFileAccess {
     async autosaveWrite(bytes) {
       fake.autosave = bytes;
     },
+    async exportText(text, suggestedName) {
+      const target = fake.nextDialogPath ?? suggestedName;
+      fake.files.set(target, new TextEncoder().encode(text));
+      return target;
+    },
     async autosaveRead() {
       return fake.autosave;
     },

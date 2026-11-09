@@ -25,7 +25,10 @@ import {
   createMap,
   HEX_COLOR,
   normalizeName,
+  LOG_MAX,
+  LOG_TEXT_MAX,
   type GridSettings,
+  type LogEntry,
   type MapDocument,
   type NewMapOptions,
 } from '../../storage/mapDocument';
@@ -71,6 +74,9 @@ export interface MapState {
   setBackgroundColor: (color: string) => void;
   rename: (name: string) => void;
   addAsset: (path: string, bytes: Uint8Array) => void;
+  /** Kampflog ergänzen (kein Undo-Schritt; ältere Einträge fallen über dem Limit weg). */
+  appendLog: (entries: readonly Omit<LogEntry, 'id' | 'time' | 'round'>[]) => void;
+  clearLog: () => void;
   markSaved: (file: FileRef) => void;
   closeMap: () => void;
 }
@@ -210,6 +216,26 @@ export const useMapStore = create<MapState>((set, get) => {
       if (next !== doc.name) apply(replaceField(doc, 'name', next), 'action.rename', 'name');
     },
     addAsset: (path, bytes) => set((s) => ({ assets: new Map(s.assets).set(path, bytes) })),
+    appendLog: (entries) => {
+      const { doc } = get();
+      if (!doc || !entries.length) return;
+      const time = new Date().toISOString();
+      const round = doc.combat?.round ?? null;
+      const added = entries.map((e) => ({
+        id: crypto.randomUUID(),
+        time,
+        round,
+        kind: e.kind,
+        text: e.text.slice(0, LOG_TEXT_MAX),
+      }));
+      const combatLog = [...doc.combatLog, ...added].slice(-LOG_MAX);
+      set((s) => ({ doc: { ...doc, combatLog }, dirty: true, revision: s.revision + 1 }));
+    },
+    clearLog: () => {
+      const { doc } = get();
+      if (!doc || !doc.combatLog.length) return;
+      set((s) => ({ doc: { ...doc, combatLog: [] }, dirty: true, revision: s.revision + 1 }));
+    },
     markSaved: (file) => set({ filePath: file.path, fileName: file.name, dirty: false }),
     closeMap: () => resetDoc(null, { path: null, name: null }, false, new Map()),
   };

@@ -10,6 +10,14 @@ import { ProjectFileError } from './errors';
 import { AOE_SHAPES, WALL_MODES, type AoeShape, type WallMode } from '../core/aoe';
 import { parseDice } from '../core/dice';
 import {
+  COMBAT_ENTRIES_MAX,
+  LOG_KINDS,
+  LOG_MAX,
+  LOG_TEXT_MAX,
+  type CombatEntry,
+  type CombatState,
+  type LogEntry,
+  type LogKind,
   DICE_TEXT_MAX,
   EFFECT_CELLS_MAX,
   EFFECT_SIZE_MAX,
@@ -548,6 +556,77 @@ function checkEffects(
   return out;
 }
 
+function checkCombat(c: Checker, raw: unknown, tokenIds: ReadonlySet<string>): CombatState | null {
+  if (raw === null) return null;
+  const o = c.object(raw, 'combat');
+  const list = c.array(o.entries, 'combat.entries', COMBAT_ENTRIES_MAX);
+  const ok =
+    c.boolean(o.started, 'combat.started') &&
+    c.number(o.round, 'combat.round', 1, 1_000_000, true) &&
+    c.number(o.turn, 'combat.turn', 0, Math.max(0, list.length - 1), true);
+  const ids = new Set<string>();
+  const entries: CombatEntry[] = [];
+  list.forEach((entry, i) => {
+    const p = `combat.entries[${i}]`;
+    const e = c.object(entry, p);
+    const valid = [
+      c.string(e.id, `${p}.id`, { min: 1, max: ID_MAX }),
+      e.tokenId === undefined || c.string(e.tokenId, `${p}.tokenId`, { min: 1, max: ID_MAX }),
+      c.string(e.name, `${p}.name`, { min: 1, max: NAME_MAX }),
+      e.initiative === null || c.number(e.initiative, `${p}.initiative`, -99, 999, true),
+      c.number(e.bonus, `${p}.bonus`, -99, 99, true),
+      c.number(e.tiebreak, `${p}.tiebreak`, 0, 1000, true),
+      c.boolean(e.delayed, `${p}.delayed`),
+    ].every(Boolean);
+    if (valid && ids.has(e.id as string)) return void c.fail(`${p}.id: doppelt`);
+    if (!valid) return;
+    ids.add(e.id as string);
+    const tokenId = e.tokenId as string | undefined;
+    entries.push({
+      id: e.id as string,
+      // Verweis auf ein gelöschtes Token wird verworfen; der Eintrag bleibt mit Namen.
+      ...(tokenId && tokenIds.has(tokenId) ? { tokenId } : {}),
+      name: e.name as string,
+      initiative: e.initiative as number | null,
+      bonus: e.bonus as number,
+      tiebreak: e.tiebreak as number,
+      delayed: e.delayed as boolean,
+    });
+  });
+  if (!ok) return null;
+  return {
+    started: o.started as boolean,
+    round: o.round as number,
+    turn: o.turn as number,
+    entries,
+  };
+}
+
+function checkLog(c: Checker, raw: unknown): LogEntry[] {
+  const list = c.array(raw, 'combatLog', LOG_MAX);
+  const out: LogEntry[] = [];
+  list.forEach((entry, i) => {
+    const p = `combatLog[${i}]`;
+    const e = c.object(entry, p);
+    const ok = [
+      c.string(e.id, `${p}.id`, { min: 1, max: ID_MAX }),
+      c.string(e.time, `${p}.time`, { pattern: ISO_DATE }),
+      e.round === null || c.number(e.round, `${p}.round`, 1, 1_000_000, true),
+      c.oneOf(e.kind, `${p}.kind`, LOG_KINDS),
+      c.string(e.text, `${p}.text`, { min: 1, max: LOG_TEXT_MAX }),
+    ].every(Boolean);
+    if (!ok) return;
+    out.push({
+      id: e.id as string,
+      time: e.time as string,
+      round: e.round as number | null,
+      kind: e.kind as LogKind,
+      text: e.text as string,
+    });
+  });
+  return out;
+}
+
 /** Prüft, migriert und liefert ein gültiges Kartendokument. */
 export function parseMapDocument(raw: unknown): MapDocument {
   if (!isObject(raw)) throw new ProjectFileError('invalidContent', ['Wurzel: Objekt erwartet']);
@@ -591,14 +670,17 @@ export function parseMapDocument(raw: unknown): MapDocument {
   const customElements = checkCustomElements(c, doc.customElements);
   const walls = checkWalls(c, doc.walls, cols, rows);
   const tokens = checkTokens(c, doc.tokens, cols, rows);
-  const effects = checkEffects(c, doc.effects, cols, rows, new Set(tokens.map((t) => t.id)));
+  const tokenIds = new Set(tokens.map((t) => t.id));
+  const effects = checkEffects(c, doc.effects, cols, rows, tokenIds);
+  const combat = checkCombat(c, doc.combat, tokenIds);
+  const combatLog = checkLog(c, doc.combatLog);
 
   if (c.errors.length) throw new ProjectFileError('invalidContent', c.errors);
 
   // Nur bekannte Felder übernehmen – unbekannte Zusatzdaten werden verworfen.
   return {
     format: MAP_FORMAT,
-    version: 5,
+    version: 6,
     id: doc.id as string,
     name: doc.name as string,
     createdAt: doc.createdAt as string,
@@ -624,5 +706,7 @@ export function parseMapDocument(raw: unknown): MapDocument {
     walls,
     tokens,
     effects,
+    combat,
+    combatLog,
   };
 }

@@ -43,6 +43,16 @@ export interface FileAccess {
     suggestedName: string,
     filterName: string,
   ): Promise<string | null>;
+  /**
+   * Text exportieren (z. B. Kampflog als Markdown): Speichern-Dialog bzw. Download.
+   * Liefert den Pfad/Dateinamen oder null bei Abbruch.
+   */
+  exportText(
+    text: string,
+    suggestedName: string,
+    filterName: string,
+    extension: string,
+  ): Promise<string | null>;
   autosaveWrite(bytes: Uint8Array): Promise<void>;
   autosaveRead(): Promise<Uint8Array | null>;
   autosaveClear(): Promise<void>;
@@ -124,6 +134,19 @@ export function createTauriFileAccess(): FileAccess {
       await ioError(() => invoke('write_file', bytes, pathHeader(finalPath)));
       return finalPath;
     },
+    async exportText(text, suggestedName, filterName, extension) {
+      const { save } = await dialog();
+      const chosen = await save({
+        defaultPath: suggestedName,
+        filters: [{ name: filterName, extensions: [extension] }],
+      });
+      if (!chosen) return null;
+      const target = chosen.toLowerCase().endsWith(`.${extension}`)
+        ? chosen
+        : `${chosen}.${extension}`;
+      await ioError(() => invoke('write_file', new TextEncoder().encode(text), pathHeader(target)));
+      return target;
+    },
     autosaveWrite: (bytes) => ioError(() => invoke('autosave_write', bytes)),
     async autosaveRead() {
       const data = toBytes(await ioError(() => invoke<ArrayBuffer>('autosave_read')));
@@ -196,6 +219,15 @@ export function createBrowserFileAccess(): FileAccess {
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 10_000);
       return a.download;
+    },
+    async exportText(text, suggestedName) {
+      const url = URL.createObjectURL(new Blob([text], { type: 'text/markdown;charset=utf-8' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = suggestedName;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+      return suggestedName;
     },
     autosaveWrite: (bytes) => ioError(() => idb('readwrite', (s) => s.put(bytes, IDB_KEY))),
     async autosaveRead() {

@@ -53,9 +53,13 @@ function RoundPanel() {
     <details className="panel-section" open>
       <summary>{t('token.heading')}</summary>
       <p className="small muted">{t('token.none', { count: doc.tokens.length })}</p>
-      <button type="button" className="btn" onClick={() => startNewRound(say)}>
-        {t('token.newRound')}
-      </button>
+      {doc.combat ? (
+        <p className="small muted">{t('token.roundsViaCombat')}</p>
+      ) : (
+        <button type="button" className="btn" onClick={() => startNewRound(say)}>
+          {t('token.newRound')}
+        </button>
+      )}
     </details>
   );
 }
@@ -351,9 +355,20 @@ function TokenEditor({ tokens, t }: { tokens: Token[]; t: ReturnType<typeof useT
         >
           {t('token.delete')}
         </button>
-        <button type="button" className="btn" onClick={() => startNewRound(say)}>
-          {t('token.newRound')}
-        </button>
+        {single && (
+          <button
+            type="button"
+            className="btn"
+            onClick={() => useEditorStore.getState().openAttack(single.id)}
+          >
+            {t('attack.open')}
+          </button>
+        )}
+        {!doc.combat && (
+          <button type="button" className="btn" onClick={() => startNewRound(say)}>
+            {t('token.newRound')}
+          </button>
+        )}
       </div>
     </details>
   );

@@ -99,6 +99,10 @@ export interface EditorState {
   aoePhase: AoePhase;
   /** Offener Rettungswurf-Assistent. */
   assistant: AoeResult | null;
+  /** Würfelfenster sichtbar. */
+  diceOpen: boolean;
+  /** Angriffsdialog für dieses Token (ID) offen. */
+  attackerId: string | null;
 
   selectElement: (id: string, layer: LayerId) => void;
   setPaintMode: (mode: PaintMode) => void;
@@ -122,6 +126,8 @@ export interface EditorState {
   setAoe: (aoe: AoeTool | null) => void;
   setAoePhase: (p: Partial<AoePhase>) => void;
   openAssistant: (r: AoeResult | null) => void;
+  setDiceOpen: (open: boolean) => void;
+  openAttack: (tokenId: string | null) => void;
   reset: () => void;
 }
 
@@ -148,6 +154,8 @@ const initial = {
   aoe: null as AoeTool | null,
   aoePhase: { origin: null, angle: 0, pointer: null, cells: [] } as AoePhase,
   assistant: null as AoeResult | null,
+  diceOpen: false,
+  attackerId: null as string | null,
 };
 
 export const useEditorStore = create<EditorState>((set) => ({
@@ -176,5 +184,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   setAoe: (aoe) => set({ aoe, aoePhase: { origin: null, angle: 0, pointer: null, cells: [] } }),
   setAoePhase: (p) => set((s) => ({ aoePhase: { ...s.aoePhase, ...p } })),
   openAssistant: (assistant) => set({ assistant }),
+  setDiceOpen: (diceOpen) => set({ diceOpen }),
+  openAttack: (attackerId) => set({ attackerId }),
   reset: () => set({ ...initial, selection: new Set(), clipboard: [], preview: [], wallChain: [] }),
 }));

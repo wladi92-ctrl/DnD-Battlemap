@@ -4,18 +4,17 @@ Offline-Desktop-Anwendung für interaktive D&D-5e-Kampfkarten: Karten aus Elemen
 Bilder importieren und kalibrieren, Kreaturen als Tokens bewegen, Effektbereiche feldgenau
 anzeigen. Regelinhalte ausschließlich aus dem **SRD 5.1 (CC-BY-4.0)**.
 
-> **Entwicklungsstand: Phase 6 von 10 – Flächeneffekte (AoE).**
-> Neu: Effekt-Werkzeug mit Kugel, Zylinder, Kegel, Würfel, Linie (mit Breite), Aura um eine
-> Kreatur, Quadrat und freier Fläche; Vorschau mit Zähler „N Felder / M Ziele“ und markierten
-> Zielen; Flächenregel (halbe Abdeckung oder Feldmitte); Wände/Türen/Fenster und feste
-> Hindernisse blockieren (Wirkungslinie), optional Ausbreitung um Ecken; Bibliothek mit 92
-> SRD-Zaubern (Grad-Skalierung), 19 Gegenständen, 71 Odemwaffen, Klassenmerkmalen und einer
-> Falle; eigene Effekte; Rettungswurf-Assistent (Würfeln/Eintragen, Vorteil/Nachteil, halber
-> Schaden, Resistenz/Immunität/Anfälligkeit); dauerhafte Effekte mit Rundendauer, Konzentration,
-> Auren, die ihrem Träger folgen, und Hinweisen beim Betreten bzw. zu Rundenbeginn.
-> Aus Phase 1–5: Karteneditor, Bildimport, Kantenwände, Tokens mit SRD-Kreaturen,
-> Spielercharaktere, Bewegung, `.dndmap`-Dateien, Autosave, Offline-Absicherung, CI, Installer.
-> Initiative/Kampf, Sicht/Licht/Nebel und Spieleransicht folgen.
+> **Entwicklungsstand: Phase 7 von 10 – Kampf-Management.**
+> Neu: Initiative-Tracker (würfeln/eintragen, sortieren, Gleichstand-Regel, Runde/Zug,
+> vor/zurück, verzögern und „jetzt handeln“, Einträge ohne Token, Tote überspringen,
+> aktives Token hervorgehoben, Kamera folgt), Ressourcen des Aktiven werden zu Zugbeginn
+> zurückgesetzt, Effekte laufen mit den Runden ab, Zonen-Hinweise zum Zugbeginn;
+> Würfelroller (W4–W100, Ausdrücke, Vorteil/Nachteil, Verlauf, kryptografischer Zufall);
+> Angriffs-Helfer (Angriffe aus dem Statblock, Treffer gegen RK, kritisch/verfehlt,
+> Resistenzen); Kampflog (Notizen, Markdown-Export).
+> Aus Phase 1–6: Karteneditor, Bildimport, Kantenwände, Tokens mit SRD-Kreaturen,
+> Spielercharaktere, Bewegung, Flächeneffekte mit Rettungswurf-Assistent, `.dndmap`-Dateien,
+> Autosave, Offline-Absicherung, CI, Installer. Sicht/Licht/Nebel und Spieleransicht folgen.
 
 ## Voraussetzungen
 
@@ -97,7 +96,7 @@ Die App stellt zur Laufzeit keine Netzwerkverbindungen her. Abgesichert durch:
 src/
   core/      reine Logik ohne UI: Raster, Distanzregeln (Strategien), Einheiten, Kamera,
              Formen (Linie, Rechteck, Flutfüllung), Zufall, Bewegung (Dijkstra, Gelegenheitsangriffe),
-             Flächeneffekte (aoe.ts), Würfel (dice.ts)
+             Flächeneffekte (aoe.ts), Würfel (dice.ts); editor/combat.ts, attack.ts = Kampf
   data/      elements/ (Bibliothek: SVG-Generatoren, Namen de/en), srd/ (Kreaturen, Zustände, Effekte),
              licenses/
   editor/    Bearbeitungsoperationen, Undo/Redo-Patches, Platzbedarf/Gelände, Vorlagen, Tokens, Effekte
@@ -107,7 +106,8 @@ src/
              Bibliothek (Charaktere, eigene Kreaturen)
   styles/    Theme-Tokens (Hell/Dunkel/Hoher Kontrast)
   ui/        React-Komponenten und UI-State (Zustand); map/ = Karten-Arbeitsbereich,
-             creatures/ = Kreaturen, Charaktere, Statblock, Token-Panel; effects/ = Effekte
+             creatures/ = Kreaturen, Charaktere, Statblock, Token-Panel; effects/ = Effekte;
+             combat/ = Initiative, Würfel, Angriff, Kampflog
 src-tauri/   Rust-Backend (Datei-I/O, Autosave, SQLite-Bibliothek), Tauri-Konfiguration,
              Capabilities, Icons
 docs/        Dateiformat, JSON-Schema, Testprotokoll
@@ -238,6 +238,35 @@ Karte eingebettet.
   Dauer herunter, entfernt abgelaufene Effekte und nennt Kreaturen, die zu Rundenbeginn in einer
   Zone stehen; betritt ein Token eine Zone, erscheint ein Hinweis mit Rettungswurf.
 
+**Kampf** (Abschnitt „Kampf“ oben rechts):
+
+- **Beginnen**: mit den ausgewählten Tokens oder – ohne Auswahl – allen außer toten Kreaturen.
+  In der **Vorbereitung** Initiative würfeln („Alle“, „Fehlende“, „Nur NSC“; W20 + Bonus) oder
+  in die Felder eintragen; die Reihenfolge sortiert sich dabei automatisch. „Runde 1 beginnen“
+  startet den Kampf.
+- **Züge**: „Nächster Zug“ (`Bild↓`) bzw. ◀ (`Bild↑`). Das aktive Token ist in der Liste und auf
+  der Karte gold umrandet, wird ausgewählt und – mit „Kamera folgt“ – ins Bild geholt. Zu Beginn
+  seines Zuges werden Bewegung, Aktion, Bonusaktion und Reaktion zurückgesetzt; steht es in einer
+  Zone mit Auslöser „Zugbeginn“, erscheint ein Hinweis. Nach dem Letzten beginnt eine neue
+  Runde; dauerhafte Effekte zählen dabei herunter und laufen ab.
+- **Verzögern** setzt den Aktiven aus; „Jetzt handeln“ holt ihn vor den aktuellen Teilnehmer
+  (mit dessen Initiative). Tote werden übersprungen (abschaltbar). ↑/↓ verschieben Einträge,
+  × entfernt sie; „Eintrag ohne Token“ (z. B. Hortaktion, Initiative 20).
+- **Gleichstand** (Optionen): höherer Initiativebonus, dann Zufall – oder Spielercharaktere
+  zuerst. Alle Kampfschritte sind rückgängig machbar.
+- **Angriff** (⚔ in der Liste oder „Angriff …“ im Token-Panel): Angriff aus dem Statblock oder
+  eigener (Trefferbonus, Würfel, Schadensart), Ziele wählen (Feinde zuerst, Auswahl vorbelegt),
+  Vorteil/Nachteil; Trefferwurf gegen RK (natürliche 20 = kritisch mit doppelten Würfeln,
+  natürliche 1 = verfehlt), Schaden je Art mit Resistenz/Immunität/Anfälligkeit des Ziels,
+  änderbar, „Schaden anwenden“ (kritische Treffer zählen bei 0 TP als zwei Fehlschläge).
+- **Kampflog**: Zugwechsel, Initiative, Würfe, Angriffe, Schaden, Effekte und eigene Notizen mit
+  Zeit und Runde; „Als Markdown exportieren …“, „Log leeren“. Das Log wird mit der Karte
+  gespeichert, ist aber bewusst nicht Teil von Rückgängig/Wiederholen.
+
+**Würfel** (Knopf „Würfel“ in der Werkzeugleiste, `X`): W4 bis W100 per Klick, Ausdrücke wie
+`2d6+3` oder `3W8 + 1d4` (`Eingabe`), Vorteil/Nachteil für 1W20, Verlauf der letzten 50 Würfe,
+optional ins Kampflog.
+
 **Lineal** (`R`): Mit gedrückter Maustaste ziehen; `Leertaste` während des Ziehens setzt einen
 Wegpunkt. Per Tastatur: Kartenansicht fokussieren, mit Pfeiltasten das Fokusfeld bewegen,
 `Eingabe` startet bzw. setzt Wegpunkte, `Esc` beendet; ein zweites `Esc` löscht die Messung.
@@ -256,6 +285,8 @@ Wegpunkte hinweg weiter (wie bei einer zusammenhängenden Bewegung).
 | `G` / `T`                                     | Raster / Gelände ein/aus                                  |
 | `W` / `D`                                     | Wand zeichnen / Tür öffnen-schließen                      |
 | `A` / `Q`                                     | Effekt-Werkzeug / Effekt drehen                           |
+| `Bild↓` / `Bild↑`                             | Kampf: nächster / vorheriger Zug                          |
+| `X`                                           | Würfelroller ein/aus                                      |
 | `+` / `-` / `0`                               | Vergrößern / Verkleinern / Einpassen                      |
 | Mausrad                                       | Zoomen am Mauszeiger                                      |
 | Pfeiltasten                                   | Fokusfeld bewegen (Kartenansicht fokussiert)              |
@@ -350,6 +381,14 @@ enthalten (per Test erzwungen). Neue Sprache: JSON-Datei anlegen und in `src/i18
 | Effekt-Bibliothek         | Zauber mit strukturierter Bereichsangabe, dazu 4 Zauber mit Bereich nur im Text (Beleg im Skript geprüft); Gegenstände nur mit Rettungswurf oder Schaden; Odemwaffen aus den Statblöcken; Klassenmerkmale/Falle von Hand mit SRD-Werten          | Nur belegte SRD-Werte; weitere Fallen über eigene Effekte                                                                    |
 | Dauer in Runden           | 1 Minute = 10 Runden, 10 Minuten = 100, 1 Stunde = 600; „Neue Runde“ zählt herunter (ab Phase 7 über den Initiative-Tracker)                                                                                                                     | SRD: 1 Runde = 6 Sekunden                                                                                                    |
 | Effekte über Tokens       | Halbtransparent über den Tokens gezeichnet, mit Muster je Schadensart                                                                                                                                                                            | Bereich bleibt auch über Figuren sichtbar; Farbe + Muster für Farbenblinde                                                   |
+| Initiative-Gleichstand    | Standard: höherer Initiativebonus (≈ Geschicklichkeit), dann ein beim Hinzufügen gewürfelter Zufallswert; alternativ Spielercharaktere zuerst                                                                                                    | SRD überlässt Gleichstände der Spielleitung; beide Varianten sind am Tisch üblich                                            |
+| Vorbereitung              | Bis „Runde 1 beginnen“ wird bei jeder Eingabe sortiert; danach nur auf Knopfdruck                                                                                                                                                                | Neu eingetragene Werte verschieben im laufenden Kampf nicht unerwartet den aktuellen Zug                                     |
+| Zugbeginn                 | Bewegung und Aktion/Bonusaktion/Reaktion des Aktiven werden zurückgesetzt                                                                                                                                                                        | SRD: Reaktion erneuert sich zu Beginn des eigenen Zuges                                                                      |
+| Effektdauer im Kampf      | Dauerhafte Effekte zählen beim Rundenwechsel herunter (nicht exakt zum Zug des Zaubernden)                                                                                                                                                       | Der Zaubernde ist nicht gespeichert; Abweichung höchstens eine Teilrunde                                                     |
+| Zurück                    | „Vorheriger Zug“ versetzt nur den Zeiger; Ressourcen/Effekte stellt Rückgängig wieder her                                                                                                                                                        | Klare Trennung: Navigation vs. Rückgängig                                                                                    |
+| Kampflog                  | Mit der Karte gespeichert (bis 2000 Einträge), nicht im Undo-Verlauf                                                                                                                                                                             | Ein Würfelwurf soll beim Rückgängig-Machen keine Kartenänderung „verbrauchen“                                                |
+| Kritische Treffer         | Doppelte Schadenswürfel, Modifikator einfach; Angriff auf Bewusstlose in 5 ft wird nicht automatisch kritisch                                                                                                                                    | SRD-Regel; Sonderfälle entscheidet die Spielleitung (Schaden ist editierbar)                                                 |
+| Zufall                    | crypto.getRandomValues mit Rejection Sampling (keine Modulo-Verzerrung)                                                                                                                                                                          | Vorgabe „kryptografisch gute Zufallszahlen“                                                                                  |
 | Bibliotheksgrafiken       | 165 selbst erzeugte SVGs, beim Start einmal in Texturen (128 px/Feld) gerastert                                                                                                                                                                  | Keine fremden Assets, scharf bis Zoom 200 %                                                                                  |
 | Performance               | Bodenkacheln in 16×16-Blöcken mit Culling, Rendern nur bei Änderungen                                                                                                                                                                            | Ausgelegt für 200×200 (40 000 Kacheln); FPS-Messung folgt in Phase 10                                                        |
 

@@ -74,6 +74,8 @@ export interface OverlayState {
   movePath?: readonly Cell[];
   /** true = Weg übersteigt die Restbewegung (rot). */
   moveOver?: boolean;
+  /** Token, das im Kampf am Zug ist (Rechteck in Feldern). */
+  current?: CellRectF | null;
   /** Vom Effekt betroffene Tokens (Vorschau), hervorgehoben. */
   targets?: readonly CellRectF[];
   /** Nahkampfreichweiten ausgewählter Tokens (Rechtecke in Feldern). */
@@ -670,6 +672,27 @@ export class MapRenderer {
         width: 2 * px,
         alpha: 0.9,
       });
+    }
+
+    const cur = this.overlayState.current;
+    if (cur) {
+      const pad = 5 * px;
+      g.roundRect(
+        cur.x * CELL_PX - pad,
+        cur.y * CELL_PX - pad,
+        cur.w * CELL_PX + 2 * pad,
+        cur.h * CELL_PX + 2 * pad,
+        10 * px,
+      )
+        .stroke({ color: 0x000000, width: 7 * px, alpha: 0.6 })
+        .roundRect(
+          cur.x * CELL_PX - pad,
+          cur.y * CELL_PX - pad,
+          cur.w * CELL_PX + 2 * pad,
+          cur.h * CELL_PX + 2 * pad,
+          10 * px,
+        )
+        .stroke({ color: 0xffc400, width: 4 * px });
     }
 
     for (const r of this.overlayState.targets ?? []) {

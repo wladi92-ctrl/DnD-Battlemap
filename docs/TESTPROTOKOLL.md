@@ -280,3 +280,45 @@ Neue Tests:
 | `npm run tauri:build`                                                | ✅ MSI de/en (je 3,3 MB), NSIS-Setup (2,5 MB)                                                                                                                                    |
 | Start der Release-Exe                                                | ✅ Fenster „DnD Battlemap“                                                                                                                                                       |
 | Effekte in der Desktop-App (Maus/Tastatur), eigene Effekte in SQLite | ⏳ bitte manuell prüfen (in Rust-Tests und Browser-Vorschau geprüft)                                                                                                             |
+
+## Phase 7 – Kampf-Management (2026-11-09)
+
+### Automatisch
+
+| Prüfung                                                                  | Ergebnis                   |
+| ------------------------------------------------------------------------ | -------------------------- |
+| `npm run verify` (Lint, Prettier, `tsc`, Vitest, Build, Offline-Prüfung) | ✅ 223 Tests in 31 Dateien |
+| `npm run test:rust`                                                      | ✅ 6 Tests                 |
+
+Neue Tests:
+
+- `src/editor/combat.test.ts` – Initiative würfeln und sortieren; Gleichstand nach Bonus, „Spieler
+  zuerst“, Zufallswert; nur fehlende / nur NSC; Teilnehmer ohne Wert hinten; Vorbereitung →
+  „Runde 1 beginnen“; Zugwechsel setzt Bewegung/Aktionen des Aktiven zurück; Rundenwechsel zählt
+  Effekte herunter (Ablauf); Zug zurück; Tote überspringen (abschaltbar); Verzögern über den
+  Rundenwechsel und „Jetzt handeln“ (Position und Initiative); Hinzufügen, Eintrag ohne Token,
+  Verschieben (Zeiger folgt), Entfernen, Beenden mit Undo
+- `src/editor/attack.test.ts` – Angriffe aus dem Goblin-Statblock; Treffer gegen RK, natürliche 20
+  kritisch, natürliche 1 verfehlt, Vorteil; doppelte Würfel bei Kritisch (Modifikator einfach);
+  Resistenz/Immunität je Schadensart
+- `src/storage/storage.test.ts` – Round-Trip mit Kampf und Log, **Migration v5 → v6** (und
+  v4…v1 → v6), JSON-Schema v6 = Validator in 82 Fällen
+- `src/ui/combat/Combat.test.tsx` – Kampf mit allen beginnen, Initiative eintragen (sortiert sich),
+  Runde 1, `Bild↓`, Verzögern, „Jetzt handeln“, Runde 2; Rückgängig nimmt den Zug zurück, Log
+  bleibt; **Markdown-Export** des Logs; Angriff mit vorbelegtem Ziel, Schaden anpassen und
+  anwenden; Würfelroller (`X`, Schnellwurf, „2W6+3“, Vorteil, Verlauf, Log, ungültige Eingabe)
+
+### Manuell (Produktions-Build, Produktions-CSP, Chromium)
+
+| Prüfung                                             | Ergebnis                                                                                                                                                                                                   |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Autosave aus Phase 6 (Version 5) wiederherstellen   | ✅ migriert                                                                                                                                                                                                |
+| Kampf mit allen Tokens beginnen, alle würfeln       | ✅ toter Goblin ausgelassen, bewusstloser Charakter dabei, sortiert                                                                                                                                        |
+| Runde 1 beginnen                                    | ✅ aktives Token gold umrandet (Liste + Karte), Hinweis „Rundenbeginn in Cloudkill …“                                                                                                                      |
+| Angriff aus dem Statblock (Krummsäbel +4)           | ✅ 23 gegen RK 10 → Treffer 5 Hiebschaden, angewendet, beide Zeilen im Log                                                                                                                                 |
+| Würfelroller                                        | ✅ W20, W100, 8d6+3 mit Einzelwürfen                                                                                                                                                                       |
+| Konsole                                             | ✅ keine Fehler                                                                                                                                                                                            |
+| Gefunden und behoben                                | Zugknöpfe liefen in der 18-rem-Seitenleiste über (→ 20 rem, umbrechend); vor dem ersten Zug war der „aktuelle“ Eintrag an einen Teilnehmer statt an den Listenanfang gebunden (→ Vorbereitungsphase, Test) |
+| `npm run tauri:build`                               | ✅ MSI de/en (je 3,3 MB), NSIS-Setup (2,5 MB)                                                                                                                                                              |
+| Start der Release-Exe                               | ✅ Fenster „DnD Battlemap“                                                                                                                                                                                 |
+| Markdown-Export und Kampfabläufe in der Desktop-App | ⏳ bitte manuell prüfen (Speichern-Dialog über Tauri; im Test mit Datei-Attrappe geprüft)                                                                                                                  |

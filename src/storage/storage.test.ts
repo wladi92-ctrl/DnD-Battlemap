@@ -1,5 +1,5 @@
 import Ajv from 'ajv';
-import schema from '../../docs/schema/map.v5.schema.json';
+import schema from '../../docs/schema/map.v6.schema.json';
 import { strToU8, zipSync } from 'fflate';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { startAutosave } from './autosave';
@@ -218,6 +218,42 @@ const richSample = (): MapDocument => {
         hidden: false,
       },
     ],
+    combat: {
+      started: true,
+      round: 3,
+      turn: 1,
+      entries: [
+        {
+          id: 'c1',
+          tokenId: 't2',
+          name: 'Mira',
+          initiative: 18,
+          bonus: 3,
+          tiebreak: 512,
+          delayed: false,
+        },
+        {
+          id: 'c2',
+          tokenId: 't1',
+          name: 'Goblin 1',
+          initiative: 12,
+          bonus: 2,
+          tiebreak: 77,
+          delayed: false,
+        },
+        { id: 'c3', name: 'Hortaktion', initiative: 20, bonus: 0, tiebreak: 0, delayed: true },
+      ],
+    },
+    combatLog: [
+      {
+        id: 'l1',
+        time: '2026-11-09T10:05:00.000Z',
+        round: 1,
+        kind: 'combat',
+        text: 'Kampf beginnt',
+      },
+      { id: 'l2', time: '2026-11-09T10:06:00.000Z', round: null, kind: 'roll', text: '2d6+3 = 11' },
+    ],
   };
 };
 
@@ -235,7 +271,9 @@ describe('Kartendokument', () => {
     const doc = createMap({ name: '  ', cols: 5, rows: 999, feetPerCell: 0 });
     expect(doc.name).toBe('Neue Karte');
     expect(doc.grid).toMatchObject({ cols: 10, rows: 200, feetPerCell: 1, visible: true });
-    expect(doc.version).toBe(5);
+    expect(doc.version).toBe(6);
+    expect(doc.combat).toBeNull();
+    expect(doc.combatLog).toEqual([]);
     expect(doc.walls).toEqual([]);
     expect(doc.tokens).toEqual([]);
     expect(doc.effects).toEqual([]);
@@ -286,15 +324,27 @@ describe('Projektdatei (.dndmap)', () => {
     expect(loaded.assets.get('custom/0123abcd.png')).toEqual(new Uint8Array([137, 80, 78, 71]));
   });
 
-  it('Version-4-Dateien werden auf Version 5 migriert (Effekt-Ebene vor GM)', () => {
+  it('Version-5-Dateien werden auf Version 6 migriert (kein Kampf, leeres Log)', () => {
+    const { combat: _c, combatLog: _l, ...v5 } = { ...richSample(), version: 5 };
+    const doc = decodeProject(zipSync({ 'map.json': strToU8(JSON.stringify(v5)) })).doc;
+    expect(doc).toMatchObject({ version: 6, combat: null, combatLog: [] });
+    expect(doc.effects).toHaveLength(4);
+  });
+
+  it('Version-4-Dateien werden auf Version 6 migriert (Effekt-Ebene vor GM)', () => {
     const rich = richSample();
-    const { effects: _effects, ...v4 } = {
+    const {
+      effects: _effects,
+      combat: _c,
+      combatLog: _l,
+      ...v4
+    } = {
       ...rich,
       version: 4,
       layers: rich.layers.filter((l) => l.id !== 'effects'),
     };
     const doc = decodeProject(zipSync({ 'map.json': strToU8(JSON.stringify(v4)) })).doc;
-    expect(doc.version).toBe(5);
+    expect(doc.version).toBe(6);
     expect(doc.effects).toEqual([]);
     expect(doc.tokens).toHaveLength(2);
     expect(doc.layers.map((l) => l.id)).toEqual([
@@ -308,11 +358,13 @@ describe('Projektdatei (.dndmap)', () => {
     expect(doc.layers.find((l) => l.id === 'gm')).toMatchObject({ visible: false, locked: true });
   });
 
-  it('Version-3-Dateien werden über v4 auf Version 5 migriert', () => {
+  it('Version-3-Dateien werden schrittweise auf Version 6 migriert', () => {
     const rich = richSample();
     const {
       tokens: _tokens,
       effects: _effects,
+      combat: _c,
+      combatLog: _l,
       ...v3
     } = {
       ...rich,
@@ -320,7 +372,7 @@ describe('Projektdatei (.dndmap)', () => {
       layers: rich.layers.filter((l) => l.id !== 'tokens' && l.id !== 'effects'),
     };
     const doc = decodeProject(zipSync({ 'map.json': strToU8(JSON.stringify(v3)) })).doc;
-    expect(doc.version).toBe(5);
+    expect(doc.version).toBe(6);
     expect(doc.tokens).toEqual([]);
     expect(doc.layers.map((l) => l.id)).toEqual([
       'floor',
@@ -332,12 +384,14 @@ describe('Projektdatei (.dndmap)', () => {
     ]);
   });
 
-  it('Version-2-Dateien werden auf Version 5 migriert', () => {
+  it('Version-2-Dateien werden auf Version 6 migriert', () => {
     const rich = richSample();
     const {
       walls: _walls,
       tokens: _tokens,
       effects: _effects,
+      combat: _c,
+      combatLog: _l,
       ...v2
     } = {
       ...rich,
@@ -347,7 +401,7 @@ describe('Projektdatei (.dndmap)', () => {
     };
     const doc = decodeProject(zipSync({ 'map.json': strToU8(JSON.stringify(v2)) })).doc;
     expect(doc).toMatchObject({
-      version: 5,
+      version: 6,
       walls: [],
       tokens: [],
       effects: [],
@@ -356,7 +410,7 @@ describe('Projektdatei (.dndmap)', () => {
     expect(doc.objects).toHaveLength(3);
   });
 
-  it('Version-1-Dateien werden schrittweise auf Version 5 migriert', () => {
+  it('Version-1-Dateien werden schrittweise auf Version 6 migriert', () => {
     const v1 = {
       format: 'dndmap',
       version: 1,
@@ -369,7 +423,7 @@ describe('Projektdatei (.dndmap)', () => {
     };
     const doc = decodeProject(zipSync({ 'map.json': strToU8(JSON.stringify(v1)) })).doc;
     expect(doc).toMatchObject({
-      version: 5,
+      version: 6,
       name: 'Alte Karte',
       objects: [],
       notes: [],
@@ -512,6 +566,20 @@ describe('Validierung', () => {
       mutate((d) => delete d.effects[1].hidden),
       mutate((d) => (d.effects[1].color = 'gelb')),
       mutate((d) => (d.layers[4].id = 'tokens')),
+      mutate((d) => delete d.combat),
+      mutate((d) => delete d.combatLog),
+      mutate((d) => (d.combat = null)),
+      mutate((d) => (d.combat.round = 0)),
+      mutate((d) => delete d.combat.started),
+      mutate((d) => (d.combat.entries[0].initiative = 1.5)),
+      mutate((d) => (d.combat.entries[0].initiative = null)),
+      mutate((d) => (d.combat.entries[1].tiebreak = 1001)),
+      mutate((d) => delete d.combat.entries[2].delayed),
+      mutate((d) => (d.combat.entries[0].name = '')),
+      mutate((d) => (d.combatLog[0].kind = 'chat')),
+      mutate((d) => (d.combatLog[0].time = 'gestern')),
+      mutate((d) => (d.combatLog[1].round = 0)),
+      mutate((d) => (d.combatLog[1].text = 'x'.repeat(501))),
     ];
     for (const c of cases) {
       let ours = true;

@@ -14,7 +14,9 @@ export type KeyToken =
         | 'arrows'
         | 'wheel'
         | 'drag'
-        | 'delete';
+        | 'delete'
+        | 'pageUp'
+        | 'pageDown';
     }
   | string;
 
@@ -51,6 +53,8 @@ export const shortcutList: readonly ShortcutInfo[] = [
   { keys: [['W']], label: 'shortcut.wall' },
   { keys: [['D']], label: 'shortcut.door' },
   { keys: [['A']], label: 'shortcut.effect' },
+  { keys: [[k('pageDown')], [k('pageUp')]], label: 'shortcut.turn' },
+  { keys: [['X']], label: 'shortcut.dice' },
   { keys: [[k('arrows')]], label: 'shortcut.tokenMove' },
   { keys: [['H']], label: 'shortcut.pan' },
   { keys: [['R']], label: 'shortcut.ruler' },

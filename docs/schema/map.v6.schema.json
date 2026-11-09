@@ -1,0 +1,992 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "dndmap/map.v6.schema.json",
+  "title": "DnD-Battlemap Kartendokument (map.json), Version 6",
+  "description": "Zusätzlich zum Schema gilt: floor hat genau cols·rows Einträge; Objekt- und Notizpositionen sowie Geländeschlüssel liegen innerhalb der Karte. Wandkoordinaten liegen in 0…cols bzw. 0…rows; state nur bei kind door/secret. Token-Positionen liegen in 0…cols bzw. 0…rows; Token-IDs sind eindeutig. Effekt-Ursprünge liegen in 0…cols bzw. 0…rows, Felder freier Flächen innerhalb der Karte; damage ist ein Würfelausdruck (z. B. \"8d6+3\"); Effekt-IDs sind eindeutig. combat.turn ist ein gültiger Index in combat.entries; Kampfteilnehmer-IDs sind eindeutig.",
+  "type": "object",
+  "required": [
+    "format",
+    "version",
+    "id",
+    "name",
+    "createdAt",
+    "modifiedAt",
+    "grid",
+    "background",
+    "layers",
+    "floor",
+    "objects",
+    "terrain",
+    "notes",
+    "customElements",
+    "walls",
+    "tokens",
+    "effects",
+    "combat",
+    "combatLog"
+  ],
+  "definitions": {
+    "color": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$"
+    },
+    "isoDate": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "terrain": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "difficult": {
+          "type": "boolean"
+        },
+        "blocksSight": {
+          "type": "boolean"
+        },
+        "blocksMovement": {
+          "type": "boolean"
+        },
+        "cover": {
+          "enum": ["half", "threeQuarters", "full"]
+        },
+        "elevation": {
+          "type": "number",
+          "minimum": -1000,
+          "maximum": 1000
+        },
+        "damage": {
+          "enum": [
+            "acid",
+            "bludgeoning",
+            "cold",
+            "fire",
+            "force",
+            "lightning",
+            "necrotic",
+            "piercing",
+            "poison",
+            "psychic",
+            "radiant",
+            "slashing",
+            "thunder"
+          ]
+        }
+      }
+    }
+  },
+  "properties": {
+    "format": {
+      "const": "dndmap"
+    },
+    "version": {
+      "const": 6
+    },
+    "id": {
+      "$ref": "#/definitions/id"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "createdAt": {
+      "$ref": "#/definitions/isoDate"
+    },
+    "modifiedAt": {
+      "$ref": "#/definitions/isoDate"
+    },
+    "grid": {
+      "type": "object",
+      "required": ["cols", "rows", "feetPerCell", "visible", "color", "opacity"],
+      "properties": {
+        "cols": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 200
+        },
+        "rows": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 200
+        },
+        "feetPerCell": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "visible": {
+          "type": "boolean"
+        },
+        "color": {
+          "$ref": "#/definitions/color"
+        },
+        "opacity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "background": {
+      "type": "object",
+      "required": ["color"],
+      "properties": {
+        "color": {
+          "$ref": "#/definitions/color"
+        },
+        "image": {
+          "type": "object",
+          "required": [
+            "asset",
+            "width",
+            "height",
+            "rotation",
+            "cellPx",
+            "originX",
+            "originY",
+            "crop",
+            "brightness",
+            "contrast"
+          ],
+          "properties": {
+            "asset": {
+              "type": "string",
+              "pattern": "^background/[A-Za-z0-9._-]{1,100}$"
+            },
+            "width": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 16384
+            },
+            "height": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 16384
+            },
+            "rotation": {
+              "enum": [0, 90, 180, 270]
+            },
+            "cellPx": {
+              "type": "number",
+              "minimum": 2,
+              "maximum": 4000,
+              "description": "Pixel pro Feld"
+            },
+            "originX": {
+              "type": "number",
+              "minimum": -16384,
+              "maximum": 16384
+            },
+            "originY": {
+              "type": "number",
+              "minimum": -16384,
+              "maximum": 16384
+            },
+            "crop": {
+              "type": "object",
+              "required": ["x", "y", "w", "h"],
+              "properties": {
+                "x": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 16384
+                },
+                "y": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 16384
+                },
+                "w": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 16384
+                },
+                "h": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 16384
+                }
+              }
+            },
+            "brightness": {
+              "type": "number",
+              "minimum": 0.2,
+              "maximum": 3
+            },
+            "contrast": {
+              "type": "number",
+              "minimum": -1,
+              "maximum": 1
+            }
+          }
+        }
+      }
+    },
+    "layers": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "required": ["id", "visible", "locked"],
+        "properties": {
+          "id": {
+            "enum": ["floor", "walls", "decor", "tokens", "effects", "gm"]
+          },
+          "visible": {
+            "type": "boolean"
+          },
+          "locked": {
+            "type": "boolean"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "contains": {
+            "properties": {
+              "id": {
+                "const": "floor"
+              }
+            },
+            "required": ["id"]
+          }
+        },
+        {
+          "contains": {
+            "properties": {
+              "id": {
+                "const": "walls"
+              }
+            },
+            "required": ["id"]
+          }
+        },
+        {
+          "contains": {
+            "properties": {
+              "id": {
+                "const": "decor"
+              }
+            },
+            "required": ["id"]
+          }
+        },
+        {
+          "contains": {
+            "properties": {
+              "id": {
+                "const": "tokens"
+              }
+            },
+            "required": ["id"]
+          }
+        },
+        {
+          "contains": {
+            "properties": {
+              "id": {
+                "const": "effects"
+              }
+            },
+            "required": ["id"]
+          }
+        },
+        {
+          "contains": {
+            "properties": {
+              "id": {
+                "const": "gm"
+              }
+            },
+            "required": ["id"]
+          }
+        }
+      ]
+    },
+    "floor": {
+      "type": "array",
+      "maxItems": 40000,
+      "items": {
+        "type": "string",
+        "maxLength": 100
+      }
+    },
+    "objects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "element", "layer", "x", "y", "w", "h", "rotation", "flipX", "flipY"],
+        "properties": {
+          "id": {
+            "$ref": "#/definitions/id"
+          },
+          "element": {
+            "$ref": "#/definitions/id"
+          },
+          "layer": {
+            "enum": ["walls", "decor"]
+          },
+          "x": {
+            "type": "number",
+            "minimum": -10
+          },
+          "y": {
+            "type": "number",
+            "minimum": -10
+          },
+          "w": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          },
+          "h": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          },
+          "rotation": {
+            "enum": [0, 90, 180, 270]
+          },
+          "flipX": {
+            "type": "boolean"
+          },
+          "flipY": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "terrain": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^\\d+,\\d+$"
+      },
+      "additionalProperties": {
+        "$ref": "#/definitions/terrain"
+      }
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "x", "y", "text"],
+        "properties": {
+          "id": {
+            "$ref": "#/definitions/id"
+          },
+          "x": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "y": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 2000
+          }
+        }
+      }
+    },
+    "customElements": {
+      "type": "array",
+      "maxItems": 1000,
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "category", "layer", "w", "h", "asset"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^custom\\.",
+            "minLength": 8,
+            "maxLength": 100
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "category": {
+            "enum": [
+              "floors",
+              "walls",
+              "doors",
+              "windows",
+              "stairs",
+              "traps",
+              "furniture",
+              "light",
+              "nature",
+              "misc",
+              "custom"
+            ]
+          },
+          "layer": {
+            "enum": ["floor", "walls", "decor"]
+          },
+          "w": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          },
+          "h": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          },
+          "asset": {
+            "type": "string",
+            "pattern": "^custom/[A-Za-z0-9._-]{1,100}$"
+          }
+        }
+      }
+    },
+    "walls": {
+      "type": "array",
+      "maxItems": 50000,
+      "items": {
+        "type": "object",
+        "required": ["id", "x1", "y1", "x2", "y2", "kind"],
+        "properties": {
+          "id": {
+            "$ref": "#/definitions/id"
+          },
+          "x1": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 200
+          },
+          "y1": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 200
+          },
+          "x2": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 200
+          },
+          "y2": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 200
+          },
+          "kind": {
+            "enum": ["wall", "door", "window", "secret"]
+          },
+          "state": {
+            "enum": ["closed", "open", "locked"]
+          }
+        },
+        "if": {
+          "properties": {
+            "kind": {
+              "enum": ["wall", "window"]
+            }
+          }
+        },
+        "then": {
+          "not": {
+            "required": ["state"]
+          }
+        }
+      }
+    },
+    "tokens": {
+      "type": "array",
+      "maxItems": 2000,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "size",
+          "x",
+          "y",
+          "team",
+          "color",
+          "hp",
+          "ac",
+          "speed",
+          "reach",
+          "initiativeBonus",
+          "passivePerception",
+          "darkvision",
+          "conditions",
+          "markers",
+          "deathSaves",
+          "hidden",
+          "facing",
+          "movementUsed",
+          "actionsUsed"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/definitions/id"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "kind": {
+            "enum": ["creature", "pc"]
+          },
+          "source": {
+            "$ref": "#/definitions/id"
+          },
+          "size": {
+            "enum": ["tiny", "small", "medium", "large", "huge", "gargantuan"]
+          },
+          "x": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 200
+          },
+          "y": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 200
+          },
+          "team": {
+            "enum": ["player", "ally", "enemy", "neutral"]
+          },
+          "color": {
+            "$ref": "#/definitions/color"
+          },
+          "image": {
+            "type": "string",
+            "pattern": "^tokens\\/[A-Za-z0-9._-]{1,100}$"
+          },
+          "hp": {
+            "type": "object",
+            "required": ["current", "max", "temp"],
+            "properties": {
+              "current": {
+                "type": "integer",
+                "minimum": -100000,
+                "maximum": 100000
+              },
+              "max": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100000
+              },
+              "temp": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100000
+              }
+            }
+          },
+          "ac": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 99
+          },
+          "speed": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000
+          },
+          "reach": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000
+          },
+          "initiativeBonus": {
+            "type": "integer",
+            "minimum": -99,
+            "maximum": 99
+          },
+          "passivePerception": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 99
+          },
+          "darkvision": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000
+          },
+          "conditions": {
+            "type": "array",
+            "maxItems": 16,
+            "items": {
+              "enum": [
+                "blinded",
+                "charmed",
+                "deafened",
+                "frightened",
+                "grappled",
+                "incapacitated",
+                "invisible",
+                "paralyzed",
+                "petrified",
+                "poisoned",
+                "prone",
+                "restrained",
+                "stunned",
+                "unconscious",
+                "exhaustion"
+              ]
+            }
+          },
+          "markers": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "type": "object",
+              "required": ["label", "color"],
+              "properties": {
+                "label": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 40
+                },
+                "color": {
+                  "$ref": "#/definitions/color"
+                }
+              }
+            }
+          },
+          "deathSaves": {
+            "type": "object",
+            "required": ["success", "failure"],
+            "properties": {
+              "success": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3
+              },
+              "failure": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3
+              }
+            }
+          },
+          "hidden": {
+            "type": "boolean"
+          },
+          "facing": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 359.999
+          },
+          "movementUsed": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "actionsUsed": {
+            "type": "object",
+            "required": ["action", "bonus", "reaction"],
+            "properties": {
+              "action": {
+                "type": "boolean"
+              },
+              "bonus": {
+                "type": "boolean"
+              },
+              "reaction": {
+                "type": "boolean"
+              }
+            }
+          },
+          "groupId": {
+            "$ref": "#/definitions/id"
+          },
+          "pc": {
+            "type": "object",
+            "required": ["className", "level"],
+            "properties": {
+              "className": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "level": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 30
+              }
+            }
+          }
+        }
+      }
+    },
+    "effects": {
+      "type": "array",
+      "maxItems": 500,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "shape",
+          "size",
+          "origin",
+          "angle",
+          "color",
+          "wallMode",
+          "rounds",
+          "concentration",
+          "trigger",
+          "hidden"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/definitions/id"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "shape": {
+            "enum": ["sphere", "cylinder", "cone", "cube", "line", "emanation", "square", "free"]
+          },
+          "size": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 5000
+          },
+          "width": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 5000
+          },
+          "origin": {
+            "type": "object",
+            "required": ["x", "y"],
+            "properties": {
+              "x": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 200
+              },
+              "y": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 200
+              }
+            }
+          },
+          "angle": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 359.999
+          },
+          "cells": {
+            "type": "array",
+            "maxItems": 40000,
+            "items": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 199
+              }
+            }
+          },
+          "attachedTo": {
+            "$ref": "#/definitions/id"
+          },
+          "color": {
+            "$ref": "#/definitions/color"
+          },
+          "damageType": {
+            "enum": [
+              "acid",
+              "bludgeoning",
+              "cold",
+              "fire",
+              "force",
+              "lightning",
+              "necrotic",
+              "piercing",
+              "poison",
+              "psychic",
+              "radiant",
+              "slashing",
+              "thunder"
+            ]
+          },
+          "wallMode": {
+            "enum": ["line", "spread", "ignore"]
+          },
+          "rounds": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000
+              }
+            ]
+          },
+          "concentration": {
+            "type": "boolean"
+          },
+          "trigger": {
+            "enum": ["none", "enter", "turnStart", "both"]
+          },
+          "save": {
+            "type": "object",
+            "required": ["ability", "dc", "half"],
+            "properties": {
+              "ability": {
+                "enum": ["str", "dex", "con", "int", "wis", "cha"]
+              },
+              "dc": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 40
+              },
+              "half": {
+                "type": "boolean"
+              }
+            }
+          },
+          "damage": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60,
+            "pattern": "^[+-]?(\\d*[dDwW]\\d+|\\d+)(\\s*[+-]\\s*(\\d*[dDwW]\\d+|\\d+))*$"
+          },
+          "source": {
+            "$ref": "#/definitions/id"
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "hidden": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "combat": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "required": ["started", "round", "turn", "entries"],
+          "properties": {
+            "started": {
+              "type": "boolean"
+            },
+            "round": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000
+            },
+            "turn": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 499
+            },
+            "entries": {
+              "type": "array",
+              "maxItems": 500,
+              "items": {
+                "type": "object",
+                "required": ["id", "name", "initiative", "bonus", "tiebreak", "delayed"],
+                "properties": {
+                  "id": {
+                    "$ref": "#/definitions/id"
+                  },
+                  "tokenId": {
+                    "$ref": "#/definitions/id"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "initiative": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "type": "integer",
+                        "minimum": -99,
+                        "maximum": 999
+                      }
+                    ]
+                  },
+                  "bonus": {
+                    "type": "integer",
+                    "minimum": -99,
+                    "maximum": 99
+                  },
+                  "tiebreak": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000
+                  },
+                  "delayed": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "combatLog": {
+      "type": "array",
+      "maxItems": 2000,
+      "items": {
+        "type": "object",
+        "required": ["id", "time", "round", "kind", "text"],
+        "properties": {
+          "id": {
+            "$ref": "#/definitions/id"
+          },
+          "time": {
+            "$ref": "#/definitions/isoDate"
+          },
+          "round": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1000000
+              }
+            ]
+          },
+          "kind": {
+            "enum": ["combat", "turn", "roll", "attack", "damage", "heal", "effect", "note"]
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        }
+      }
+    }
+  }
+}

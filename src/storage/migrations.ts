@@ -51,11 +51,17 @@ export function migrateV4toV5(doc: RawDocument): RawDocument {
   return { ...doc, version: 5, layers, effects: [] };
 }
 
+/** v5 → v6: kein laufender Kampf, leeres Kampflog. */
+export function migrateV5toV6(doc: RawDocument): RawDocument {
+  return { ...doc, version: 6, combat: null, combatLog: [] };
+}
+
 export const migrations: Readonly<Record<number, Migration>> = {
   1: migrateV1toV2,
   2: migrateV2toV3,
   3: migrateV3toV4,
   4: migrateV4toV5,
+  5: migrateV5toV6,
 };
 
 export function migrate(

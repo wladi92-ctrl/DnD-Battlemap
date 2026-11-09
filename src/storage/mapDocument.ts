@@ -2,7 +2,7 @@
  * Kartendokument – Inhalt von map.json in einer .dndmap-Datei.
  * Das Format ist versioniert; Änderungen erhöhen MAP_FORMAT_VERSION und erhalten
  * eine Migration in migrations.ts. Beschreibung: docs/DATEIFORMAT.md,
- * JSON-Schema: docs/schema/map.v5.schema.json.
+ * JSON-Schema: docs/schema/map.v6.schema.json.
  */
 import type { AoeShape, WallMode } from '../core/aoe';
 import { clampGridDimension } from '../core/grid';
@@ -10,7 +10,7 @@ import type { DoorState, WallKind } from '../core/walls';
 import type { SizeCategory } from '../data/srd/creatures';
 
 export const MAP_FORMAT = 'dndmap';
-export const MAP_FORMAT_VERSION = 5;
+export const MAP_FORMAT_VERSION = 6;
 
 export const FEET_PER_CELL_MIN = 1;
 export const FEET_PER_CELL_MAX = 100;
@@ -263,6 +263,56 @@ export interface MapEffect {
   hidden: boolean;
 }
 
+/** Teilnehmer der Initiative (meist ein Token; ohne Token z. B. Hortaktionen). */
+export interface CombatEntry {
+  id: string;
+  tokenId?: string;
+  /** Name zum Zeitpunkt des Hinzufügens (bleibt, falls das Token gelöscht wird). */
+  name: string;
+  /** Initiativewert; null = noch nicht gewürfelt/eingetragen. */
+  initiative: number | null;
+  /** Initiativebonus (Gleichstand: höherer Bonus zuerst). */
+  bonus: number;
+  /** Zufallswert 1–1000 für verbleibende Gleichstände. */
+  tiebreak: number;
+  /** Zug verzögert: wird übersprungen, bis „Jetzt handeln“. */
+  delayed: boolean;
+}
+
+/** Laufender Kampf: Reihenfolge, Runde und aktueller Zug (Index in entries). */
+export interface CombatState {
+  /** false = Vorbereitung (Initiative würfeln/eintragen); true = erster Zug hat begonnen. */
+  started: boolean;
+  round: number;
+  turn: number;
+  entries: CombatEntry[];
+}
+
+export type LogKind = 'combat' | 'turn' | 'roll' | 'attack' | 'damage' | 'heal' | 'effect' | 'note';
+export const LOG_KINDS: readonly LogKind[] = [
+  'combat',
+  'turn',
+  'roll',
+  'attack',
+  'damage',
+  'heal',
+  'effect',
+  'note',
+];
+export const COMBAT_ENTRIES_MAX = 500;
+export const LOG_MAX = 2000;
+export const LOG_TEXT_MAX = 500;
+
+export interface LogEntry {
+  id: string;
+  /** Zeitpunkt (ISO, UTC). */
+  time: string;
+  /** Runde, falls im Kampf. */
+  round: number | null;
+  kind: LogKind;
+  text: string;
+}
+
 export const WALL_KINDS: readonly WallKind[] = ['wall', 'door', 'window', 'secret'];
 export const DOOR_STATES: readonly DoorState[] = ['closed', 'open', 'locked'];
 export const IMAGE_MAX_SIDE = 16384;
@@ -290,6 +340,10 @@ export interface MapDocument {
   tokens: Token[];
   /** Dauerhafte Flächeneffekte auf der Ebene "Effekte". */
   effects: MapEffect[];
+  /** Laufender Kampf (null = kein Kampf). */
+  combat: CombatState | null;
+  /** Kampflog (nur anhängen; nicht Teil von Rückgängig/Wiederholen). */
+  combatLog: LogEntry[];
 }
 
 export interface NewMapOptions {
@@ -373,6 +427,8 @@ export function createMap(opts: NewMapOptions, now = new Date()): MapDocument {
     walls: [],
     tokens: [],
     effects: [],
+    combat: null,
+    combatLog: [],
   };
 }
 

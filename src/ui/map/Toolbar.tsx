@@ -52,6 +52,7 @@ export function Toolbar({
   const undoTop = useMapStore((s) => s.history.undo[s.history.undo.length - 1]);
   const redoTop = useMapStore((s) => s.history.redo[s.history.redo.length - 1]);
   const showTerrain = useEditorStore((s) => s.showTerrain);
+  const diceOpen = useEditorStore((s) => s.diceOpen);
 
   const zoomBy = (factor: number) => {
     if (!doc) return;
@@ -166,6 +167,16 @@ export function Toolbar({
               onClick={() => useEditorStore.getState().setShowTerrain(!showTerrain)}
             >
               <ToolIcon name="terrain" />
+            </button>
+            <button
+              type="button"
+              className="btn"
+              aria-pressed={diceOpen}
+              aria-keyshortcuts="X"
+              title={`${t('dice.heading')} (X)`}
+              onClick={() => useEditorStore.getState().setDiceOpen(!diceOpen)}
+            >
+              {t('dice.button')}
             </button>
             <button
               type="button"

@@ -357,7 +357,7 @@ input[type='color'] {
 
 .workspace-body {
   display: grid;
-  grid-template-columns: 16rem 1fr 18rem;
+  grid-template-columns: 16rem 1fr 20rem;
   min-height: 0;
 }
 
@@ -1459,4 +1459,234 @@ input[type='color'] {
 
 .map-canvas.tool-effect {
   cursor: crosshair;
+}
+
+/* ---------------------------------------------------------------- Phase 7: Kampf */
+
+.combat-panel > summary .badge {
+  margin-left: 0.4rem;
+}
+
+.tracker {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.tracker-turn {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.tracker-turn .btn-primary {
+  flex: 1;
+  white-space: nowrap;
+}
+
+.initiative-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.2rem;
+  max-height: 22rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.initiative-row {
+  display: grid;
+  grid-template-columns: 3rem 1fr;
+  grid-template-areas: 'init name' 'actions actions';
+  gap: 0.15rem 0.35rem;
+  padding: 0.25rem;
+  border: 1px solid var(--border);
+  border-radius: 0.35rem;
+  background: var(--surface-2);
+}
+
+.initiative-row.current {
+  border-color: #ffc400;
+  box-shadow: 0 0 0 2px #ffc400;
+}
+
+.initiative-row.delayed,
+.initiative-row.dead {
+  opacity: 0.6;
+}
+
+.init-value {
+  grid-area: init;
+  width: 100%;
+  text-align: center;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.init-name {
+  grid-area: name;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.15rem 0.35rem;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.init-label {
+  font-weight: 600;
+}
+
+.init-name .small {
+  flex-basis: 100%;
+}
+
+.token-dot {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  border: 1px solid #0008;
+  flex: none;
+}
+
+.init-actions {
+  grid-area: actions;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.2rem;
+}
+
+.combat-log {
+  font-size: 0.85rem;
+}
+
+.combat-log > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.log-list {
+  list-style: none;
+  margin: 0.3rem 0;
+  padding: 0;
+  max-height: 14rem;
+  overflow: auto;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.log-list li {
+  padding: 0.15rem 0.3rem;
+  border-left: 3px solid var(--border);
+}
+
+.log-list .log-attack,
+.log-list .log-damage {
+  border-left-color: #c0392b;
+}
+
+.log-list .log-turn,
+.log-list .log-combat {
+  border-left-color: #ffc400;
+}
+
+.log-list .log-effect {
+  border-left-color: #2e8b57;
+}
+
+.log-list .log-roll {
+  border-left-color: #1f78b4;
+}
+
+.combat-log .field-inline input {
+  flex: 1;
+  min-width: 0;
+}
+
+.dice-roller {
+  position: fixed;
+  right: 20rem;
+  bottom: 3rem;
+  z-index: 40;
+  width: 19rem;
+  max-height: 70vh;
+  overflow: auto;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  display: grid;
+  gap: 0.4rem;
+}
+
+.dice-roller header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dice-roller h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.dice-roller .field-inline input {
+  flex: 1;
+  min-width: 0;
+}
+
+.dice-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+}
+
+.dice-mode {
+  display: flex;
+  gap: 0.6rem;
+  margin: 0;
+}
+
+.dice-history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.15rem;
+  max-height: 14rem;
+  overflow: auto;
+}
+
+.dice-total {
+  display: inline-block;
+  min-width: 2.2rem;
+  text-align: right;
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.attack-targets {
+  max-height: 12rem;
+  overflow: auto;
+}
+
+/* Nur für Screenreader sichtbar */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
