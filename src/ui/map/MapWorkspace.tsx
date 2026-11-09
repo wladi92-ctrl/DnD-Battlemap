@@ -33,6 +33,7 @@ import { TokenPanel } from '../creatures/TokenPanel';
 import { EffectListPanel, EffectToolPanel } from '../effects/EffectPanels';
 import { SaveAssistant } from '../effects/SaveAssistant';
 import { InitiativePanel } from '../combat/InitiativePanel';
+import { VisionPanel } from '../vision/VisionPanel';
 import { DiceRoller } from '../combat/DiceRoller';
 import { AttackDialog } from '../combat/AttackDialog';
 import { advanceTurn, previousTurn } from '../combat/combatTools';
@@ -208,6 +209,7 @@ export function MapWorkspace() {
               <EffectToolPanel />
               <TokenPanel />
               <EffectListPanel />
+              <VisionPanel />
               <ToolOptionsPanel />
               <LayersPanel />
               <TerrainPanel />

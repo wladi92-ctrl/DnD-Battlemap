@@ -1,5 +1,5 @@
 import Ajv from 'ajv';
-import schema from '../../docs/schema/map.v6.schema.json';
+import schema from '../../docs/schema/map.v7.schema.json';
 import { strToU8, zipSync } from 'fflate';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { startAutosave } from './autosave';
@@ -254,6 +254,45 @@ const richSample = (): MapDocument => {
       },
       { id: 'l2', time: '2026-11-09T10:06:00.000Z', round: null, kind: 'roll', text: '2d6+3 = 11' },
     ],
+    fog: { enabled: true, revealed: [31, 5, 25, 5] },
+    explored: [0, 40, 10, 3],
+    lighting: { enabled: true, ambient: 'dark' },
+    lights: [
+      {
+        id: 'li1',
+        name: 'Fackel',
+        x: 4.5,
+        y: 4.5,
+        bright: 20,
+        dim: 40,
+        color: '#ffb347',
+        darkness: false,
+        enabled: true,
+      },
+      {
+        id: 'li2',
+        name: 'Laterne',
+        x: 0,
+        y: 0,
+        bright: 30,
+        dim: 60,
+        color: '#ffe08a',
+        darkness: false,
+        enabled: false,
+        attachedTo: 't2',
+      },
+      {
+        id: 'li3',
+        name: 'Dunkelheit',
+        x: 20,
+        y: 10.5,
+        bright: 0,
+        dim: 15,
+        color: '#000000',
+        darkness: true,
+        enabled: true,
+      },
+    ],
   };
 };
 
@@ -271,9 +310,12 @@ describe('Kartendokument', () => {
     const doc = createMap({ name: '  ', cols: 5, rows: 999, feetPerCell: 0 });
     expect(doc.name).toBe('Neue Karte');
     expect(doc.grid).toMatchObject({ cols: 10, rows: 200, feetPerCell: 1, visible: true });
-    expect(doc.version).toBe(6);
+    expect(doc.version).toBe(7);
     expect(doc.combat).toBeNull();
     expect(doc.combatLog).toEqual([]);
+    expect(doc.fog).toEqual({ enabled: false, revealed: [] });
+    expect(doc.lighting).toEqual({ enabled: false, ambient: 'bright' });
+    expect(doc.lights).toEqual([]);
     expect(doc.walls).toEqual([]);
     expect(doc.tokens).toEqual([]);
     expect(doc.effects).toEqual([]);
@@ -324,14 +366,43 @@ describe('Projektdatei (.dndmap)', () => {
     expect(loaded.assets.get('custom/0123abcd.png')).toEqual(new Uint8Array([137, 80, 78, 71]));
   });
 
-  it('Version-5-Dateien werden auf Version 6 migriert (kein Kampf, leeres Log)', () => {
-    const { combat: _c, combatLog: _l, ...v5 } = { ...richSample(), version: 5 };
+  it('Version-6-Dateien werden auf Version 7 migriert (Nebel/Sicht aus, keine Lichter)', () => {
+    const {
+      fog: _f,
+      explored: _e,
+      lighting: _li,
+      lights: _ls,
+      ...v6
+    } = { ...richSample(), version: 6 };
+    const doc = decodeProject(zipSync({ 'map.json': strToU8(JSON.stringify(v6)) })).doc;
+    expect(doc).toMatchObject({
+      version: 7,
+      fog: { enabled: false, revealed: [] },
+      explored: [],
+      lights: [],
+    });
+    expect(doc.combat?.round).toBe(3);
+  });
+
+  it('Version-5-Dateien werden auf Version 7 migriert (kein Kampf, leeres Log)', () => {
+    const {
+      combat: _c,
+      combatLog: _l,
+      fog: _f,
+      explored: _e,
+      lighting: _li,
+      lights: _ls,
+      ...v5
+    } = {
+      ...richSample(),
+      version: 5,
+    };
     const doc = decodeProject(zipSync({ 'map.json': strToU8(JSON.stringify(v5)) })).doc;
-    expect(doc).toMatchObject({ version: 6, combat: null, combatLog: [] });
+    expect(doc).toMatchObject({ version: 7, combat: null, combatLog: [] });
     expect(doc.effects).toHaveLength(4);
   });
 
-  it('Version-4-Dateien werden auf Version 6 migriert (Effekt-Ebene vor GM)', () => {
+  it('Version-4-Dateien werden auf Version 7 migriert (Effekt-Ebene vor GM)', () => {
     const rich = richSample();
     const {
       effects: _effects,
@@ -344,7 +415,7 @@ describe('Projektdatei (.dndmap)', () => {
       layers: rich.layers.filter((l) => l.id !== 'effects'),
     };
     const doc = decodeProject(zipSync({ 'map.json': strToU8(JSON.stringify(v4)) })).doc;
-    expect(doc.version).toBe(6);
+    expect(doc.version).toBe(7);
     expect(doc.effects).toEqual([]);
     expect(doc.tokens).toHaveLength(2);
     expect(doc.layers.map((l) => l.id)).toEqual([
@@ -358,13 +429,17 @@ describe('Projektdatei (.dndmap)', () => {
     expect(doc.layers.find((l) => l.id === 'gm')).toMatchObject({ visible: false, locked: true });
   });
 
-  it('Version-3-Dateien werden schrittweise auf Version 6 migriert', () => {
+  it('Version-3-Dateien werden schrittweise auf Version 7 migriert', () => {
     const rich = richSample();
     const {
       tokens: _tokens,
       effects: _effects,
       combat: _c,
       combatLog: _l,
+      fog: _f,
+      explored: _e,
+      lighting: _li,
+      lights: _ls,
       ...v3
     } = {
       ...rich,
@@ -372,7 +447,7 @@ describe('Projektdatei (.dndmap)', () => {
       layers: rich.layers.filter((l) => l.id !== 'tokens' && l.id !== 'effects'),
     };
     const doc = decodeProject(zipSync({ 'map.json': strToU8(JSON.stringify(v3)) })).doc;
-    expect(doc.version).toBe(6);
+    expect(doc.version).toBe(7);
     expect(doc.tokens).toEqual([]);
     expect(doc.layers.map((l) => l.id)).toEqual([
       'floor',
@@ -384,7 +459,7 @@ describe('Projektdatei (.dndmap)', () => {
     ]);
   });
 
-  it('Version-2-Dateien werden auf Version 6 migriert', () => {
+  it('Version-2-Dateien werden auf Version 7 migriert', () => {
     const rich = richSample();
     const {
       walls: _walls,
@@ -392,6 +467,10 @@ describe('Projektdatei (.dndmap)', () => {
       effects: _effects,
       combat: _c,
       combatLog: _l,
+      fog: _f,
+      explored: _e,
+      lighting: _li,
+      lights: _ls,
       ...v2
     } = {
       ...rich,
@@ -401,7 +480,7 @@ describe('Projektdatei (.dndmap)', () => {
     };
     const doc = decodeProject(zipSync({ 'map.json': strToU8(JSON.stringify(v2)) })).doc;
     expect(doc).toMatchObject({
-      version: 6,
+      version: 7,
       walls: [],
       tokens: [],
       effects: [],
@@ -410,7 +489,7 @@ describe('Projektdatei (.dndmap)', () => {
     expect(doc.objects).toHaveLength(3);
   });
 
-  it('Version-1-Dateien werden schrittweise auf Version 6 migriert', () => {
+  it('Version-1-Dateien werden schrittweise auf Version 7 migriert', () => {
     const v1 = {
       format: 'dndmap',
       version: 1,
@@ -423,7 +502,7 @@ describe('Projektdatei (.dndmap)', () => {
     };
     const doc = decodeProject(zipSync({ 'map.json': strToU8(JSON.stringify(v1)) })).doc;
     expect(doc).toMatchObject({
-      version: 6,
+      version: 7,
       name: 'Alte Karte',
       objects: [],
       notes: [],
@@ -580,6 +659,17 @@ describe('Validierung', () => {
       mutate((d) => (d.combatLog[0].time = 'gestern')),
       mutate((d) => (d.combatLog[1].round = 0)),
       mutate((d) => (d.combatLog[1].text = 'x'.repeat(501))),
+      mutate((d) => delete d.fog),
+      mutate((d) => delete d.lights),
+      mutate((d) => (d.fog.revealed = [1.5])),
+      mutate((d) => (d.fog.revealed = [-1])),
+      mutate((d) => (d.explored = ['x'])),
+      mutate((d) => (d.lighting.ambient = 'neblig')),
+      mutate((d) => (d.lights[0].bright = -5)),
+      mutate((d) => (d.lights[0].x = -1)),
+      mutate((d) => (d.lights[1].color = 'gelb')),
+      mutate((d) => delete d.lights[2].darkness),
+      mutate((d) => (d.lights[0].name = '')),
     ];
     for (const c of cases) {
       let ours = true;
@@ -658,5 +748,12 @@ describe('Autosave', () => {
     expect(await handle.flush()).toBe(false);
     expect(onError).toHaveBeenCalledOnce();
     handle.stop();
+  });
+});
+
+describe('Nebel-Lauflängen', () => {
+  it('lehnt mehr Felder als die Karte ab (über das Schema hinaus)', () => {
+    const d = { ...richSample(), explored: [700] };
+    expect(errorCode(() => parseMapDocument(d))).toBe('invalidContent');
   });
 });

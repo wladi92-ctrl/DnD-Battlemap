@@ -1690,3 +1690,64 @@ input[type='color'] {
   white-space: nowrap;
   border: 0;
 }
+
+/* ---------------------------------------------------------------- Phase 8: Spieleransicht */
+
+.map-canvas.tool-fog,
+.map-canvas.tool-light {
+  cursor: crosshair;
+}
+
+.player-app {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  outline: none;
+}
+
+.player-canvas {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+  cursor: grab;
+}
+
+.player-canvas:active {
+  cursor: grabbing;
+}
+
+.player-waiting {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  color: #ddd;
+  pointer-events: none;
+}
+
+.player-controls {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.35rem;
+  border-radius: 0.5rem;
+  background: rgba(20, 20, 24, 0.85);
+  transition: opacity 0.4s;
+}
+
+.player-controls.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.inch-sample {
+  display: grid;
+  place-items: center;
+  margin: 0.6rem 0;
+  border: 2px solid var(--text);
+  font-weight: 700;
+  box-sizing: border-box;
+}

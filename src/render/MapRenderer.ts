@@ -4,7 +4,7 @@
  *
  * Ebenen (von unten): Hintergrundfarbe → Hintergrundbild → Boden → Raster → Wände/Objekte
  * (inkl. Kantenwände) → Dekoration → Gelände-Overlay → Bewegungsreichweite → Tokens →
- * Effekte → GM-Notizen → Overlay.
+ * Effekte → GM-Notizen → Nebel/Sicht und Lichtmarken → Overlay.
  * Bodenkacheln liegen in 16×16-Blöcken, die außerhalb des Sichtbereichs ausgeblendet werden.
  */
 import 'pixi.js/unsafe-eval';
@@ -31,6 +31,7 @@ import {
 import { BackgroundImageLayer } from './backgroundImage';
 import { TokenLayer, type ConditionLabel } from './tokenLayer';
 import { EffectLayer, type EffectVisual } from './effectLayer';
+import { FogLayer, type FogMode, type LightMarker } from './fogLayer';
 import { RENDERER_PREFERENCE } from './graphicsSupport';
 import { ElementTextures, TEXTURE_PX_PER_CELL } from './textures';
 
@@ -162,6 +163,7 @@ export class MapRenderer {
   private readonly rangeGfx = new Graphics();
   private readonly tokens: TokenLayer;
   private readonly effects = new EffectLayer();
+  private readonly fog = new FogLayer();
   private readonly bgImage: BackgroundImageLayer;
 
   private readonly textures: ElementTextures;
@@ -198,6 +200,7 @@ export class MapRenderer {
       this.tokens.container,
       this.effects.container,
       this.notesLayer,
+      this.fog.container,
       this.overlay,
     );
     this.objectLayers.walls.sortableChildren = true;
@@ -317,6 +320,18 @@ export class MapRenderer {
     this.requestRender();
   }
 
+  /** Nebel/Sicht-Maske (null = keine Einschränkung). */
+  setFog(mask: Uint8Array | null, mode: FogMode): void {
+    this.fog.setMask(mask, this.map?.cols ?? 1, this.map?.rows ?? 1, mode);
+    this.requestRender();
+  }
+
+  /** Lichtquellen-Marken (nur GM-Ansicht). */
+  setLights(markers: readonly LightMarker[], feetPerCell: number): void {
+    this.fog.setLights(markers, feetPerCell);
+    this.requestRender();
+  }
+
   /** Beschriftung der Zustands-Abzeichen (sprachabhängig). */
   setConditionLabel(fn: ConditionLabel): void {
     this.tokens.setConditionLabel(fn);
@@ -330,6 +345,7 @@ export class MapRenderer {
     this.world.scale.set(camera.zoom);
     this.bgImage.setZoom(camera.zoom);
     this.effects.setZoom(camera.zoom);
+    this.fog.setZoom(camera.zoom);
     if (zoomChanged) {
       this.applyGridAlpha();
       this.drawOverlay(); // Linienstärken sind zoomabhängig
@@ -350,6 +366,7 @@ export class MapRenderer {
     this.bgImage.destroy();
     this.tokens.destroy();
     this.effects.destroy();
+    this.fog.destroy();
     this.app.destroy(true, { children: true });
     this.textures.destroy();
   }

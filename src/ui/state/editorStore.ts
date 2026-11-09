@@ -65,6 +65,14 @@ export interface AoeResult {
   effectId?: string;
 }
 
+/** Nebel-Werkzeug: aufdecken/verdecken mit Pinsel, Rechteck oder Polygon. */
+export interface FogTool {
+  mode: 'reveal' | 'hide';
+  shape: 'brush' | 'rect' | 'polygon';
+  /** Pinselgröße in Feldern (1, 3, 5). */
+  size: number;
+}
+
 export interface EditorState {
   paintMode: PaintMode;
   /** Gewähltes Element der Bibliothek (eingebaut oder eigenes). */
@@ -103,6 +111,13 @@ export interface EditorState {
   diceOpen: boolean;
   /** Angriffsdialog für dieses Token (ID) offen. */
   attackerId: string | null;
+  fogTool: FogTool;
+  /** Eckpunkte des Nebel-Polygons (Feldkoordinaten). */
+  fogPolygon: Point[];
+  /** Gewählte Lichtvorlage des Licht-Werkzeugs. */
+  lightPreset: string;
+  /** GM sieht die Karte wie die Spieler. */
+  playerPreview: boolean;
 
   selectElement: (id: string, layer: LayerId) => void;
   setPaintMode: (mode: PaintMode) => void;
@@ -128,6 +143,10 @@ export interface EditorState {
   openAssistant: (r: AoeResult | null) => void;
   setDiceOpen: (open: boolean) => void;
   openAttack: (tokenId: string | null) => void;
+  setFogTool: (t: Partial<FogTool>) => void;
+  setFogPolygon: (p: Point[]) => void;
+  setLightPreset: (id: string) => void;
+  setPlayerPreview: (on: boolean) => void;
   reset: () => void;
 }
 
@@ -156,6 +175,10 @@ const initial = {
   assistant: null as AoeResult | null,
   diceOpen: false,
   attackerId: null as string | null,
+  fogTool: { mode: 'reveal', shape: 'brush', size: 1 } as FogTool,
+  fogPolygon: [] as Point[],
+  lightPreset: 'torch',
+  playerPreview: false,
 };
 
 export const useEditorStore = create<EditorState>((set) => ({
@@ -186,5 +209,9 @@ export const useEditorStore = create<EditorState>((set) => ({
   openAssistant: (assistant) => set({ assistant }),
   setDiceOpen: (diceOpen) => set({ diceOpen }),
   openAttack: (attackerId) => set({ attackerId }),
+  setFogTool: (t) => set((s) => ({ fogTool: { ...s.fogTool, ...t } })),
+  setFogPolygon: (fogPolygon) => set({ fogPolygon }),
+  setLightPreset: (lightPreset) => set({ lightPreset }),
+  setPlayerPreview: (playerPreview) => set({ playerPreview }),
   reset: () => set({ ...initial, selection: new Set(), clipboard: [], preview: [], wallChain: [] }),
 }));

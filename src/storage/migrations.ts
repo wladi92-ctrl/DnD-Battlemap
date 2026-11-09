@@ -56,12 +56,25 @@ export function migrateV5toV6(doc: RawDocument): RawDocument {
   return { ...doc, version: 6, combat: null, combatLog: [] };
 }
 
+/** v6 → v7: Nebel aus, nichts aufgedeckt/erkundet, Sicht aus (helles Grundlicht), keine Lichter. */
+export function migrateV6toV7(doc: RawDocument): RawDocument {
+  return {
+    ...doc,
+    version: 7,
+    fog: { enabled: false, revealed: [] },
+    explored: [],
+    lighting: { enabled: false, ambient: 'bright' },
+    lights: [],
+  };
+}
+
 export const migrations: Readonly<Record<number, Migration>> = {
   1: migrateV1toV2,
   2: migrateV2toV3,
   3: migrateV3toV4,
   4: migrateV4toV5,
   5: migrateV5toV6,
+  6: migrateV6toV7,
 };
 
 export function migrate(

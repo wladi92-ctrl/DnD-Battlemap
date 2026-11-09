@@ -45,6 +45,17 @@ import {
   tokenDragMove,
 } from './tokenTools';
 import { aoePointerDown, aoePointerMove, effectAt, effectsInRect } from './effectTools';
+import {
+  cancelFog,
+  fogActivate,
+  fogCursorMoved,
+  fogPointerDown,
+  fogPointerMove,
+  fogPointerUp,
+  lightAt,
+  lightsInRect,
+  placeLight,
+} from './visionTools';
 
 export type Notify = (key: MessageKey, params?: Record<string, string | number>) => void;
 
@@ -58,6 +69,8 @@ export const EDIT_TOOLS: readonly Tool[] = [
   'note',
   'wall',
   'effect',
+  'fog',
+  'light',
 ];
 
 const REASON_KEYS: Record<string, MessageKey | null> = {
@@ -100,7 +113,7 @@ function snapValue(v: number): number {
 // ------------------------------------------------------------------ Zeiger
 
 interface DragState {
-  kind: 'paint' | 'erase' | 'shape' | 'move' | 'marquee' | 'token' | 'aoe';
+  kind: 'paint' | 'erase' | 'shape' | 'move' | 'marquee' | 'token' | 'aoe' | 'fog';
   lastCell: Cell;
   start: { x: number; y: number };
   /** Bereits angewendete Verschiebung beim Bewegen. */
@@ -173,6 +186,13 @@ export function pointerDown(
       aoePointerDown(point, notify);
       drag = { kind: 'aoe', ...base };
       return;
+    case 'fog':
+      fogPointerDown(cell, point);
+      drag = { kind: 'fog', ...base };
+      return;
+    case 'light':
+      placeLight(point);
+      return;
     case 'select': {
       // Tokens liegen über Objekten und Wänden und haben Vorrang.
       const token = tokenAt(point);
@@ -189,7 +209,7 @@ export function pointerDown(
         drag = { kind: 'token', ...base };
         return;
       }
-      const hit = effectAt(doc, point) ?? itemAt(point);
+      const hit = effectAt(doc, point) ?? lightAt(doc, point) ?? itemAt(point);
       if (hit) {
         const sel = new Set(ed.selection);
         if (shift) {
@@ -257,6 +277,9 @@ export function pointerMove(
     case 'aoe':
       aoePointerMove(point, true);
       return;
+    case 'fog':
+      fogPointerMove(cell);
+      return;
     case 'marquee':
       ed.setMarquee({
         x: Math.min(d.start.x, point.x),
@@ -284,6 +307,9 @@ export function pointerUp(tool: Tool, notify: Notify) {
     case 'token':
       endTokenDrag(notify);
       return;
+    case 'fog':
+      fogPointerUp();
+      return;
     case 'shape': {
       const source = currentSource();
       if (source && ed.preview.length) {
@@ -308,6 +334,7 @@ export function pointerUp(tool: Tool, notify: Notify) {
         ...wallsInRect(doc, m).map((w) => w.id),
         ...tokensInRect(m),
         ...effectsInRect(doc, m),
+        ...lightsInRect(doc, m),
       ];
       ed.setSelection(d.additive ? [...ed.selection, ...found] : found);
       return;
@@ -365,6 +392,14 @@ export function activateAt(tool: Tool, cell: Cell, shift: boolean, notify: Notif
     addWallPoint({ x: cell.x, y: cell.y }, notify);
     return;
   }
+  if (tool === 'fog') {
+    fogActivate(cell);
+    return;
+  }
+  if (tool === 'light') {
+    placeLight({ x: cell.x + 0.5, y: cell.y + 0.5 });
+    return;
+  }
   if (tool === 'effect') {
     // Tastatur: Rasterkreuzung = linke obere Ecke des Fokusfeldes, sonst Feldmitte.
     const snap = ed.aoe?.originSnap;
@@ -376,7 +411,7 @@ export function activateAt(tool: Tool, cell: Cell, shift: boolean, notify: Notif
   }
   if (tool === 'select') {
     const center = { x: cell.x + 0.5, y: cell.y + 0.5 };
-    const hit = tokenAt(center) ?? effectAt(doc, center) ?? itemAt(center);
+    const hit = tokenAt(center) ?? effectAt(doc, center) ?? lightAt(doc, center) ?? itemAt(center);
     if (!hit) return ed.setSelection(shift ? ed.selection : []);
     const sel = new Set(shift ? ed.selection : []);
     if (ed.selection.has(hit.id) && shift) sel.delete(hit.id);
@@ -389,6 +424,7 @@ export function activateAt(tool: Tool, cell: Cell, shift: boolean, notify: Notif
 export function cursorMoved(tool: Tool, cell: Cell) {
   const ed = useEditorStore.getState();
   if (tool === 'effect') aoePointerMove({ x: cell.x + 0.5, y: cell.y + 0.5 });
+  if (tool === 'fog') fogCursorMoved(cell);
   if ((tool === 'rect' || tool === 'line') && ed.shapeAnchor)
     ed.setPreview(shapeCells(tool, ed.shapeAnchor, cell));
 }
@@ -489,6 +525,7 @@ export function selectAll() {
       ...wallsInRect(doc, all).map((w) => w.id),
       ...tokensInRect(all),
       ...effectsInRect(doc, all),
+      ...lightsInRect(doc, all),
     ]);
 }
 
@@ -592,6 +629,7 @@ export function cancelEditing() {
   if (drag?.kind === 'paint' || drag?.kind === 'erase' || drag?.kind === 'move')
     useMapStore.getState().endStroke();
   if (drag?.kind === 'token') cancelTokenDrag();
+  cancelFog();
   drag = null;
   ed.setShapeAnchor(null);
   ed.setPreview([]);

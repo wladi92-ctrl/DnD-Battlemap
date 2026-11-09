@@ -13,6 +13,7 @@ import { useNoticeStore } from './state/noticeStore';
 import { useRecoveryStore } from './state/recoveryStore';
 import { useSettings } from './state/settingsStore';
 import { useT } from './useT';
+import { closePlayerView, startPlayerBroadcast } from './vision/playerChannel';
 
 export function useAppLifecycle() {
   const t = useT();
@@ -79,6 +80,9 @@ export function useAppLifecycle() {
     }
   }, [name, dirty, t]);
 
+  // Spieleransicht mit Daten versorgen (lokal, BroadcastChannel).
+  useEffect(() => startPlayerBroadcast(), []);
+
   // Schließen mit ungespeicherten Änderungen abfangen.
   useEffect(() => {
     if (!isTauri()) {
@@ -107,6 +111,8 @@ export function useAppLifecycle() {
         }
         // Wiederherstellungsdaten nur behalten, wenn der Nutzer noch nicht entschieden hat.
         if (!useRecoveryStore.getState().pending) await fa.autosaveClear().catch(() => undefined);
+        // Spieleransicht gehört zum Hauptfenster und schließt mit.
+        await closePlayerView().catch(() => undefined);
       });
       if (disposed) off();
       else unlisten = off;

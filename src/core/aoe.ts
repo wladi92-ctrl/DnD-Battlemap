@@ -193,9 +193,16 @@ function effectOrigin(spec: AoeSpec, pl: AoePlacement): Point {
 /** Hilfsstruktur für Sicht-/Wirkungslinien gegen Kantenwände und feste Felder. */
 export class LineOfEffect {
   private readonly walls: { a: Point; b: Point }[];
-  constructor(private readonly env: AoeEnvironment) {
+  /**
+   * @param blocks welche Kantenwände die Linie unterbrechen (Standard: Wirkungslinie –
+   *   alles, was Bewegung blockiert; für Sicht: wallBlocksSight, Fenster lassen durch)
+   */
+  constructor(
+    private readonly env: AoeEnvironment,
+    blocks: (w: WallLike) => boolean = wallBlocksMovement,
+  ) {
     this.walls = env.walls
-      .filter(wallBlocksMovement)
+      .filter(blocks)
       .map((w) => ({ a: { x: w.x1, y: w.y1 }, b: { x: w.x2, y: w.y2 } }));
   }
 

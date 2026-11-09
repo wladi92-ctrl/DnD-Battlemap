@@ -9,7 +9,13 @@ import { CONDITION_IDS, SIZE_CATEGORIES, type SizeCategory } from '../data/srd/c
 import { ProjectFileError } from './errors';
 import { AOE_SHAPES, WALL_MODES, type AoeShape, type WallMode } from '../core/aoe';
 import { parseDice } from '../core/dice';
+import { AMBIENTS, runsLength, type Ambient } from '../core/vision';
 import {
+  LIGHTS_MAX,
+  LIGHT_RADIUS_MAX,
+  type FogState,
+  type LightingState,
+  type MapLight,
   COMBAT_ENTRIES_MAX,
   LOG_KINDS,
   LOG_MAX,
@@ -602,6 +608,83 @@ function checkCombat(c: Checker, raw: unknown, tokenIds: ReadonlySet<string>): C
   };
 }
 
+/** Lauflängen: nichtnegative ganze Zahlen, Summe höchstens Feldanzahl. */
+function checkRuns(c: Checker, raw: unknown, path: string, size: number): number[] {
+  const list = c.array(raw, path, size + 1);
+  const ok = list.every((n, i) => c.number(n, `${path}[${i}]`, 0, size, true));
+  if (!ok) return [];
+  const runs = list as number[];
+  if (runsLength(runs) > size) {
+    c.fail(`${path}: mehr Felder als die Karte hat`);
+    return [];
+  }
+  return runs;
+}
+
+function checkFog(c: Checker, raw: unknown, size: number): FogState {
+  const o = c.object(raw, 'fog');
+  c.boolean(o.enabled, 'fog.enabled');
+  return { enabled: o.enabled === true, revealed: checkRuns(c, o.revealed, 'fog.revealed', size) };
+}
+
+function checkLighting(c: Checker, raw: unknown): LightingState {
+  const o = c.object(raw, 'lighting');
+  c.boolean(o.enabled, 'lighting.enabled');
+  c.oneOf(o.ambient, 'lighting.ambient', AMBIENTS);
+  return {
+    enabled: o.enabled === true,
+    ambient: (AMBIENTS.includes(o.ambient as Ambient) ? o.ambient : 'bright') as Ambient,
+  };
+}
+
+function checkLights(
+  c: Checker,
+  raw: unknown,
+  cols: number,
+  rows: number,
+  tokenIds: ReadonlySet<string>,
+): MapLight[] {
+  const list = c.array(raw, 'lights', LIGHTS_MAX);
+  const ids = new Set<string>();
+  const out: MapLight[] = [];
+  list.forEach((entry, i) => {
+    const p = `lights[${i}]`;
+    const l = c.object(entry, p);
+    const ok = [
+      c.string(l.id, `${p}.id`, { min: 1, max: ID_MAX }),
+      c.string(l.name, `${p}.name`, { min: 1, max: NAME_MAX }),
+      c.number(l.x, `${p}.x`, 0, cols),
+      c.number(l.y, `${p}.y`, 0, rows),
+      c.number(l.bright, `${p}.bright`, 0, LIGHT_RADIUS_MAX),
+      c.number(l.dim, `${p}.dim`, 0, LIGHT_RADIUS_MAX),
+      c.string(l.color, `${p}.color`, { pattern: HEX_COLOR }),
+      c.boolean(l.darkness, `${p}.darkness`),
+      c.boolean(l.enabled, `${p}.enabled`),
+      l.attachedTo === undefined ||
+        c.string(l.attachedTo, `${p}.attachedTo`, { min: 1, max: ID_MAX }),
+    ].every(Boolean);
+    if (ok && (l.dim as number) < (l.bright as number))
+      return void c.fail(`${p}.dim: kleiner als bright`);
+    if (ok && ids.has(l.id as string)) return void c.fail(`${p}.id: doppelt`);
+    if (!ok) return;
+    ids.add(l.id as string);
+    const attached = l.attachedTo as string | undefined;
+    out.push({
+      id: l.id as string,
+      name: l.name as string,
+      x: l.x as number,
+      y: l.y as number,
+      bright: l.bright as number,
+      dim: l.dim as number,
+      color: (l.color as string).toLowerCase(),
+      darkness: l.darkness as boolean,
+      enabled: l.enabled as boolean,
+      ...(attached && tokenIds.has(attached) ? { attachedTo: attached } : {}),
+    });
+  });
+  return out;
+}
+
 function checkLog(c: Checker, raw: unknown): LogEntry[] {
   const list = c.array(raw, 'combatLog', LOG_MAX);
   const out: LogEntry[] = [];
@@ -674,13 +757,17 @@ export function parseMapDocument(raw: unknown): MapDocument {
   const effects = checkEffects(c, doc.effects, cols, rows, tokenIds);
   const combat = checkCombat(c, doc.combat, tokenIds);
   const combatLog = checkLog(c, doc.combatLog);
+  const fog = checkFog(c, doc.fog, cols * rows);
+  const explored = checkRuns(c, doc.explored, 'explored', cols * rows);
+  const lighting = checkLighting(c, doc.lighting);
+  const lights = checkLights(c, doc.lights, cols, rows, tokenIds);
 
   if (c.errors.length) throw new ProjectFileError('invalidContent', c.errors);
 
   // Nur bekannte Felder übernehmen – unbekannte Zusatzdaten werden verworfen.
   return {
     format: MAP_FORMAT,
-    version: 6,
+    version: 7,
     id: doc.id as string,
     name: doc.name as string,
     createdAt: doc.createdAt as string,
@@ -708,5 +795,9 @@ export function parseMapDocument(raw: unknown): MapDocument {
     effects,
     combat,
     combatLog,
+    fog,
+    explored,
+    lighting,
+    lights,
   };
 }

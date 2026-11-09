@@ -14,6 +14,7 @@ import { deleteObjects, moveObjects, newId, resizeGrid, type OpResult } from './
 import { isEmptyPatch, mergePatches, replaceField, type DocPatch } from './patch';
 import { deleteTokens, shiftTokens } from './tokens';
 import { deleteEffects, moveEffects } from './effects';
+import { deleteLights, moveLights } from './vision';
 
 const nothing: OpResult = { ok: false, reason: 'nothing' };
 const done = (patch: DocPatch): OpResult => (isEmptyPatch(patch) ? nothing : { ok: true, patch });
@@ -137,12 +138,19 @@ export function moveItems(
     moveWalls(doc, ids, dx, dy),
     shiftTokens(doc, ids, dx, dy),
     moveEffects(doc, ids, dx, dy),
+    moveLights(doc, ids, dx, dy),
   );
 }
 
 export function deleteItems(doc: MapDocument, ids: ReadonlySet<string>): OpResult {
   const tokens = doc.tokens.some((t) => ids.has(t.id)) ? deleteTokens(doc, ids) : nothing;
-  return combine(deleteObjects(doc, ids), deleteWalls(doc, ids), tokens, deleteEffects(doc, ids));
+  return combine(
+    deleteObjects(doc, ids),
+    deleteWalls(doc, ids),
+    tokens,
+    deleteEffects(doc, ids),
+    deleteLights(doc, ids),
+  );
 }
 
 // ------------------------------------------------------------------ Hintergrundbild

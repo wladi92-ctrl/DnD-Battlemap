@@ -2,15 +2,16 @@
  * Kartendokument – Inhalt von map.json in einer .dndmap-Datei.
  * Das Format ist versioniert; Änderungen erhöhen MAP_FORMAT_VERSION und erhalten
  * eine Migration in migrations.ts. Beschreibung: docs/DATEIFORMAT.md,
- * JSON-Schema: docs/schema/map.v6.schema.json.
+ * JSON-Schema: docs/schema/map.v7.schema.json.
  */
 import type { AoeShape, WallMode } from '../core/aoe';
+import type { Ambient } from '../core/vision';
 import { clampGridDimension } from '../core/grid';
 import type { DoorState, WallKind } from '../core/walls';
 import type { SizeCategory } from '../data/srd/creatures';
 
 export const MAP_FORMAT = 'dndmap';
-export const MAP_FORMAT_VERSION = 6;
+export const MAP_FORMAT_VERSION = 7;
 
 export const FEET_PER_CELL_MIN = 1;
 export const FEET_PER_CELL_MAX = 100;
@@ -313,6 +314,39 @@ export interface LogEntry {
   text: string;
 }
 
+/** Nebel des Krieges: manuell aufgedeckte Felder als Lauflängen (siehe core/vision.ts). */
+export interface FogState {
+  enabled: boolean;
+  revealed: number[];
+}
+
+/** Dynamische Sicht und Grundhelligkeit. */
+export interface LightingState {
+  enabled: boolean;
+  ambient: Ambient;
+}
+
+export const LIGHTS_MAX = 500;
+export const LIGHT_RADIUS_MAX = 1000;
+
+/** Lichtquelle (Fackel, Laterne, Licht-Zauber …) oder magische Dunkelheit. */
+export interface MapLight {
+  id: string;
+  name: string;
+  /** Mittelpunkt in Feldkoordinaten. */
+  x: number;
+  y: number;
+  /** Radius hellen Lichts in ft. */
+  bright: number;
+  /** Radius dämmrigen Lichts in ft (gesamt). */
+  dim: number;
+  color: string;
+  darkness: boolean;
+  enabled: boolean;
+  /** Getragen von diesem Token (folgt ihm). */
+  attachedTo?: string;
+}
+
 export const WALL_KINDS: readonly WallKind[] = ['wall', 'door', 'window', 'secret'];
 export const DOOR_STATES: readonly DoorState[] = ['closed', 'open', 'locked'];
 export const IMAGE_MAX_SIDE = 16384;
@@ -344,6 +378,12 @@ export interface MapDocument {
   combat: CombatState | null;
   /** Kampflog (nur anhängen; nicht Teil von Rückgängig/Wiederholen). */
   combatLog: LogEntry[];
+  /** Nebel des Krieges (manuell). */
+  fog: FogState;
+  /** Je von Spielerfiguren gesehene Felder (Lauflängen; nicht im Undo-Verlauf). */
+  explored: number[];
+  lighting: LightingState;
+  lights: MapLight[];
 }
 
 export interface NewMapOptions {
@@ -429,6 +469,10 @@ export function createMap(opts: NewMapOptions, now = new Date()): MapDocument {
     effects: [],
     combat: null,
     combatLog: [],
+    fog: { enabled: false, revealed: [] },
+    explored: [],
+    lighting: { enabled: false, ambient: 'bright' },
+    lights: [],
   };
 }
 

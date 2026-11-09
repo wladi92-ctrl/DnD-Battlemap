@@ -23,6 +23,10 @@ export type WholeFields = Pick<
   | 'tokens'
   | 'effects'
   | 'combat'
+  | 'fog'
+  | 'lighting'
+  | 'lights'
+  | 'explored'
 >;
 
 export type FloorChange = [index: number, before: string, after: string];

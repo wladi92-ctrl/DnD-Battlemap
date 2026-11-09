@@ -4,6 +4,7 @@
  */
 import { clampGridDimension, type Cell } from '../core/grid';
 import { clipCells, floodFill } from '../core/shapes';
+import { decodeRuns, encodeRuns } from '../core/vision';
 import type { ElementInfo } from '../data/elements';
 import { SIZE_CELLS } from '../data/srd/creatures';
 import {
@@ -432,8 +433,26 @@ export function resizeGrid(doc: MapDocument, colsRaw: number, rowsRaw: number): 
       (cells?.length ?? 0) === (e.cells?.length ?? 0);
     return same ? e : { ...e, origin, ...(cells ? { cells } : {}) };
   });
+  // Feldmasken (aufgedeckt/erkundet) neu ausrichten; Lichter auf die Karte begrenzen.
+  const remap = (runs: number[]) => {
+    const old = decodeRuns(runs, doc.grid.cols * doc.grid.rows);
+    const next = new Uint8Array(cols * rows);
+    for (let y = 0; y < Math.min(rows, doc.grid.rows); y++) {
+      for (let x = 0; x < Math.min(cols, doc.grid.cols); x++)
+        next[y * cols + x] = old[y * doc.grid.cols + x] ?? 0;
+    }
+    return encodeRuns(next);
+  };
+  const lights = doc.lights.map((l) =>
+    l.x <= cols && l.y <= rows ? l : { ...l, x: Math.min(cols, l.x), y: Math.min(rows, l.y) },
+  );
   return done({
     whole: {
+      fog: { b: doc.fog, a: { ...doc.fog, revealed: remap(doc.fog.revealed) } },
+      explored: { b: doc.explored, a: remap(doc.explored) },
+      ...(lights.some((l, i) => l !== doc.lights[i])
+        ? { lights: { b: doc.lights, a: lights } }
+        : {}),
       ...(tokens.some((t, i) => t !== doc.tokens[i])
         ? { tokens: { b: doc.tokens, a: tokens } }
         : {}),

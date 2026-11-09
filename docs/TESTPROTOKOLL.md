@@ -322,3 +322,39 @@ Neue Tests:
 | `npm run tauri:build`                               | ✅ MSI de/en (je 3,3 MB), NSIS-Setup (2,5 MB)                                                                                                                                                              |
 | Start der Release-Exe                               | ✅ Fenster „DnD Battlemap“                                                                                                                                                                                 |
 | Markdown-Export und Kampfabläufe in der Desktop-App | ⏳ bitte manuell prüfen (Speichern-Dialog über Tauri; im Test mit Datei-Attrappe geprüft)                                                                                                                  |
+
+## Phase 8 – Sicht, Licht, Nebel & Spieleransicht (2026-11-09)
+
+### Automatisch
+
+| Prüfung                                                                  | Ergebnis                   |
+| ------------------------------------------------------------------------ | -------------------------- |
+| `npm run verify` (Lint, Prettier, `tsc`, Vitest, Build, Offline-Prüfung) | ✅ 243 Tests in 34 Dateien |
+| `npm run test:rust`                                                      | ✅ 6 Tests                 |
+
+Neue Tests:
+
+- `src/core/vision.test.ts` – Lichtstufen (hell/dämmrig, Abschattung durch Wände, magische
+  Dunkelheit verdrängt Licht), Sichtlinie hinter Wänden und Türen, Fenster durchsichtig,
+  Dunkelsicht, Spielermaske aus Nebel + Sicht + Erkundetem, Lauflängen hin und zurück
+- `src/editor/vision.test.ts` – Aufdecken/Verdecken/alles/Polygon mit Undo; Maske beim
+  Verkleinern der Karte; Spielercharakter mit Fackel, Erkundetes bleibt nach dem Bewegen; Wand,
+  Dunkelsicht, bewusstlose Charaktere sehen nichts; Spielerdokument ohne GM-Notizen und
+  verborgene Tokens/Effekte, Geheimtüren als Wand; Lichter verschieben und löschen
+- `src/storage/storage.test.ts` – Round-Trip mit Nebel/Licht, **Migration v6 → v7** (und ältere),
+  Lauflängen-Prüfung, JSON-Schema v7 = Validator
+- `src/ui/vision/Vision.test.tsx` – Nebel-Pinsel 3×3, „Alles verdecken“, Undo; Fackel an den
+  Helden heften (`I`), Sicht im Dunkeln, „Als Spieler ansehen“; reale Größe (55″ → ≈ 40 px/Feld,
+  HiDPI); Kanal GM → Spieleransicht mit gefiltertem Inhalt und Effekt-Beschriftung; Warten und
+  Anmelden der Spieleransicht
+
+### Manuell (Produktions-Build, Produktions-CSP, Chromium)
+
+| Prüfung                                              | Ergebnis                                                                                          |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Autosave aus Phase 7 (Version 6) wiederherstellen    | ✅ migriert                                                                                       |
+| Fackel an Mira, Grundhelligkeit dunkel               | ✅ GM-Ansicht: Lichtmarke mit hellem/dämmrigem Radius, Umgebung abgedunkelt                       |
+| Spieleransicht (zweiter Tab `#player`)               | ✅ nur der beleuchtete Kreis, sichtbare Tokens, Cloudkill mit Beschriftung; Live-Aktualisierung   |
+| Konsole                                              | ✅ keine Fehler                                                                                   |
+| Gefunden und behoben                                 | Dauerhafte Effekte fehlten in der Spieleransicht (→ werden jetzt übertragen und gezeichnet, Test) |
+| Spieleransicht als Desktop-Fenster, Vollbild, Beamer | ⏳ bitte manuell prüfen (Tauri-Fenster und Vollbild lassen sich im Browser-Test nicht ausführen)  |

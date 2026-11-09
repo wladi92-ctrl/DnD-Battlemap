@@ -45,6 +45,13 @@ import { SIZE_CELLS } from '../../data/srd/creatures';
 import { tokenCells } from '../../editor/tokens';
 import { moveRangeFor, selectedTokens, stepSelectedTokens } from './tokenTools';
 import { aoePointerMove, cancelAoe, effectVisuals, previewResult } from './effectTools';
+import { brushCells, cancelFog, closePolygon } from './visionTools';
+import {
+  computeVision,
+  lightPosition,
+  playerDocument,
+  restrictsPlayers,
+} from '../../editor/vision';
 import { effectLabel } from '../creatures/effectLabels';
 
 const KEY_PAN_PX = 64;
@@ -93,10 +100,35 @@ function buildOverlay(): OverlayState {
     marquee: ed.marquee,
     selectedWalls: doc ? doc.walls.filter((w) => ed.selection.has(w.id)) : [],
     ...wallOverlay(tool),
+    ...fogOverlay(tool, ed.preview),
     ...tokenOverlay(tool),
     targets: aoeTargets(tool),
     current: currentTurnRect(),
   };
+}
+
+/** Nebel-Werkzeug: Pinselvorschau unter dem Zeiger bzw. Polygon-Kanten. */
+function fogOverlay(
+  tool: string,
+  preview: readonly Cell[],
+): Pick<OverlayState, 'preview' | 'wallPreview' | 'wallVertex'> {
+  if (tool !== 'fog') return {};
+  const ed = useEditorStore.getState();
+  const view = useViewStore.getState();
+  const at = view.hoverCell ?? view.cursorCell;
+  if (ed.fogTool.shape === 'brush') return { preview: at ? brushCells(at, ed.fogTool.size) : [] };
+  if (ed.fogTool.shape === 'rect') return { preview };
+  const pts = ed.fogPolygon;
+  const raw = view.hoverPoint;
+  const vertex = raw ? { x: Math.round(raw.x), y: Math.round(raw.y) } : null;
+  const segs: { x1: number; y1: number; x2: number; y2: number }[] = [];
+  pts.forEach((p, i) => {
+    const prev = pts[i - 1];
+    if (prev) segs.push({ x1: prev.x, y1: prev.y, x2: p.x, y2: p.y });
+  });
+  const last = pts[pts.length - 1];
+  if (last && vertex) segs.push({ x1: last.x, y1: last.y, x2: vertex.x, y2: vertex.y });
+  return { wallPreview: segs, wallVertex: vertex };
 }
 
 /** Rahmen um das Token, das im Kampf am Zug ist. */
@@ -174,6 +206,8 @@ const HINTS: Partial<Record<string, MessageKey[]>> = {
   note: ['hint.note'],
   wall: ['hint.wall'],
   effect: ['hint.effect'],
+  fog: ['hint.fog'],
+  light: ['hint.light'],
 };
 
 export function MapCanvas() {
@@ -247,7 +281,22 @@ export function MapCanvas() {
     if (!r) return;
     const pushDoc = () => {
       const { doc: d, assets } = useMapStore.getState();
-      if (d) r.setDocument(d, assets);
+      if (!d) return;
+      const preview = useEditorStore.getState().playerPreview;
+      const restricted = restrictsPlayers(d);
+      const v = restricted || preview ? computeVision(d) : null;
+      // Neu Erkundetes still übernehmen (kein Undo-Schritt).
+      const explored = v?.explored;
+      if (explored) queueMicrotask(() => useMapStore.getState().setExplored(explored));
+      r.setDocument(preview && v ? playerDocument(d, v.mask) : d, assets);
+      r.setFog(restricted && v ? v.mask : null, preview ? 'player' : 'gm');
+      const sel = useEditorStore.getState().selection;
+      r.setLights(
+        preview
+          ? []
+          : d.lights.map((l) => ({ ...l, ...lightPosition(d, l), selected: sel.has(l.id) })),
+        d.grid.feetPerCell,
+      );
     };
     const pushOverlay = () => r.setOverlay(buildOverlay());
     const pushEffects = () => {
@@ -285,7 +334,7 @@ export function MapCanvas() {
         s.ruler !== prev.ruler ||
         s.tool !== prev.tool ||
         // Gebrochene Zeigerposition nur fürs Wandwerkzeug (Einrastpunkt/Vorschau).
-        (s.tool === 'wall' && s.hoverPoint !== prev.hoverPoint)
+        ((s.tool === 'wall' || s.tool === 'fog') && s.hoverPoint !== prev.hoverPoint)
       ) {
         pushOverlay();
       }
@@ -307,6 +356,8 @@ export function MapCanvas() {
       ) {
         pushOverlay();
       }
+      if (s.playerPreview !== prev.playerPreview || s.selection !== prev.selection) pushDoc();
+      if (s.fogPolygon !== prev.fogPolygon || s.fogTool !== prev.fogTool) pushOverlay();
       if (s.selection !== prev.selection || s.aoe !== prev.aoe || s.aoePhase !== prev.aoePhase) {
         pushEffects();
       }
@@ -390,7 +441,7 @@ export function MapCanvas() {
     const view = useViewStore.getState();
     const cell = cellAt(p);
     view.setHoverCell(inBounds(cell, doc.grid) ? cell : null);
-    if (tool === 'wall') view.setHoverPoint(cellPoint(p));
+    if (tool === 'wall' || tool === 'fog') view.setHoverPoint(cellPoint(p));
     if (tool === 'effect' && dragRef.current?.kind !== 'edit') aoePointerMove(cellPoint(p));
     const drag = dragRef.current;
     if (drag?.kind === 'pan') {
@@ -477,6 +528,7 @@ export function MapCanvas() {
     if (e.key === 'Escape') {
       if (ed.spawn) ed.setSpawn(null);
       else if (tool === 'effect' && cancelAoe()) return;
+      else if (tool === 'fog' && cancelFog()) return;
       else if (ed.wallChain.length) endWallChain();
       else if (view.ruler.active) view.rulerEnd();
       else if (view.ruler.points.length) view.rulerClear();
@@ -510,6 +562,8 @@ export function MapCanvas() {
           useViewStore.getState().setHoverPoint(null);
         }}
         onDoubleClick={() => {
+          if (tool === 'fog' && useEditorStore.getState().fogTool.shape === 'polygon')
+            closePolygon();
           if (tool === 'wall') endWallChain();
         }}
         onContextMenu={(e) => e.preventDefault()}

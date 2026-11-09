@@ -11,6 +11,8 @@ export class MapRenderer {
   camera: Camera | null = null;
   overlay: OverlayState | null = null;
   effects: readonly EffectVisual[] = [];
+  fog: { mask: Uint8Array | null; mode: string } = { mask: null, mode: 'gm' };
+  lights: readonly unknown[] = [];
   showTerrain = false;
   destroyed = false;
 
@@ -36,6 +38,12 @@ export class MapRenderer {
     this.showTerrain = show;
   }
   setConditionLabel(): void {}
+  setFog(mask: Uint8Array | null, mode: string): void {
+    this.fog = { mask, mode };
+  }
+  setLights(markers: readonly unknown[]): void {
+    this.lights = markers;
+  }
   setEffects(items: readonly EffectVisual[]): void {
     this.effects = items;
   }

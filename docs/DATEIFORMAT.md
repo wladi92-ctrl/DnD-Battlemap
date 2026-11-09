@@ -11,10 +11,10 @@ Eine Karte wird als **ZIP-Archiv** mit der Endung `.dndmap` gespeichert:
 Bilder in `assets/` werden unkomprimiert abgelegt (sie sind bereits komprimiert), `map.json`
 mit Deflate. Unbekannte Einträge werden beim Laden ignoriert.
 
-## `map.json` – Version 6 (aktuell)
+## `map.json` – Version 7 (aktuell)
 
-JSON-Schema: [`schema/map.v6.schema.json`](schema/map.v6.schema.json)
-(ältere Versionen: [`v5`](schema/map.v5.schema.json), [`v4`](schema/map.v4.schema.json), [`v3`](schema/map.v3.schema.json), [`v2`](schema/map.v2.schema.json),
+JSON-Schema: [`schema/map.v7.schema.json`](schema/map.v7.schema.json)
+(ältere Versionen: [`v6`](schema/map.v6.schema.json), [`v5`](schema/map.v5.schema.json), [`v4`](schema/map.v4.schema.json), [`v3`](schema/map.v3.schema.json), [`v2`](schema/map.v2.schema.json),
 [`v1`](schema/map.v1.schema.json) – werden beim Laden migriert). Version 4 ergänzt gegenüber
 Version 3 die Ebene `tokens` und die Liste `tokens` (siehe unten); Version 3 brachte das
 optionale `background.image` und die Liste `walls`.
@@ -22,7 +22,7 @@ optionale `background.image` und die Liste `walls`.
 ```json
 {
   "format": "dndmap",
-  "version": 6,
+  "version": 7,
   "id": "0b6f8c1e-…",
   "name": "Taverne zum Grünen Drachen",
   "createdAt": "2026-11-09T10:00:00.000Z",
@@ -262,6 +262,33 @@ Höchstens 500 Effekte pro Karte; IDs sind eindeutig.
 Die Reihenfolge in `entries` ist die Zugreihenfolge (sie kann manuell von der Sortierung nach
 Initiative abweichen, z. B. nach „jetzt handeln“).
 
+### Nebel, Sicht und Licht (`fog`, `explored`, `lighting`, `lights`)
+
+```json
+"fog": { "enabled": true, "revealed": [12, 3, 27, 3, 555] },
+"explored": [40, 6, 1154],
+"lighting": { "enabled": true, "ambient": "dark" },
+"lights": [
+  { "id": "l1", "name": "Fackel (Mira)", "x": 4.5, "y": 6.5, "bright": 20, "dim": 40,
+    "color": "#ffcc66", "darkness": false, "enabled": true, "attachedTo": "t2" }
+]
+```
+
+| Feld                        | Bedeutung                                                                                                                                   | Grenzen                           |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| `fog.enabled`               | Nebel des Krieges aktiv                                                                                                                     |                                   |
+| `fog.revealed`, `explored`  | Feldmasken als Lauflängen (zeilenweise, Index `y·cols + x`): abwechselnd Anzahl verdeckter (0) und aufgedeckter (1) Felder, beginnend mit 0 | Summe ≤ cols·rows, ganzzahlig ≥ 0 |
+| `explored`                  | Von Spielerfiguren schon gesehene Felder (automatisch, nicht im Undo-Verlauf)                                                               |                                   |
+| `lighting.enabled`          | Dynamische Sicht und Licht aktiv                                                                                                            |                                   |
+| `lighting.ambient`          | Grundhelligkeit `bright`, `dim` oder `dark`                                                                                                 |                                   |
+| `lights[].x`, `y`           | Position in Feldern (Bruchteile erlaubt); bei `attachedTo` die Mitte des Tokens                                                             | innerhalb der Karte               |
+| `lights[].bright`, `dim`    | Radien in ft; `dim` ≥ `bright`; bei `darkness` ist `dim` der Radius der magischen Dunkelheit                                                | 0…1000                            |
+| `lights[].color`, `enabled` | Lichtfarbe (Anzeige), ein/aus                                                                                                               | `#rrggbb`                         |
+| `lights[].attachedTo`       | optional: Token-ID; fehlt das Token, wird der Verweis beim Laden verworfen                                                                  |                                   |
+
+Höchstens 500 Lichtquellen pro Karte. Masken, deren Länge nicht zur Karte passt, werden beim
+Laden abgelehnt; beim Ändern der Kartengröße werden sie umgerechnet.
+
 ## Versionierung und Migration
 
 - Jede inkompatible Änderung erhöht `version`.
@@ -277,6 +304,8 @@ Initiative abweichen, z. B. nach „jetzt handeln“).
   Token-Liste; Sichtbarkeit/Sperre der übrigen Ebenen bleibt erhalten.
 - **v4 → v5**: fügt die Ebene `effects` vor `gm` ein und eine leere Effektliste.
 - **v5 → v6**: kein laufender Kampf (`combat: null`), leeres Kampflog.
+- **v6 → v7**: Nebel aus (nichts aufgedeckt), nichts erkundet, Sicht/Licht aus mit heller
+  Grundhelligkeit, keine Lichtquellen – ältere Karten sehen unverändert aus.
 
 ## Speichern und Wiederherstellung
 

@@ -55,6 +55,7 @@ export const shortcutList: readonly ShortcutInfo[] = [
   { keys: [['A']], label: 'shortcut.effect' },
   { keys: [[k('pageDown')], [k('pageUp')]], label: 'shortcut.turn' },
   { keys: [['X']], label: 'shortcut.dice' },
+  { keys: [['O'], ['I']], label: 'shortcut.fogLight' },
   { keys: [[k('arrows')]], label: 'shortcut.tokenMove' },
   { keys: [['H']], label: 'shortcut.pan' },
   { keys: [['R']], label: 'shortcut.ruler' },

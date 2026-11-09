@@ -33,6 +33,8 @@ export const TOOLS: readonly { id: Tool; key: string }[] = [
   { id: 'note', key: 'N' },
   { id: 'ruler', key: 'R' },
   { id: 'effect', key: 'A' },
+  { id: 'fog', key: 'O' },
+  { id: 'light', key: 'I' },
 ];
 
 export function Toolbar({

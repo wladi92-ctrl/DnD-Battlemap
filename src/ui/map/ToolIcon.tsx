@@ -19,6 +19,9 @@ const paths: Record<IconName, string> = {
   template: 'M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM13 13h8v8h-8z',
   terrain: 'M2 20l6-10 4 6 3-4 7 8z',
   grid: 'M3 3h18v18H3zM9 3v18M15 3v18M3 9h18M3 15h18',
+  fog: 'M3 8h13a3 3 0 1 0-3-3M3 12h17a3 3 0 1 1-3 3M3 16h9',
+  light:
+    'M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3z',
   effect:
     'M12 12m-8 0a8 8 0 1 0 16 0a8 8 0 1 0-16 0M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0M12 2v3M12 19v3M2 12h3M19 12h3',
 };

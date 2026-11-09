@@ -77,6 +77,8 @@ export interface MapState {
   /** Kampflog ergänzen (kein Undo-Schritt; ältere Einträge fallen über dem Limit weg). */
   appendLog: (entries: readonly Omit<LogEntry, 'id' | 'time' | 'round'>[]) => void;
   clearLog: () => void;
+  /** Erkundete Felder setzen (Lauflängen; kein Undo-Schritt). */
+  setExplored: (runs: number[]) => void;
   markSaved: (file: FileRef) => void;
   closeMap: () => void;
 }
@@ -230,6 +232,14 @@ export const useMapStore = create<MapState>((set, get) => {
       }));
       const combatLog = [...doc.combatLog, ...added].slice(-LOG_MAX);
       set((s) => ({ doc: { ...doc, combatLog }, dirty: true, revision: s.revision + 1 }));
+    },
+    setExplored: (runs) => {
+      const { doc } = get();
+      if (!doc) return;
+      const same =
+        runs.length === doc.explored.length && runs.every((v, i) => v === doc.explored[i]);
+      if (same) return;
+      set((s) => ({ doc: { ...doc, explored: runs }, dirty: true, revision: s.revision + 1 }));
     },
     clearLog: () => {
       const { doc } = get();

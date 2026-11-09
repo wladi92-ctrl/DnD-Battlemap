@@ -4,17 +4,18 @@ Offline-Desktop-Anwendung für interaktive D&D-5e-Kampfkarten: Karten aus Elemen
 Bilder importieren und kalibrieren, Kreaturen als Tokens bewegen, Effektbereiche feldgenau
 anzeigen. Regelinhalte ausschließlich aus dem **SRD 5.1 (CC-BY-4.0)**.
 
-> **Entwicklungsstand: Phase 7 von 10 – Kampf-Management.**
-> Neu: Initiative-Tracker (würfeln/eintragen, sortieren, Gleichstand-Regel, Runde/Zug,
-> vor/zurück, verzögern und „jetzt handeln“, Einträge ohne Token, Tote überspringen,
-> aktives Token hervorgehoben, Kamera folgt), Ressourcen des Aktiven werden zu Zugbeginn
-> zurückgesetzt, Effekte laufen mit den Runden ab, Zonen-Hinweise zum Zugbeginn;
-> Würfelroller (W4–W100, Ausdrücke, Vorteil/Nachteil, Verlauf, kryptografischer Zufall);
-> Angriffs-Helfer (Angriffe aus dem Statblock, Treffer gegen RK, kritisch/verfehlt,
-> Resistenzen); Kampflog (Notizen, Markdown-Export).
-> Aus Phase 1–6: Karteneditor, Bildimport, Kantenwände, Tokens mit SRD-Kreaturen,
-> Spielercharaktere, Bewegung, Flächeneffekte mit Rettungswurf-Assistent, `.dndmap`-Dateien,
-> Autosave, Offline-Absicherung, CI, Installer. Sicht/Licht/Nebel und Spieleransicht folgen.
+> **Entwicklungsstand: Phase 8 von 10 – Sicht, Licht, Nebel & Spieleransicht.**
+> Neu: Nebel des Krieges (aufdecken/verdecken mit Pinsel 1/3/5, Rechteck, Polygon; alles
+> auf-/zudecken), dynamische Sicht (Sichtlinie der Spielerfiguren, Wände/Türen/Gelände blockieren,
+> Grundhelligkeit hell/dämmrig/dunkel, Dunkelsicht), Lichtquellen (Vorlagen Kerze bis Tageslicht,
+> magische Dunkelheit, an Tokens heftbar), „erkundete“ Bereiche bleiben abgedunkelt sichtbar,
+> „Als Spieler ansehen“ und ein **zweites Fenster als Spieleransicht** (Beamer/Bildschirm;
+> Vollbild, eigene Kamera, reale Größe mit Kalibrierung). Die Spieleransicht erhält nur, was
+> Spieler sehen dürfen: keine verborgenen Tokens/Effekte, keine GM-Notizen, Geheimtüren als Wand.
+> Aus Phase 1–7: Karteneditor, Bildimport, Kantenwände, Tokens mit SRD-Kreaturen,
+> Spielercharaktere, Bewegung, Flächeneffekte mit Rettungswurf-Assistent, Initiative-Tracker,
+> Würfelroller, Angriffs-Helfer, Kampflog, `.dndmap`-Dateien, Autosave, Offline-Absicherung,
+> CI, Installer.
 
 ## Voraussetzungen
 
@@ -263,6 +264,31 @@ Karte eingebettet.
   Zeit und Runde; „Als Markdown exportieren …“, „Log leeren“. Das Log wird mit der Karte
   gespeichert, ist aber bewusst nicht Teil von Rückgängig/Wiederholen.
 
+**Sicht, Licht und Nebel** (Abschnitt rechts):
+
+- **Nebel des Krieges** einschalten: die ganze Karte ist für Spieler verdeckt. Mit dem
+  Nebel-Werkzeug (`O`) aufdecken oder verdecken – Pinsel (1×1, 3×3, 5×5; ziehen), Rechteck
+  (ziehen bzw. zwei Mal `Eingabe`) oder Polygon (Ecken auf Rasterkreuzungen klicken, Klick auf
+  die erste Ecke oder Doppelklick schließt, `Esc` bricht ab). „Alles aufdecken/verdecken“. In
+  der GM-Ansicht ist Verdecktes nur leicht abgedunkelt.
+- **Dynamische Sicht und Licht**: Spieler sehen nur, was ihre Figuren (Team „Spieler“, lebend,
+  bei Bewusstsein, nicht blind) sehen – Sichtlinie über Wände, geschlossene Türen und Gelände
+  „blockiert Sicht“; Fenster sind durchsichtig. Grundhelligkeit hell, dämmrig oder dunkel.
+  Im Dunkeln sieht eine Figur nur beleuchtete Felder oder innerhalb ihrer Dunkelsicht. Einmal
+  Gesehenes bleibt als „erkundet“ abgedunkelt sichtbar (Tokens dort werden nicht gezeigt);
+  „Erkundetes zurücksetzen“. Nebel und Sicht lassen sich kombinieren: dann gilt beides.
+- **Lichtquellen** (Werkzeug `I`): Vorlage wählen (Kerze 5/10 ft, Fackel 20/40, Lampe 15/45,
+  Blendlaterne 30/60, Licht-Zauber 20/40, Tageslicht 60/120, magische Dunkelheit 15) und
+  klicken; auf einem Token wird das Licht angeheftet und wandert mit. Lichter sind mit dem
+  Auswahl-Werkzeug auswähl- und verschiebbar; Name, Radien, Farbe, ein/aus, „Ablegen“.
+- **Als Spieler ansehen** zeigt im GM-Fenster genau das, was die Spieleransicht zeigt.
+- **Spieleransicht öffnen** öffnet ein zweites Fenster (z. B. auf den Beamer ziehen). Es
+  aktualisiert sich live, hat eine eigene Kamera (Ziehen, Mausrad, `+`/`-`/`0`) und
+  Vollbild (`F` oder `F11`); die Steuerleiste blendet sich nach 3 s aus. **Reale Größe**:
+  Bildschirmdiagonale in Zoll eingeben, mit dem 1-Zoll-Testquadrat und einem Lineal
+  feinjustieren (Korrektur in %) – dann ist ein Feld 1 Zoll groß (für Miniaturen auf einem
+  liegenden Bildschirm). Die Spieleransicht schließt sich mit dem GM-Fenster.
+
 **Würfel** (Knopf „Würfel“ in der Werkzeugleiste, `X`): W4 bis W100 per Klick, Ausdrücke wie
 `2d6+3` oder `3W8 + 1d4` (`Eingabe`), Vorteil/Nachteil für 1W20, Verlauf der letzten 50 Würfe,
 optional ins Kampflog.
@@ -287,6 +313,8 @@ Wegpunkte hinweg weiter (wie bei einer zusammenhängenden Bewegung).
 | `A` / `Q`                                     | Effekt-Werkzeug / Effekt drehen                           |
 | `Bild↓` / `Bild↑`                             | Kampf: nächster / vorheriger Zug                          |
 | `X`                                           | Würfelroller ein/aus                                      |
+| `O` / `I`                                     | Nebel-Werkzeug / Licht-Werkzeug                           |
+| `F` / `F11` (Spieleransicht)                  | Vollbild ein/aus                                          |
 | `+` / `-` / `0`                               | Vergrößern / Verkleinern / Einpassen                      |
 | Mausrad                                       | Zoomen am Mauszeiger                                      |
 | Pfeiltasten                                   | Fokusfeld bewegen (Kartenansicht fokussiert)              |
@@ -349,7 +377,7 @@ enthalten (per Test erzwungen). Neue Sprache: JSON-Datei anlegen und in `src/i18
 | JSON-Validierung          | Handgeschriebener Validator, JSON-Schema als Doku; Test hält beide synchron                                                                                                                                                                      | Schema-Compiler (ajv) braucht `eval`, das die CSP verbietet                                                                  |
 | Browser-Dev-Modus         | Öffnen per Dateiauswahl, Speichern als Download, Autosave in IndexedDB                                                                                                                                                                           | Frontend bleibt ohne Tauri testbar                                                                                           |
 | Undo/Redo                 | Umkehrbare Patches; Bodenkacheln/Gelände zellweise, Rest als Ganzes; 500 Schritte; Schieberegler werden innerhalb 1 s zusammengefasst                                                                                                            | Wenig Speicher auch bei 200×200, ein Strich = ein Schritt                                                                    |
-| Ebenen                    | Boden, Wände/Objekte, Dekoration, Tokens, Effekte, GM-Notizen. Nebel kommt mit Phase 8                                                                                                                                                           | Keine leeren Ebenen ohne Funktion                                                                                            |
+| Ebenen                    | Boden, Wände/Objekte, Dekoration, Tokens, Effekte, GM-Notizen. Nebel ist eine eigene Maske, keine Ebene                                                                                                                                          | Keine leeren Ebenen ohne Funktion                                                                                            |
 | Wände im Editor           | Zwei Arten: feldbasierte Wand-Elemente (aus der Bibliothek) und Kantenwände entlang von Rasterlinien (Wand-Werkzeug); beide blockieren Bewegung/Sicht                                                                                            | Für gebaute Karten natürlicher, für importierte Karten genauer                                                               |
 | Kantenwände-Logik         | Wand, Fenster (blockiert nur Bewegung), Tür/Geheimtür (blockiert, außer offen); diagonales Durchquetschen an Wandecken ist blockiert                                                                                                             | Wird ab Phase 5 (Bewegung) und 6/8 (Wirkungs-/Sichtlinie) genutzt                                                            |
 | Bildgrößen                | Bis 16 384 px pro Seite, 200 MB; Übersicht ≤ 2048 px immer, 2048er-Kacheln mit Mipmaps erst beim Hineinzoomen                                                                                                                                    | Spart Grafikspeicher; auch 8000×8000 bleibt handhabbar                                                                       |
@@ -389,6 +417,13 @@ enthalten (per Test erzwungen). Neue Sprache: JSON-Datei anlegen und in `src/i18
 | Kampflog                  | Mit der Karte gespeichert (bis 2000 Einträge), nicht im Undo-Verlauf                                                                                                                                                                             | Ein Würfelwurf soll beim Rückgängig-Machen keine Kartenänderung „verbrauchen“                                                |
 | Kritische Treffer         | Doppelte Schadenswürfel, Modifikator einfach; Angriff auf Bewusstlose in 5 ft wird nicht automatisch kritisch                                                                                                                                    | SRD-Regel; Sonderfälle entscheidet die Spielleitung (Schaden ist editierbar)                                                 |
 | Zufall                    | crypto.getRandomValues mit Rejection Sampling (keine Modulo-Verzerrung)                                                                                                                                                                          | Vorgabe „kryptografisch gute Zufallszahlen“                                                                                  |
+| Sichtberechnung           | Feld sichtbar, wenn einer von 5 Prüfpunkten (Mitte + 4 innere) von der Mitte des Betrachters ohne sichtblockierende Wand/Gelände erreichbar ist; Reichweite 300 ft                                                                               | Gleiches Verfahren wie die Wirkungslinie (Phase 6); stabil an Wandkanten                                                     |
+| Licht                     | Hell bis Radius „hell“, dämmrig bis „dämmrig“; Felder nach Mittelpunkt; Licht wird von Wänden abgeschattet; magische Dunkelheit verdrängt jedes Licht und Dunkelsicht                                                                            | SRD-Regeln für Licht und _Darkness_                                                                                          |
+| Dunkelsicht               | Dunkel → wie dämmrig sichtbar innerhalb der Dunkelsicht-Reichweite; dämmrig gilt als sichtbar (Nachteil auf Wahrnehmung bleibt Sache der Spielleitung)                                                                                           | SRD: Dunkelsicht sieht Dunkelheit wie dämmriges Licht                                                                        |
+| Betrachter                | Tokens im Team „Spieler“, nicht tot, nicht bewusstlos, nicht „blind“; ohne Betrachter sehen Spieler bei aktiver Sicht nichts                                                                                                                     | Sicht gehört zur Gruppe; die Spielleitung steuert NSC-Begleiter über das Team                                                |
+| Erkundet                  | Wird automatisch mit der Karte gespeichert, aber nicht im Undo-Verlauf                                                                                                                                                                           | Rückgängig soll keine „gesehene“ Information wieder verstecken                                                               |
+| Spieleransicht            | Zweites Fenster derselben App, Daten über einen lokalen BroadcastChannel (kein Netzwerk), höchstens 10 Aktualisierungen/s; gefiltert wird im GM-Fenster                                                                                          | Offline-Vorgabe; Spieler-Fenster erhält verborgene Daten gar nicht erst                                                      |
+| Reale Größe               | Pixel pro Zoll = Bildschirm-Diagonale in physischen Pixeln / Diagonale in Zoll, Korrektur in %; je Gerät im Browser-Speicher                                                                                                                     | Browser kennen die physische Bildschirmgröße nicht; Kalibrierung mit Testquadrat                                             |
 | Bibliotheksgrafiken       | 165 selbst erzeugte SVGs, beim Start einmal in Texturen (128 px/Feld) gerastert                                                                                                                                                                  | Keine fremden Assets, scharf bis Zoom 200 %                                                                                  |
 | Performance               | Bodenkacheln in 16×16-Blöcken mit Culling, Rendern nur bei Änderungen                                                                                                                                                                            | Ausgelegt für 200×200 (40 000 Kacheln); FPS-Messung folgt in Phase 10                                                        |
 

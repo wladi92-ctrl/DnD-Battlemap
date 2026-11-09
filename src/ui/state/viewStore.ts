@@ -25,7 +25,9 @@ export type Tool =
   | 'erase'
   | 'note'
   | 'wall'
-  | 'effect';
+  | 'effect'
+  | 'fog'
+  | 'light';
 
 export interface RulerState {
   /** Feste Punkte (Start + Wegpunkte). */
