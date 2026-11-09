@@ -188,11 +188,17 @@ mod tests {
             .collect();
         let payload: Vec<u8> = (0..=255u8).cycle().take(100_000).collect();
 
+        // Herkunft der App-Seite: unter Windows http://tauri.localhost, sonst tauri://localhost.
+        let origin = if cfg!(windows) {
+            "http://tauri.localhost"
+        } else {
+            "tauri://localhost"
+        };
         let request = |cmd: &str, body: InvokeBody, headers: HeaderMap| InvokeRequest {
             cmd: cmd.into(),
             callback: CallbackFn(0),
             error: CallbackFn(1),
-            url: "http://tauri.localhost".parse().unwrap(),
+            url: origin.parse().unwrap(),
             body,
             headers,
             invoke_key: INVOKE_KEY.to_string(),
