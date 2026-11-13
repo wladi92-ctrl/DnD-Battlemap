@@ -1149,5 +1149,19 @@
   "settings.showPerformance": "Show performance in the status bar (frame time)",
   "status.perf": "Frame {avg} ms (95 %: {p95} ms) · up to {fps} fps",
   "status.perfWaiting": "Frame: – ms",
-  "status.perfHint": "Time to build one frame (CPU, without waiting for the display). Below 16.7 ms is enough for 60 frames per second."
+  "status.perfHint": "Time to build one frame (CPU, without waiting for the display). Below 16.7 ms is enough for 60 frames per second.",
+  "keymap.fullscreen": "Toggle fullscreen",
+  "shortcut.quickSearch": "Quick search: find and arm an effect",
+  "fullscreen.toggle": "Fullscreen",
+  "fullscreen.panel": "Fullscreen controls",
+  "fullscreen.exit": "Exit fullscreen",
+  "fullscreen.exitKey": "Exit fullscreen ({key})",
+  "quickSearch.open": "Find effect (Ctrl+F)",
+  "quickSearch.heading": "Find effect",
+  "quickSearch.placeholder": "Effect, damage type or kind – e.g. “fireball 5”, “fire”, “trap”",
+  "quickSearch.hint": "Arrow keys select, Enter arms, Esc closes. A number at the end picks the spell level.",
+  "quickSearch.none": "No matching effect.",
+  "quickSearch.slot": "Level {slot}",
+  "quickSearch.armed": "“{name}” armed – choose the origin on the map.",
+  "quickSearch.armedSlot": "“{name}” (level {slot}) armed – choose the origin on the map."
 }

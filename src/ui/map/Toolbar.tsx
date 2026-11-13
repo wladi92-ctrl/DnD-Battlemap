@@ -8,6 +8,7 @@ import { buildKeymap, keyLabel, TOOL_DEFAULTS } from '../keymap';
 import { useSettings } from '../state/settingsStore';
 import { setTool } from './editorTools';
 import { ToolIcon } from './ToolIcon';
+import { toggleFullscreen } from '../fullscreen';
 
 interface Props {
   onNew: () => void;
@@ -41,6 +42,8 @@ export function Toolbar({
   const t = useT();
   const tool = useViewStore((s) => s.tool);
   const keymap = buildKeymap(useSettings((s) => s.keymap));
+  const fullscreen = useViewStore((s) => s.fullscreen);
+  const fsKeys = keymap.fullscreen.map((k) => keyLabel(k, t)).join(', ');
   const zoom = useViewStore((s) => s.camera.zoom);
   const doc = useMapStore((s) => s.doc);
   const undoTop = useMapStore((s) => s.history.undo[s.history.undo.length - 1]);
@@ -57,7 +60,12 @@ export function Toolbar({
 
   return (
     <div className="toolbar" role="toolbar" aria-label={t('toolbar.label')}>
-      <div className="toolbar-group" role="group" aria-label={t('toolbar.file')}>
+      <div
+        className="toolbar-group"
+        role="group"
+        aria-label={t('toolbar.file')}
+        hidden={fullscreen}
+      >
         <button type="button" className="btn" onClick={onNew} aria-keyshortcuts="Control+N">
           {t('file.new')}
         </button>
@@ -182,6 +190,26 @@ export function Toolbar({
               onClick={() => useEditorStore.getState().setDiceOpen(!diceOpen)}
             >
               {t('dice.button')}
+            </button>
+            <button
+              type="button"
+              className="btn btn-icon"
+              aria-pressed={fullscreen}
+              aria-label={t('fullscreen.toggle')}
+              title={fsKeys ? `${t('fullscreen.toggle')} (${fsKeys})` : t('fullscreen.toggle')}
+              onClick={toggleFullscreen}
+            >
+              <ToolIcon name="fullscreen" />
+            </button>
+            <button
+              type="button"
+              className="btn btn-icon"
+              aria-label={t('quickSearch.open')}
+              aria-keyshortcuts="Control+F"
+              title={t('quickSearch.open')}
+              onClick={() => useViewStore.getState().setQuickSearch(true)}
+            >
+              <ToolIcon name="search" />
             </button>
             <button
               type="button"

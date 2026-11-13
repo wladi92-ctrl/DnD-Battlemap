@@ -39,7 +39,8 @@ export type ActionId =
   | 'nextTurn'
   | 'prevTurn'
   | 'ping'
-  | 'clearDrawings';
+  | 'clearDrawings'
+  | 'fullscreen';
 
 export type CommandId = `tool.${Tool}` | ActionId;
 
@@ -64,6 +65,7 @@ const ACTIONS: readonly CommandInfo[] = [
   { id: 'prevTurn', label: 'keymap.prevTurn', defaults: ['pageup'] },
   { id: 'ping', label: 'keymap.ping', defaults: ['p'] },
   { id: 'clearDrawings', label: 'keymap.clearDrawings', defaults: ['c'] },
+  { id: 'fullscreen', label: 'keymap.fullscreen', defaults: ['f11'] },
 ];
 
 export const COMMANDS: readonly CommandInfo[] = [
@@ -95,7 +97,6 @@ export const RESERVED_KEYS: ReadonlySet<string> = new Set([
   'contextmenu',
   'dead',
   'unidentified',
-  'f11',
 ]);
 
 /** Eigene Belegung: Befehl → Tasten (leere Liste = ohne Taste). */

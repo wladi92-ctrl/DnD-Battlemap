@@ -11,7 +11,7 @@ import { CampaignPanel } from '../campaign/CampaignPanel';
 const TABS = ['elements', 'creatures', 'characters', 'effects', 'campaign'] as const;
 type Tab = (typeof TABS)[number];
 
-export function LeftPanel() {
+export function LeftPanel({ hidden = false }: { hidden?: boolean }) {
   const t = useT();
   const id = useId();
   const [tab, setTab] = useState<Tab>('elements');
@@ -35,7 +35,7 @@ export function LeftPanel() {
   };
 
   return (
-    <aside className="library-panel">
+    <aside className="library-panel" hidden={hidden}>
       <div className="side-tabs" role="tablist" aria-label={t('side.tabs')} onKeyDown={onKey}>
         {TABS.map((tb) => (
           <button

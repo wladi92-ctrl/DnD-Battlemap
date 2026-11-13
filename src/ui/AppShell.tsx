@@ -6,6 +6,8 @@ import { MapWorkspace } from './map/MapWorkspace';
 import { Notices } from './Notices';
 import { SettingsPage } from './SettingsPage';
 import { useT } from './useT';
+import { useFullscreenSync } from './fullscreen';
+import { useViewStore } from './state/viewStore';
 
 export type PageId = 'map' | 'settings' | 'about';
 
@@ -19,6 +21,9 @@ export const pages: readonly { id: PageId; label: MessageKey; key: string }[] = 
 export function AppShell() {
   const t = useT();
   const [page, setPage] = useState<PageId>('map');
+  // Vollbild gilt nur für die Kartenansicht (Einstellungen/Über zeigen den Kopf wieder).
+  const fullscreen = useViewStore((s) => s.fullscreen) && page === 'map';
+  useFullscreenSync();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -34,26 +39,28 @@ export function AppShell() {
   }, []);
 
   return (
-    <div className="app">
-      <header className="app-header">
-        <div className="app-brand">
-          <AppIcon />
-          <span>{t('app.title')}</span>
-        </div>
-        <nav className="app-nav" aria-label={t('nav.label')}>
-          {pages.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              aria-current={page === p.id ? 'page' : undefined}
-              aria-keyshortcuts={`Alt+${p.key}`}
-              onClick={() => setPage(p.id)}
-            >
-              {t(p.label)}
-            </button>
-          ))}
-        </nav>
-      </header>
+    <div className={fullscreen ? 'app fullscreen' : 'app'}>
+      {!fullscreen && (
+        <header className="app-header">
+          <div className="app-brand">
+            <AppIcon />
+            <span>{t('app.title')}</span>
+          </div>
+          <nav className="app-nav" aria-label={t('nav.label')}>
+            {pages.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                aria-current={page === p.id ? 'page' : undefined}
+                aria-keyshortcuts={`Alt+${p.key}`}
+                onClick={() => setPage(p.id)}
+              >
+                {t(p.label)}
+              </button>
+            ))}
+          </nav>
+        </header>
+      )}
       {/* Der Arbeitsbereich bleibt gemountet, damit Renderer und Kamera erhalten bleiben. */}
       <main className="app-main app-main-map" hidden={page !== 'map'}>
         <MapWorkspace />

@@ -394,6 +394,7 @@ Wegpunkte hinweg weiter (wie bei einer zusammenhängenden Bewegung).
 | `O` / `I`                                     | Nebel-Werkzeug / Licht-Werkzeug                           |
 | `Z` / `P` / `C`                               | Zeichnen / Ping / Zeichnungen löschen                     |
 | `Strg`+`E`                                    | Karte exportieren (PNG/PDF)                               |
+| `F11` / `Strg`+`F`                            | Vollbild / Schnellsuche für Effekte                       |
 | `F` / `F11` (Spieleransicht)                  | Vollbild ein/aus                                          |
 | `+` / `-` / `0`                               | Vergrößern / Verkleinern / Einpassen                      |
 | Mausrad                                       | Zoomen am Mauszeiger                                      |

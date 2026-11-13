@@ -37,6 +37,7 @@ export const shortcutList: readonly ShortcutInfo[] = [
   { keys: [[k('ctrl'), 'S']], label: 'shortcut.save' },
   { keys: [[k('ctrl'), k('shift'), 'S']], label: 'shortcut.saveAs' },
   { keys: [[k('ctrl'), 'E']], label: 'shortcut.export' },
+  { keys: [[k('ctrl'), 'F']], label: 'shortcut.quickSearch' },
   {
     keys: [
       [k('ctrl'), 'Z'],

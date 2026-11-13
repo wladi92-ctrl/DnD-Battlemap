@@ -2076,3 +2076,100 @@ input[type='color'] {
   padding: 0.5rem;
   border-radius: 0.3rem;
 }
+
+/* ---------------------------------------------------------------- Vollbild & Schnellsuche */
+
+.app.fullscreen {
+  grid-template-rows: 1fr;
+}
+
+.workspace.fullscreen .workspace-body {
+  grid-template-columns: 1fr;
+  position: relative;
+}
+
+.workspace.fullscreen .workspace-body > .map-host,
+.workspace.fullscreen .workspace-body > * {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.library-panel[hidden],
+.toolbar-group[hidden] {
+  display: none;
+}
+
+.fullscreen-panel {
+  position: absolute;
+  z-index: 4;
+  top: 0.6rem;
+  right: 0.6rem;
+  width: min(22rem, 40vw);
+  max-height: calc(100% - 1.2rem);
+  overflow: auto;
+  display: grid;
+  gap: 0.4rem;
+  justify-self: end;
+  align-self: start;
+  padding: 0.5rem;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 0.35);
+}
+
+.fullscreen-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.quick-search-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 12vh;
+  background: rgb(0 0 0 / 0.25);
+}
+
+.quick-search {
+  width: min(40rem, 92vw);
+  padding: 0.6rem;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  box-shadow: 0 1rem 3rem rgb(0 0 0 / 0.45);
+}
+
+.quick-search input {
+  width: 100%;
+  font-size: 1.1rem;
+  padding: 0.45rem 0.6rem;
+}
+
+.quick-search-results {
+  list-style: none;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  max-height: 50vh;
+  overflow: auto;
+}
+
+.quick-search-results li {
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.35rem;
+  cursor: pointer;
+}
+
+.quick-search-results li.active {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.quick-search-results li.active .muted {
+  color: inherit;
+}

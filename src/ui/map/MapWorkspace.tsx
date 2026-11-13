@@ -11,6 +11,9 @@ import { useViewStore, type Tool } from '../state/viewStore';
 import { buildKeymap, keyIndex, type ActionId } from '../keymap';
 import { clearDrawings, pingAtPointer } from './drawTools';
 import { DrawPanel } from './DrawPanel';
+import { FullscreenPanel } from './FullscreenPanel';
+import { EffectQuickSearch } from '../effects/EffectQuickSearch';
+import { toggleFullscreen } from '../fullscreen';
 import { ExportDialog } from '../export/ExportDialog';
 import { EncounterDialog } from '../encounter/EncounterDialog';
 import { SnapshotPanel } from '../campaign/SnapshotPanel';
@@ -63,6 +66,7 @@ export function MapWorkspace() {
   const [newOpen, setNewOpen] = useState(false);
   const [templateOpen, setTemplateOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const fullscreen = useViewStore((s) => s.fullscreen);
   const [dragging, setDragging] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const notify: Notify = (key, params) => useNoticeStore.getState().push('info', t(key, params));
@@ -97,6 +101,8 @@ export function MapWorkspace() {
           o: actions.openMap,
           s: e.shiftKey ? actions.saveAs : actions.save,
           e: () => useMapStore.getState().doc && setExportOpen(true),
+          // Schnellsuche für Effekte (auch im Vollbild)
+          f: () => useMapStore.getState().doc && useViewStore.getState().setQuickSearch(true),
         };
         // Bearbeiten-Kürzel nicht in Textfeldern (dort gelten die Kürzel des Feldes).
         const editKeys: Record<string, () => unknown> = typing
@@ -149,6 +155,7 @@ export function MapWorkspace() {
         prevTurn: () => void (d.combat && previousTurn()),
         ping: () => pingAtPointer(),
         clearDrawings: () => clearDrawings(),
+        fullscreen: () => toggleFullscreen(),
       };
       const command = keyIndex(buildKeymap(useSettings.getState().keymap)).get(key);
       if (!command) return;
@@ -191,7 +198,7 @@ export function MapWorkspace() {
 
   return (
     <div
-      className="workspace"
+      className={fullscreen ? 'workspace fullscreen' : 'workspace'}
       ref={rootRef}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
@@ -213,24 +220,28 @@ export function MapWorkspace() {
       {doc ? (
         <>
           <div className="workspace-body">
-            <LeftPanel />
+            <LeftPanel hidden={fullscreen} />
             <MapCanvas />
-            <div className="side-panel">
-              <InitiativePanel />
-              <EffectToolPanel />
-              <TokenPanel />
-              <EffectListPanel />
-              <VisionPanel />
-              <DrawPanel />
-              <SnapshotPanel />
-              <ToolOptionsPanel />
-              <LayersPanel />
-              <TerrainPanel />
-              <BackgroundImagePanel />
-              <PropertiesPanel />
-            </div>
+            {fullscreen && <FullscreenPanel />}
+            {!fullscreen && (
+              <div className="side-panel">
+                <InitiativePanel />
+                <EffectToolPanel />
+                <TokenPanel />
+                <EffectListPanel />
+                <VisionPanel />
+                <DrawPanel />
+                <SnapshotPanel />
+                <ToolOptionsPanel />
+                <LayersPanel />
+                <TerrainPanel />
+                <BackgroundImagePanel />
+                <PropertiesPanel />
+              </div>
+            )}
           </div>
-          <StatusBar />
+          {!fullscreen && <StatusBar />}
+          <EffectQuickSearch />
           <NoteDialog />
           <StatblockDialog />
           <SaveAssistant />

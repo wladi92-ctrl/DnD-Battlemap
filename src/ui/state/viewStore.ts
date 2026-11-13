@@ -56,8 +56,14 @@ export interface ViewState {
   /** Tastatur-Fokusfeld (Pfeiltasten). */
   cursorCell: Cell | null;
   ruler: RulerState;
+  /** Vollbildmodus: nur Karte (Seitenleisten, Kopf- und Statusleiste ausgeblendet). */
+  fullscreen: boolean;
+  /** Schnellsuche (Strg+F) geöffnet. */
+  quickSearch: boolean;
 
   setTool: (tool: Tool) => void;
+  setFullscreenFlag: (on: boolean) => void;
+  setQuickSearch: (open: boolean) => void;
   setViewport: (size: Size) => void;
   setCamera: (camera: Camera) => void;
   panBy: (dx: number, dy: number, world: Size) => void;
@@ -83,8 +89,12 @@ export const useViewStore = create<ViewState>((set, get) => ({
   hoverPoint: null,
   cursorCell: null,
   ruler: emptyRuler,
+  fullscreen: false,
+  quickSearch: false,
 
   setTool: (tool) => set({ tool }),
+  setFullscreenFlag: (fullscreen) => set({ fullscreen }),
+  setQuickSearch: (quickSearch) => set({ quickSearch }),
   setViewport: (viewport) => set({ viewport }),
   setCamera: (camera) => set({ camera }),
   panBy: (dx, dy, world) => {
@@ -125,5 +135,7 @@ export const useViewStore = create<ViewState>((set, get) => ({
       hoverCell: null,
       cursorCell: null,
       ruler: emptyRuler,
+      fullscreen: false,
+      quickSearch: false,
     }),
 }));

@@ -1,7 +1,7 @@
 /** Kleine, selbst gezeichnete Werkzeug-Icons (24×24, currentColor). */
 import type { Tool } from '../state/viewStore';
 
-type IconName = Tool | 'undo' | 'redo' | 'template' | 'terrain' | 'grid';
+type IconName = Tool | 'undo' | 'redo' | 'template' | 'terrain' | 'grid' | 'fullscreen' | 'search';
 
 const paths: Record<IconName, string> = {
   pan: 'M8 13V6a1.5 1.5 0 0 1 3 0v5V4.5a1.5 1.5 0 0 1 3 0V11V6a1.5 1.5 0 0 1 3 0v8c0 4-2.5 7-6 7s-5-2-7-5l-1.5-3a1.5 1.5 0 0 1 2.6-1.5L8 13z',
@@ -25,6 +25,8 @@ const paths: Record<IconName, string> = {
   effect:
     'M12 12m-8 0a8 8 0 1 0 16 0a8 8 0 1 0-16 0M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0M12 2v3M12 19v3M2 12h3M19 12h3',
   draw: 'M4 20c3-1 4-4 7-4s3 3 6 2M14 4l6 6-8 8H6v-6z',
+  fullscreen: 'M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5',
+  search: 'M10.5 17a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13zM15.5 15.5L21 21',
 };
 
 const filled: ReadonlySet<IconName> = new Set(['select', 'pan']);

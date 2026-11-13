@@ -1149,5 +1149,19 @@
   "settings.showPerformance": "Leistung in der Statusleiste anzeigen (Bildaufbauzeit)",
   "status.perf": "Bild {avg} ms (95 %: {p95} ms) · bis {fps} fps",
   "status.perfWaiting": "Bild: – ms",
-  "status.perfHint": "Zeit für den Aufbau eines Bildes (CPU, ohne Warten auf den Bildschirm). Unter 16,7 ms reicht für 60 Bilder pro Sekunde."
+  "status.perfHint": "Zeit für den Aufbau eines Bildes (CPU, ohne Warten auf den Bildschirm). Unter 16,7 ms reicht für 60 Bilder pro Sekunde.",
+  "keymap.fullscreen": "Vollbild ein/aus",
+  "shortcut.quickSearch": "Schnellsuche: Effekt suchen und aktivieren",
+  "fullscreen.toggle": "Vollbild",
+  "fullscreen.panel": "Vollbild-Steuerung",
+  "fullscreen.exit": "Vollbild beenden",
+  "fullscreen.exitKey": "Vollbild beenden ({key})",
+  "quickSearch.open": "Effekt suchen (Strg+F)",
+  "quickSearch.heading": "Effekt suchen",
+  "quickSearch.placeholder": "Effekt, Schadensart oder Art – z. B. „fireball 5“, „Feuer“, „Falle“",
+  "quickSearch.hint": "Pfeiltasten wählen, Eingabe aktiviert, Esc schließt. Eine Zahl am Ende wählt den Zaubergrad.",
+  "quickSearch.none": "Kein passender Effekt.",
+  "quickSearch.slot": "Grad {slot}",
+  "quickSearch.armed": "„{name}“ aktiviert – Ursprung auf der Karte wählen.",
+  "quickSearch.armedSlot": "„{name}“ (Grad {slot}) aktiviert – Ursprung auf der Karte wählen."
 }
