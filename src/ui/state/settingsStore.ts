@@ -39,6 +39,8 @@ export interface Settings {
   cameraFollow: boolean;
   /** Eigene Tastenbelegung (nur Abweichungen vom Standard). */
   keymap: KeyOverrides;
+  /** Bildaufbauzeit in der Statusleiste anzeigen. */
+  showPerformance: boolean;
 }
 
 export const defaultSettings: Settings = {
@@ -53,6 +55,7 @@ export const defaultSettings: Settings = {
   skipDead: true,
   cameraFollow: true,
   keymap: {},
+  showPerformance: false,
 };
 
 const STORAGE_KEY = 'dnd-battlemap.settings.v1';
@@ -85,6 +88,7 @@ export function parseSettings(raw: unknown): Settings {
   if (typeof r.skipDead === 'boolean') result.skipDead = r.skipDead;
   if (typeof r.cameraFollow === 'boolean') result.cameraFollow = r.cameraFollow;
   result.keymap = sanitizeOverrides(r.keymap);
+  if (typeof r.showPerformance === 'boolean') result.showPerformance = r.showPerformance;
   return result;
 }
 
@@ -115,6 +119,7 @@ interface SettingsState extends Settings {
   setCoverageRule: (rule: CoverageRule) => void;
   setCombatOptions: (o: Partial<Pick<Settings, 'tieRule' | 'skipDead' | 'cameraFollow'>>) => void;
   setKeymap: (keymap: KeyOverrides) => void;
+  setShowPerformance: (show: boolean) => void;
   reset: () => void;
 }
 
@@ -129,6 +134,7 @@ export const useSettings = create<SettingsState>((set) => ({
   setCoverageRule: (coverageRule) => set({ coverageRule }),
   setCombatOptions: (o) => set(o),
   setKeymap: (keymap) => set({ keymap }),
+  setShowPerformance: (showPerformance) => set({ showPerformance }),
   reset: () => set({ ...defaultSettings }),
 }));
 
@@ -145,5 +151,6 @@ useSettings.subscribe((s) =>
     skipDead: s.skipDead,
     cameraFollow: s.cameraFollow,
     keymap: s.keymap,
+    showPerformance: s.showPerformance,
   }),
 );

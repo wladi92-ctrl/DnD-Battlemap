@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { format, isLocale, locales, translate } from './index';
 
@@ -22,6 +24,28 @@ describe('i18n', () => {
     for (const key of Object.keys(locales.de) as (keyof typeof locales.de)[]) {
       expect(placeholders(locales.en[key]), key).toEqual(placeholders(locales.de[key]));
     }
+  });
+
+  it('Deutsch vollständig: jeder im Code verwendete Schlüssel ist übersetzt', () => {
+    // Alle Quelltexte nach t('…'), label: '…' und Aktions-Schlüsseln durchsuchen.
+    const used = new Set<string>();
+    const walk = (dir: string) => {
+      for (const name of readdirSync(dir)) {
+        const p = join(dir, name);
+        if (statSync(p).isDirectory()) walk(p);
+        else if (/\.tsx?$/.test(name) && !name.includes('.test.')) {
+          const src = readFileSync(p, 'utf8');
+          for (const m of src.matchAll(/\bt\(\s*'([a-zA-Z][\w.]*)'/g)) used.add(m[1]!);
+          for (const m of src.matchAll(/\b(?:label|title|description): '([a-z]+\.[\w.]+)'/g))
+            used.add(m[1]!);
+          for (const m of src.matchAll(/'(action\.\w+)'/g)) used.add(m[1]!);
+        }
+      }
+    };
+    walk(join(__dirname, '..'));
+    expect(used.size).toBeGreaterThan(500);
+    const missing = [...used].filter((k) => !(k in locales.de));
+    expect(missing).toEqual([]);
   });
 
   it('ersetzt Platzhalter und lässt unbekannte stehen', () => {

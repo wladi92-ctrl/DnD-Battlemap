@@ -1,4 +1,5 @@
 import { AppShell } from './ui/AppShell';
+import { ErrorBoundary } from './ui/ErrorBoundary';
 import { PlayerApp } from './ui/player/PlayerApp';
 import { useApplySettings } from './ui/useApplySettings';
 import { useAppLifecycle } from './ui/useAppLifecycle';
@@ -7,7 +8,15 @@ import { useAppLifecycle } from './ui/useAppLifecycle';
 export const isPlayerWindow = () => typeof location !== 'undefined' && location.hash === '#player';
 
 export function App() {
-  return isPlayerWindow() ? <PlayerApp /> : <MainApp />;
+  return isPlayerWindow() ? (
+    <ErrorBoundary saveOnError={false}>
+      <PlayerApp />
+    </ErrorBoundary>
+  ) : (
+    <ErrorBoundary>
+      <MainApp />
+    </ErrorBoundary>
+  );
 }
 
 function MainApp() {

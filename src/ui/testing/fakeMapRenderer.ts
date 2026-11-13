@@ -33,6 +33,9 @@ export class MapRenderer {
 
   resize(): void {}
   async tokensReady(): Promise<void> {}
+  renderStats() {
+    return { frames: 60, avgMs: 4, p95Ms: 6 };
+  }
   async exportImage(
     rect: { x: number; y: number; w: number; h: number },
     px: number,

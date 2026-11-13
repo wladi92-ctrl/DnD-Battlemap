@@ -17,6 +17,7 @@
     "format:check": "prettier --check .",
     "typecheck": "tsc -b --noEmit",
     "licenses": "node scripts/gen-licenses.mjs",
+    "examples": "vite-node scripts/build-examples.ts",
     "check:offline": "node scripts/check-offline.mjs",
     "verify": "npm run lint && npm run format:check && npm run test && npm run build && npm run check:offline",
     "tauri": "tauri",

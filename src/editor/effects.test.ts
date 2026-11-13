@@ -130,6 +130,31 @@ describe('Effekte auf der Karte', () => {
     expect(hit).not.toContain(far.id);
   });
 
+  it('Huge und Gargantuan: betroffen, sobald eines ihrer Felder im Bereich liegt', () => {
+    let doc = map();
+    // Feuerball (20 ft) um die Kreuzung (10,10): Felder x/y 6…13
+    const huge = spawn(doc, { ...goblin, name: 'Riese', size: 'huge' }, 13, 9); // x 13–15, y 9–11
+    doc = huge.doc;
+    const garg = spawn(doc, { ...goblin, name: 'Tarrasque', size: 'gargantuan' }, 2, 2); // 2–5
+    doc = garg.doc;
+    const outside = spawn(doc, { ...goblin, name: 'Fern', size: 'huge' }, 16, 16); // 16–18
+    doc = outside.doc;
+    const e = effectFromTemplate(tmpl(), { x: 10, y: 10 }, 0);
+    doc = apply(doc, addEffect(doc, e));
+    const cells = effectCells(doc, doc.effects[0]!, 'half');
+    const hit = affectedTokens(doc, cells).map((t) => t.id);
+    // Nur der linke Rand des Riesen liegt im Bereich, der Rest nicht
+    expect(cells.has(9 * 30 + 13)).toBe(true);
+    expect(cells.has(10 * 30 + 15)).toBe(false);
+    expect(hit).toContain(huge.id);
+    expect(hit).not.toContain(garg.id); // Felder 2–5 erreicht der Feuerball nicht
+    expect(hit).not.toContain(outside.id);
+    // Rückt der Gargantuan heran (x 3–6, y 7–10), ragt eine Ecke hinein: betroffen
+    doc = { ...doc, tokens: doc.tokens.map((t) => (t.id === garg.id ? { ...t, x: 3, y: 7 } : t)) };
+    const hit2 = affectedTokens(doc, effectCells(doc, doc.effects[0]!, 'half')).map((t) => t.id);
+    expect(hit2).toContain(garg.id);
+  });
+
   it('Wand trennt; Aura folgt ihrem Träger', () => {
     let doc = map();
     doc = apply(doc, addWalls(doc, [{ x1: 12, y1: 0, x2: 12, y2: 30, kind: 'wall' }]));

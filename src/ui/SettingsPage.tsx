@@ -147,6 +147,14 @@ export function SettingsPage() {
             ))}
           </select>
         </div>
+        <label className="panel-check">
+          <input
+            type="checkbox"
+            checked={s.showPerformance}
+            onChange={(e) => s.setShowPerformance(e.target.checked)}
+          />
+          {t('settings.showPerformance')}
+        </label>
       </div>
 
       <KeymapCard />

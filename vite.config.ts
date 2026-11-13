@@ -39,6 +39,8 @@ export default defineConfig({
     headers: { 'Content-Security-Policy': csp },
   },
   envPrefix: ['VITE_', 'TAURI_ENV_'],
+  // Mitgelieferte Beispiele werden als ?inline-Daten eingebunden (kein fetch nötig, CSP bleibt streng).
+  assetsInclude: ['**/*.dndmap', '**/*.dndcampaign'],
   build: {
     // WebView2 (Chromium) bzw. WebKit auf macOS/Linux
     target: process.env.TAURI_ENV_PLATFORM === 'windows' ? 'chrome105' : 'safari15',

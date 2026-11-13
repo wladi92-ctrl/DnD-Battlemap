@@ -174,6 +174,8 @@ export class MapRenderer {
   private readonly fog = new FogLayer();
   private readonly drawings = new DrawLayer();
   private pingFrame = 0;
+  /** Dauer der letzten Bildaufbauten in ms (Leistungsanzeige). */
+  private readonly frameTimes: number[] = [];
   private readonly bgImage: BackgroundImageLayer;
 
   private readonly textures: ElementTextures;
@@ -488,9 +490,31 @@ export class MapRenderer {
     this.frame = requestAnimationFrame(() => {
       this.frame = 0;
       if (this.destroyed) return;
+      const t0 = performance.now();
       Culler.shared.cull(this.app.stage, this.app.renderer.screen);
       this.app.render();
+      this.recordFrame(performance.now() - t0);
     });
+  }
+
+  private recordFrame(ms: number): void {
+    this.frameTimes.push(ms);
+    if (this.frameTimes.length > 120) this.frameTimes.shift();
+  }
+
+  /**
+   * Bildaufbau-Zeiten (CPU, inkl. Culling) der letzten bis zu 120 Bilder: Mittel und 95. Perzentil.
+   * Daraus ergibt sich die mögliche Bildrate unabhängig von der Bildschirmfrequenz.
+   */
+  renderStats(): { frames: number; avgMs: number; p95Ms: number } {
+    const n = this.frameTimes.length;
+    if (!n) return { frames: 0, avgMs: 0, p95Ms: 0 };
+    const sorted = [...this.frameTimes].sort((a, b) => a - b);
+    return {
+      frames: n,
+      avgMs: this.frameTimes.reduce((a, b) => a + b, 0) / n,
+      p95Ms: sorted[Math.min(n - 1, Math.floor(n * 0.95))] ?? 0,
+    };
   }
 
   // ---------------------------------------------------------------- Inhalte

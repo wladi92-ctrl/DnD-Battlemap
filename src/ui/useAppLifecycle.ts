@@ -7,10 +7,11 @@ import { useEffect } from 'react';
 import { startAutosave } from '../storage/autosave';
 import { getFileAccess } from '../storage/fileAccess';
 import { decodeProject } from '../storage/projectFile';
-import { decodeCampaign, encodeCampaign, isCampaignFile } from '../storage/campaignFile';
+import { decodeCampaign, isCampaignFile } from '../storage/campaignFile';
+import { currentAutosaveSnapshot } from './autosaveSnapshot';
 import { useCampaignStore } from './state/campaignStore';
 import { reportError } from './map/useFileActions';
-import { referencedAssets, useMapStore } from './state/mapStore';
+import { useMapStore } from './state/mapStore';
 import { useNoticeStore } from './state/noticeStore';
 import { useRecoveryStore } from './state/recoveryStore';
 import { useSettings } from './state/settingsStore';
@@ -56,33 +57,7 @@ export function useAppLifecycle() {
     let warned = false;
     const handle = startAutosave({
       intervalMs: autosaveSeconds * 1000,
-      getSnapshot: () => {
-        const s = useMapStore.getState();
-        if (!s.doc) return null;
-        const c = useCampaignStore.getState();
-        if (c.campaign) {
-          // Kampagne: ganze Kampagne sichern (alle Szenen).
-          return {
-            doc: s.doc,
-            filePath: c.filePath,
-            dirty: s.dirty || c.dirty,
-            revision: s.revision + c.revision * 1_000_000,
-            encode: (recovery) => {
-              const contents = useCampaignStore.getState().collect();
-              if (!contents) throw new Error('Kampagne nicht verfügbar');
-              return encodeCampaign(contents, recovery);
-            },
-          };
-        }
-        return {
-          doc: s.doc,
-          filePath: s.filePath,
-          dirty: s.dirty,
-          revision: s.revision,
-          assets: referencedAssets(s.doc, s.assets, s.snapshots),
-          snapshots: s.snapshots,
-        };
-      },
+      getSnapshot: currentAutosaveSnapshot,
       write: (bytes) => getFileAccess().autosaveWrite(bytes),
       onError: () => {
         if (!warned) useNoticeStore.getState().push('error', t('notice.autosaveFailed'));
@@ -102,6 +77,24 @@ export function useAppLifecycle() {
         .catch(() => undefined);
     }
   }, [name, dirty, t]);
+
+  // Unerwartete Fehler außerhalb von React (Ereignisse, Promises) melden statt still zu scheitern.
+  useEffect(() => {
+    const report = (message: string) => {
+      // Harmlose Browser-Meldung beim Ändern der Fenstergröße.
+      if (message.includes('ResizeObserver loop')) return;
+      useNoticeStore.getState().push('error', t('crash.notice'), [message]);
+    };
+    const onError = (e: ErrorEvent) => report(e.message || String(e.error));
+    const onRejection = (e: PromiseRejectionEvent) =>
+      report(e.reason instanceof Error ? e.reason.message : String(e.reason));
+    window.addEventListener('error', onError);
+    window.addEventListener('unhandledrejection', onRejection);
+    return () => {
+      window.removeEventListener('error', onError);
+      window.removeEventListener('unhandledrejection', onRejection);
+    };
+  }, [t]);
 
   // Spieleransicht mit Daten versorgen (lokal, BroadcastChannel).
   useEffect(() => startPlayerBroadcast(), []);

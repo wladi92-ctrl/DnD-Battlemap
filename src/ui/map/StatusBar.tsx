@@ -8,6 +8,8 @@ import { useMapStore } from '../state/mapStore';
 import { useSettings } from '../state/settingsStore';
 import { rulerPath, useViewStore } from '../state/viewStore';
 import { useT } from '../useT';
+import { useEffect, useState } from 'react';
+import { getActiveRenderer } from './rendererRegistry';
 
 export function StatusBar() {
   const t = useT();
@@ -17,7 +19,7 @@ export function StatusBar() {
   const hover = useViewStore((s) => s.hoverCell);
   const cursor = useViewStore((s) => s.cursorCell);
   const ruler = useViewStore((s) => s.ruler);
-  const { diagonalRule, showMeters, locale } = useSettings();
+  const { diagonalRule, showMeters, locale, showPerformance } = useSettings();
   if (!doc) return null;
 
   const fmt = (feet: number) => formatDistance(feet, { locale, showMeters });
@@ -27,6 +29,7 @@ export function StatusBar() {
 
   return (
     <footer className="status-bar">
+      {showPerformance && <PerformanceInfo />}
       <span className="status-cell">
         {/* Anzeige 1-basiert, intern 0-basiert */}
         {cell ? t('status.cell', { x: cell.x + 1, y: cell.y + 1 }) : '–'}
@@ -80,5 +83,26 @@ function HoverInfo({ x, y }: { x: number; y: number }) {
         </span>
       )}
     </>
+  );
+}
+
+/** Bildaufbauzeit (Mittel/95. Perzentil) und daraus mögliche Bildrate; zweimal pro Sekunde. */
+function PerformanceInfo() {
+  const t = useT();
+  const [stats, setStats] = useState(() => getActiveRenderer()?.renderStats() ?? null);
+  useEffect(() => {
+    const id = setInterval(() => setStats(getActiveRenderer()?.renderStats() ?? null), 500);
+    return () => clearInterval(id);
+  }, []);
+  if (!stats?.frames) return <span>{t('status.perfWaiting')}</span>;
+  const fps = Math.min(999, Math.floor(1000 / Math.max(0.1, stats.p95Ms)));
+  return (
+    <span title={t('status.perfHint')}>
+      {t('status.perf', {
+        avg: stats.avgMs.toFixed(1),
+        p95: stats.p95Ms.toFixed(1),
+        fps,
+      })}
+    </span>
   );
 }

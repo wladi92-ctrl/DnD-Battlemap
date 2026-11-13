@@ -431,3 +431,32 @@ Neue Tests:
 | Kampagne beginnen, neue Szene                  | ✅ Fenstertitel „Kampagne · Szene 2“                                                                                                             |
 | Gefunden und behoben                           | Doppelte Optionen beim Zeichenwerkzeug; Name fehlte im Hinweis bei neuer Szene; Zeichnungen blieben beim Szenenwechsel; Kampagnen-Panel zu breit |
 | Druck auf Papier (Maßstab), Tauri-Dateidialoge | ⏳ bitte manuell prüfen (PDF-Ansicht ist im Browser-Test durch die strenge CSP gesperrt; Seitenbild und Maße wurden ausgelesen)                  |
+
+## Phase 10 – Politur & Release (2026-11-13)
+
+### Automatisch
+
+| Prüfung                                                                  | Ergebnis       |
+| ------------------------------------------------------------------------ | -------------- |
+| `npm run verify` (Lint, Prettier, `tsc`, Vitest, Build, Offline-Prüfung) | ✅ siehe unten |
+| `npm run test:rust`                                                      | ✅ 6 Tests     |
+
+Neue Tests:
+
+- `src/storage/performance.test.ts` – Leistungstest-Karte (100 × 100, 150 Tokens, 25 Lichter):
+  Laden, Speichern (35 ms), Sicht bei Dunkelheit mit 4 Spielerfiguren inkl. Spielerdokument
+  (58 ms, danach aus dem Zwischenspeicher), Bewegungsreichweite und Feuerball mit Wänden (7 ms)
+- `src/ui/ErrorBoundary.test.tsx` – Fehler in der Oberfläche: Fehlerseite, Notsicherung in die
+  Wiederherstellungsdatei, „Weiterarbeiten“
+- `src/ui/examples.test.tsx` – alle Beispiele gültig; Startseite öffnet die Beispielkampagne
+- `src/editor/effects.test.ts` – Huge und Gargantuan mit Teilüberdeckung
+- `src/i18n/i18n.test.ts` – jeder im Code verwendete Schlüssel ist übersetzt („Deutsch vollständig“)
+
+### Manuell
+
+| Prüfung                                                 | Ergebnis                                                                                                                        |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Beispiele über die Startseite laden (Produktions-Build) | ✅ Leistungstest 100 × 100 mit 150 Tokens geöffnet                                                                              |
+| Bildaufbauzeit beim Schwenken/Zoomen (Leistungstest)    | ⏳ bitte in der Desktop-App prüfen: Einstellungen → „Leistung anzeigen“ (Browser-Bereich war ausgeblendet, daher keine Messung) |
+| Fehlerseite und Notsicherung                            | ✅ per Test; Meldungen bei Fehlern außerhalb von React als Hinweis                                                              |
+| `npm run tauri:build`, Start der Release-Exe            | ✅ siehe Commit                                                                                                                 |

@@ -4,22 +4,44 @@ Offline-Desktop-Anwendung für interaktive D&D-5e-Kampfkarten: Karten aus Elemen
 Bilder importieren und kalibrieren, Kreaturen als Tokens bewegen, Effektbereiche feldgenau
 anzeigen. Regelinhalte ausschließlich aus dem **SRD 5.1 (CC-BY-4.0)**.
 
-> **Entwicklungsstand: Phase 9 von 10 – Zusatzfunktionen, Export, Encounter-Builder.**
-> Neu: **Kampagnen** (mehrere Karten als Szenen in einer `.dndcampaign`-Datei, Szenenwechsel,
-> Verknüpfungen „Tür → nächste Karte“, Kampagnennotizen, gespeicherte Begegnungen, Handouts mit
-> Bild/Text in der Spieleransicht), **Begegnungsplaner** (XP-Budget und Schwierigkeit
-> leicht/mittel/schwer/tödlich, alle Kreaturen in einem Schritt auf die Karte, Zusammenfassung
-> als Markdown/PDF), **Export** als PNG oder PDF (mit/ohne Raster, GM- oder Spieler-Version,
-> maßstabsgetreu 1 Feld = 1 Zoll mehrseitig mit Kachelnamen und Schnittmarken),
-> **Schnappschüsse** (Vorher/Nachher, Kampf pausieren), **Zeichnen und Ping** auf einem
-> temporären Overlay (auch in der Spieleransicht), **anpassbare Tastenkürzel**, **Bibliothek
-> teilen** (JSON-Export/-Import).
-> Aus Phase 1–8: Karteneditor im Stil gedruckter Abenteuerkarten, Bildimport mit
-> Rastererkennung, Kantenwände, Tokens mit Porträts für alle SRD-Kreaturen, Spielercharaktere,
-> Bewegung, Flächeneffekte mit Rettungswurf-Assistent, Initiative-Tracker, Würfelroller,
-> Angriffs-Helfer, Kampflog, Nebel/Licht/Sicht, Spieleransicht, `.dndmap`-Dateien, Autosave,
-> Offline-Absicherung, CI, Installer. Politur, Beispielkarten und Beispielkampagne folgen in
-> Phase 10.
+> **Stand: Version 0.1.0 – alle 10 Phasen umgesetzt.** Karteneditor im Stil gedruckter
+> Abenteuerkarten, Bildimport mit Rastererkennung, Kantenwände und Türen, Tokens mit Porträts für
+> alle 334 SRD-Kreaturen, Spielercharaktere, Bewegung mit Bewegungskosten, Flächeneffekte mit
+> Wandblockade und Rettungswurf-Assistent, Initiative-Tracker, Würfel, Angriffe, Kampflog, Nebel
+> des Krieges, dynamische Sicht und Licht, Spieleransicht auf dem Zweitbildschirm, Kampagnen mit
+> Szenen und Handouts, Begegnungsplaner, PNG-/PDF-Export, Schnappschüsse, Zeichnen und Ping,
+> anpassbare Tastenkürzel, Bibliothek teilen, Beispielkarten und Beispielkampagne.
+
+## Installation
+
+1. **Installer wählen** (alle im Ordner `release/` bzw. als CI-Artefakt):
+   - `DnD Battlemap_<version>_x64-setup.exe` – Installation für den eigenen Benutzer
+     (keine Administratorrechte nötig), Startmenü-Eintrag, Deinstallation über Windows.
+   - `DnD Battlemap_<version>_x64_de-DE.msi` (bzw. `en-US`) – für zentrale Verteilung.
+   - `DnD Battlemap (portable).exe` – ohne Installation direkt starten (z. B. vom USB-Stick).
+   - macOS (`.dmg`) und Linux (`.AppImage`, `.deb`) entstehen im CI auf dem jeweiligen System.
+2. **Voraussetzung unter Windows**: WebView2-Runtime – in Windows 11 und aktuellem Windows 10
+   vorhanden. Für Rechner ohne WebView2 gibt es den vollständig offline installierbaren
+   Installer (`npm run tauri:build:offline`, siehe unten).
+3. **Start**: Die App braucht kein Internet und stellt keine Verbindungen her. Beim ersten Start
+   helfen die **Beispiele** auf der Startseite: „Taverne zum Grünen Drachen“, „Gruft der
+   Schatten“ (Nebel und Dunkelheit), die Kampagne „Die Gruft unter der Taverne“ und ein
+   Leistungstest mit 150 Tokens.
+
+Daten liegen ausschließlich lokal: Karten (`.dndmap`) und Kampagnen (`.dndcampaign`) dort, wo du
+sie speicherst; Bibliothek, Wiederherstellungsdatei und Einstellungen im App-Datenordner
+(Windows: `%APPDATA%\de.dndbattlemap.app\`).
+
+## Schnellstart
+
+1. **Neue Karte** (oder ein Beispiel) → links Elemente wählen und malen, rechts Ebenen und
+   Gelände. Alternativ **Bild importieren …** und das Raster kalibrieren.
+2. **Kreaturen** setzen (Reiter „Kreaturen“), **Charaktere** anlegen (Reiter „Charaktere“).
+3. **Kampf** rechts beginnen, Initiative würfeln, mit `Bild↓` durch die Züge.
+4. Effekte mit dem Effekt-Werkzeug (`A`), Nebel (`O`), Licht (`I`), Zeichnen (`Z`), Ping (`P`).
+5. **Spieleransicht öffnen** (rechts unter „Sicht, Licht und Nebel“) und auf den Beamer ziehen,
+   `F` für Vollbild.
+6. **Speichern** (`Strg`+`S`); Autosave schützt zusätzlich vor Abstürzen.
 
 ## Voraussetzungen
 
@@ -58,6 +80,7 @@ Weitere Skripte:
 | `npm run check:offline`           | Prüft CSP, Capabilities, Abhängigkeiten und `dist/` auf Netzwerkzugriffe        |
 | `npm run licenses`                | Erzeugt `src/data/licenses/third-party.json` neu (nach Abhängigkeitsänderungen) |
 | `npm run icons`                   | Erzeugt alle App-Icons aus `assets/icon.svg`                                    |
+| `npm run examples`                | Erzeugt die Beispielkarten und die Beispielkampagne (`src/data/examples/`)      |
 
 ## Installer bauen
 
@@ -103,7 +126,7 @@ src/
              Formen (Linie, Rechteck, Flutfüllung), Zufall, Bewegung (Dijkstra, Gelegenheitsangriffe),
              Flächeneffekte (aoe.ts), Würfel (dice.ts); editor/combat.ts, attack.ts = Kampf
   data/      elements/ (Bibliothek: SVG-Generatoren, Namen de/en), srd/ (Kreaturen, Zustände, Effekte),
-             licenses/
+             portraits/ (Kreaturen-Porträts), examples/ (Beispiele), licenses/
   editor/    Bearbeitungsoperationen, Undo/Redo-Patches, Platzbedarf/Gelände, Vorlagen, Tokens, Effekte
   i18n/      de.json (Referenz), en.json, typisierte t()-Funktion
   render/    PixiJS-Szene (MapRenderer), Grafikerkennung WebGL/Canvas2D
@@ -112,7 +135,9 @@ src/
   styles/    Theme-Tokens (Hell/Dunkel/Hoher Kontrast)
   ui/        React-Komponenten und UI-State (Zustand); map/ = Karten-Arbeitsbereich,
              creatures/ = Kreaturen, Charaktere, Statblock, Token-Panel; effects/ = Effekte;
-             combat/ = Initiative, Würfel, Angriff, Kampflog
+             combat/ = Initiative, Würfel, Angriff, Kampflog; vision/ + player/ = Sicht und
+             Spieleransicht; campaign/ = Kampagne, Schnappschüsse; encounter/ = Begegnungsplaner;
+             export/ = PNG/PDF; settings/ = Tastenkürzel, Bibliothek teilen
 src-tauri/   Rust-Backend (Datei-I/O, Autosave, SQLite-Bibliothek), Tauri-Konfiguration,
              Capabilities, Icons
 docs/        Dateiformat, JSON-Schema, Testprotokoll
@@ -498,7 +523,22 @@ enthalten (per Test erzwungen). Neue Sprache: JSON-Datei anlegen und in `src/i18
 | PDF-Export                | Eigener PDF-Schreiber (JPEG-Seitenbilder, Helvetica/WinAnsi), 150 dpi, A4/Letter, 10 mm Rand, ganze Felder je Seite, Ausrichtung mit den wenigsten Seiten                                                                                        | Offline, ohne Fremdbibliothek; 1 Feld = 1 Zoll für Miniaturen                                                                |
 | Tastenkürzel              | Nur Einzeltasten anpassbar; Strg-Kombinationen fest; Belegung lokal in den Einstellungen                                                                                                                                                         | Strg-Kürzel sind Betriebssystem-Standard                                                                                     |
 | Bibliotheksgrafiken       | 168 selbst erzeugte SVGs, beim Start einmal in Texturen (128 px/Feld) gerastert                                                                                                                                                                  | Keine fremden Assets, scharf bis Zoom 200 %                                                                                  |
-| Performance               | Bodenkacheln in 16×16-Blöcken mit Culling, Rendern nur bei Änderungen                                                                                                                                                                            | Ausgelegt für 200×200 (40 000 Kacheln); FPS-Messung folgt in Phase 10                                                        |
+| Performance               | Bodenkacheln in 16×16-Blöcken mit Culling, Rendern nur bei Änderungen; Token-Porträts je Kreatur einmal gerastert                                                                                                                                | Leistungstest-Karte 100×100 mit 150 Tokens: siehe Abnahme; Bildaufbauzeit live über „Leistung anzeigen“                      |
+
+## Abnahmekriterien
+
+| Kriterium                                                                       | Nachweis                                                                                                                                                                                     |
+| ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Installer installiert, App startet ohne Internet; keine Netzwerkanfragen (Test) | MSI/NSIS/portable gebaut und gestartet (Testprotokoll); `npm run check:offline` (CSP, Capabilities, Abhängigkeiten, `dist/`) in CI; ESLint verbietet Netzwerk-APIs                           |
+| Neue Map bauen, speichern, schließen, wieder öffnen – identisch                 | `storage.test.ts` (Round-Trip mit allen Inhaltsarten), `MapWorkspace.test.tsx` (Bedienablauf)                                                                                                |
+| JPG/PNG importieren, Raster kalibrieren, Wände zeichnen, Tokens bewegen         | `ImportAndWalls.test.tsx`, `gridDetect.test.ts`, `Tokens.test.tsx`, manuell mit Abenteuerkarte (1:1)                                                                                         |
+| Feuerball, Brennende Hände, Blitz korrekt – auch mit Wand                       | `aoe.test.ts` (52 Felder, Kegel 1-1-3, 20 Felder Linie; Wand blockiert; um Ecken)                                                                                                            |
+| Large/Huge betroffen, wenn ein Teil im Bereich liegt                            | `effects.test.ts` (Large, Huge, Gargantuan mit Teilüberdeckung)                                                                                                                              |
+| Beliebige SRD-Kreatur mit Statblock; Spieler-Token anlegbar                     | `Tokens.test.tsx`, `portrait.test.ts` (alle 334 Kreaturen)                                                                                                                                   |
+| Initiative, HP, Zustände, Würfel funktionieren zusammen                         | `Combat.test.tsx`, `combat.test.ts`, `attack.test.ts`, `dice.test.ts`                                                                                                                        |
+| Spieleransicht zeigt nur Erlaubtes; Nebel/Licht funktionieren                   | `vision.test.ts` (core/editor), `Vision.test.tsx` (Kanal zur Spieleransicht ohne Verborgenes)                                                                                                |
+| 100×100-Map mit 150 Tokens läuft flüssig                                        | `performance.test.ts` (Sicht mit 25 Lichtern, Bewegung, Feuerball, Speichern/Laden an der Leistungstest-Karte); Bildaufbauzeit im Programm über „Leistung anzeigen“ (Werte im Testprotokoll) |
+| Alle Funktionen per Maus und Tastatur; Deutsch vollständig                      | Tastaturabläufe in den UI-Tests (Fokusfeld + Eingabe für alle Werkzeuge); `i18n.test.ts` prüft, dass jeder verwendete Schlüssel deutsch und englisch übersetzt ist                           |
 
 ## Testprotokoll
 

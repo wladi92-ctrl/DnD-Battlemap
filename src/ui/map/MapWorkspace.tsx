@@ -49,7 +49,8 @@ import { NoteDialog } from './NoteDialog';
 import { BackgroundImagePanel, PropertiesPanel } from './PropertiesPanel';
 import { StatusBar } from './StatusBar';
 import { Toolbar, ZOOM_STEP } from './Toolbar';
-import { useFileActions } from './useFileActions';
+import { reportError, useFileActions } from './useFileActions';
+import { EXAMPLES, loadExample } from '../examples';
 import { CalibrationDialog } from '../import/CalibrationDialog';
 import { beginImageImport, pickImageImport } from '../import/useImageImport';
 import { extensionOf } from '../../storage/assets';
@@ -272,7 +273,7 @@ function EmptyState({
   const pending = useRecoveryStore((s) => s.pending);
   const pendingCampaign = useRecoveryStore((s) => s.pendingCampaign);
   const locale = useSettings((s) => s.locale);
-  const { restoreRecovery, discardRecovery } = useFileActions();
+  const { restoreRecovery, discardRecovery, openDropped } = useFileActions();
 
   const recovery = pending?.recovery ?? pendingCampaign?.recovery;
   const savedAt = recovery?.savedAt ? new Date(recovery.savedAt) : null;
@@ -326,6 +327,28 @@ function EmptyState({
         <p>
           <strong>{t('start.offline')}</strong>
         </p>
+      </div>
+      <div className="card">
+        <h2>{t('examples.heading')}</h2>
+        <p className="muted small">{t('examples.intro')}</p>
+        <ul className="example-list">
+          {EXAMPLES.map((ex) => (
+            <li key={ex.id}>
+              <button
+                type="button"
+                className="btn"
+                onClick={() =>
+                  void loadExample(ex)
+                    .then((bytes) => openDropped(ex.file, bytes))
+                    .catch((e: unknown) => reportError(t, e))
+                }
+              >
+                {t(ex.title)}
+              </button>
+              <span className="muted small">{t(ex.description)}</span>
+            </li>
+          ))}
+        </ul>
       </div>
       <div className="card">
         <h2>{t('start.shortcuts')}</h2>
