@@ -7,6 +7,7 @@ import { COVERAGE_RULES, type CoverageRule } from '../../core/aoe';
 import { diagonalRules, type DiagonalRule } from '../../core/distance';
 import { TIE_RULES, type TieRule } from '../../editor/combat';
 import { defaultLocale, isLocale, type Locale } from '../../i18n';
+import { sanitizeOverrides, type KeyOverrides } from '../keymap';
 
 export type ThemeSetting = 'system' | 'light' | 'dark' | 'contrast';
 export const themeSettings: readonly ThemeSetting[] = ['system', 'light', 'dark', 'contrast'];
@@ -36,6 +37,8 @@ export interface Settings {
   skipDead: boolean;
   /** Kamera folgt dem Token, das am Zug ist. */
   cameraFollow: boolean;
+  /** Eigene Tastenbelegung (nur Abweichungen vom Standard). */
+  keymap: KeyOverrides;
 }
 
 export const defaultSettings: Settings = {
@@ -49,6 +52,7 @@ export const defaultSettings: Settings = {
   tieRule: 'bonus',
   skipDead: true,
   cameraFollow: true,
+  keymap: {},
 };
 
 const STORAGE_KEY = 'dnd-battlemap.settings.v1';
@@ -80,6 +84,7 @@ export function parseSettings(raw: unknown): Settings {
   if (TIE_RULES.includes(r.tieRule as TieRule)) result.tieRule = r.tieRule as TieRule;
   if (typeof r.skipDead === 'boolean') result.skipDead = r.skipDead;
   if (typeof r.cameraFollow === 'boolean') result.cameraFollow = r.cameraFollow;
+  result.keymap = sanitizeOverrides(r.keymap);
   return result;
 }
 
@@ -109,6 +114,7 @@ interface SettingsState extends Settings {
   setAutosaveSeconds: (seconds: AutosaveSeconds) => void;
   setCoverageRule: (rule: CoverageRule) => void;
   setCombatOptions: (o: Partial<Pick<Settings, 'tieRule' | 'skipDead' | 'cameraFollow'>>) => void;
+  setKeymap: (keymap: KeyOverrides) => void;
   reset: () => void;
 }
 
@@ -122,6 +128,7 @@ export const useSettings = create<SettingsState>((set) => ({
   setAutosaveSeconds: (autosaveSeconds) => set({ autosaveSeconds }),
   setCoverageRule: (coverageRule) => set({ coverageRule }),
   setCombatOptions: (o) => set(o),
+  setKeymap: (keymap) => set({ keymap }),
   reset: () => set({ ...defaultSettings }),
 }));
 
@@ -137,5 +144,6 @@ useSettings.subscribe((s) =>
     tieRule: s.tieRule,
     skipDead: s.skipDead,
     cameraFollow: s.cameraFollow,
+    keymap: s.keymap,
   }),
 );

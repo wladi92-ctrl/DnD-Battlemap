@@ -56,6 +56,14 @@ import {
   lightsInRect,
   placeLight,
 } from './visionTools';
+import {
+  cancelDraw,
+  drawActivate,
+  drawCursorMoved,
+  drawPointerDown,
+  drawPointerMove,
+  drawPointerUp,
+} from './drawTools';
 
 export type Notify = (key: MessageKey, params?: Record<string, string | number>) => void;
 
@@ -71,6 +79,7 @@ export const EDIT_TOOLS: readonly Tool[] = [
   'effect',
   'fog',
   'light',
+  'draw',
 ];
 
 const REASON_KEYS: Record<string, MessageKey | null> = {
@@ -113,7 +122,7 @@ function snapValue(v: number): number {
 // ------------------------------------------------------------------ Zeiger
 
 interface DragState {
-  kind: 'paint' | 'erase' | 'shape' | 'move' | 'marquee' | 'token' | 'aoe' | 'fog';
+  kind: 'paint' | 'erase' | 'shape' | 'move' | 'marquee' | 'token' | 'aoe' | 'fog' | 'draw';
   lastCell: Cell;
   start: { x: number; y: number };
   /** Bereits angewendete Verschiebung beim Bewegen. */
@@ -192,6 +201,10 @@ export function pointerDown(
       return;
     case 'light':
       placeLight(point);
+      return;
+    case 'draw':
+      drawPointerDown(point);
+      drag = { kind: 'draw', ...base };
       return;
     case 'select': {
       // Tokens liegen über Objekten und Wänden und haben Vorrang.
@@ -280,6 +293,9 @@ export function pointerMove(
     case 'fog':
       fogPointerMove(cell);
       return;
+    case 'draw':
+      drawPointerMove(point);
+      return;
     case 'marquee':
       ed.setMarquee({
         x: Math.min(d.start.x, point.x),
@@ -309,6 +325,9 @@ export function pointerUp(tool: Tool, notify: Notify) {
       return;
     case 'fog':
       fogPointerUp();
+      return;
+    case 'draw':
+      drawPointerUp();
       return;
     case 'shape': {
       const source = currentSource();
@@ -400,6 +419,10 @@ export function activateAt(tool: Tool, cell: Cell, shift: boolean, notify: Notif
     placeLight({ x: cell.x + 0.5, y: cell.y + 0.5 });
     return;
   }
+  if (tool === 'draw') {
+    drawActivate(cell);
+    return;
+  }
   if (tool === 'effect') {
     // Tastatur: Rasterkreuzung = linke obere Ecke des Fokusfeldes, sonst Feldmitte.
     const snap = ed.aoe?.originSnap;
@@ -425,6 +448,7 @@ export function cursorMoved(tool: Tool, cell: Cell) {
   const ed = useEditorStore.getState();
   if (tool === 'effect') aoePointerMove({ x: cell.x + 0.5, y: cell.y + 0.5 });
   if (tool === 'fog') fogCursorMoved(cell);
+  if (tool === 'draw') drawCursorMoved(cell);
   if ((tool === 'rect' || tool === 'line') && ed.shapeAnchor)
     ed.setPreview(shapeCells(tool, ed.shapeAnchor, cell));
 }
@@ -630,6 +654,7 @@ export function cancelEditing() {
     useMapStore.getState().endStroke();
   if (drag?.kind === 'token') cancelTokenDrag();
   cancelFog();
+  cancelDraw();
   drag = null;
   ed.setShapeAnchor(null);
   ed.setPreview([]);

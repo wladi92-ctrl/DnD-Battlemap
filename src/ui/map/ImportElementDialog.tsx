@@ -43,7 +43,7 @@ export function ImportElementDialog({ onClose, onCreated }: Props) {
   const pick = async () => {
     setError(null);
     try {
-      const picked = await getFileAccess().openImage(t('import.pickTitle'), t('import.filterName'));
+      const picked = await getFileAccess().openFile(t('import.pickTitle'), t('import.filterName'));
       if (!picked) return;
       const ext = extensionOf(picked.name);
       if (!(IMAGE_EXTENSIONS as readonly string[]).includes(ext))

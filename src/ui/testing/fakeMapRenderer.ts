@@ -13,7 +13,17 @@ export class MapRenderer {
   effects: readonly EffectVisual[] = [];
   fog: { mask: Uint8Array | null; mode: string } = { mask: null, mode: 'gm' };
   lights: readonly unknown[] = [];
+  drawings: readonly { shape: string; points: readonly unknown[]; color: string }[] = [];
+  pings: readonly { x: number; y: number }[] = [];
   showTerrain = false;
+  /** Exportierte Ausschnitte (Felder, Pixel pro Feld, Raster, Format). */
+  exports: {
+    rect: { x: number; y: number; w: number; h: number };
+    px: number;
+    grid: boolean;
+    mime: string;
+    doc: MapDocument | null;
+  }[] = [];
   destroyed = false;
 
   static async create(): Promise<MapRenderer> {
@@ -22,6 +32,21 @@ export class MapRenderer {
   }
 
   resize(): void {}
+  async tokensReady(): Promise<void> {}
+  async exportImage(
+    rect: { x: number; y: number; w: number; h: number },
+    px: number,
+    opts: { grid: boolean },
+    mime: string,
+  ): Promise<{ bytes: Uint8Array; width: number; height: number }> {
+    this.exports.push({ rect, px, grid: opts.grid, mime, doc: this.doc });
+    // Kleinstes JPEG-/PNG-Gerüst genügt (Inhalt wird in Tests nicht dekodiert).
+    const bytes =
+      mime === 'image/png'
+        ? new Uint8Array([0x89, 0x50, 0x4e, 0x47])
+        : new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
+    return { bytes, width: Math.round(rect.w * px), height: Math.round(rect.h * px) };
+  }
   setMap(map: MapVisual): void {
     this.map = map;
   }
@@ -43,6 +68,13 @@ export class MapRenderer {
   }
   setLights(markers: readonly unknown[]): void {
     this.lights = markers;
+  }
+  setDrawings(
+    items: readonly { shape: string; points: readonly unknown[]; color: string }[],
+    pings: readonly { x: number; y: number }[],
+  ): void {
+    this.drawings = items;
+    this.pings = pings;
   }
   setEffects(items: readonly EffectVisual[]): void {
     this.effects = items;

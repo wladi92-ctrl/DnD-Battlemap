@@ -7,6 +7,8 @@ import { useEffect } from 'react';
 import { startAutosave } from '../storage/autosave';
 import { getFileAccess } from '../storage/fileAccess';
 import { decodeProject } from '../storage/projectFile';
+import { decodeCampaign, encodeCampaign, isCampaignFile } from '../storage/campaignFile';
+import { useCampaignStore } from './state/campaignStore';
 import { reportError } from './map/useFileActions';
 import { referencedAssets, useMapStore } from './state/mapStore';
 import { useNoticeStore } from './state/noticeStore';
@@ -18,8 +20,12 @@ import { closePlayerView, startPlayerBroadcast } from './vision/playerChannel';
 export function useAppLifecycle() {
   const t = useT();
   const autosaveSeconds = useSettings((s) => s.autosaveSeconds);
-  const name = useMapStore((s) => s.doc?.name ?? null);
-  const dirty = useMapStore((s) => s.dirty);
+  const mapName = useMapStore((s) => s.doc?.name ?? null);
+  const campaignName = useCampaignStore((s) => s.campaign?.name ?? null);
+  const name = campaignName && mapName ? `${campaignName} · ${mapName}` : mapName;
+  const mapDirty = useMapStore((s) => s.dirty);
+  const campaignDirty = useCampaignStore((s) => s.dirty);
+  const dirty = mapDirty || campaignDirty;
 
   // Wiederherstellung nach Absturz: vorhandenen Autosave beim Start anbieten.
   useEffect(() => {
@@ -29,7 +35,9 @@ export function useAppLifecycle() {
       .then((bytes) => {
         if (!active || !bytes || useMapStore.getState().doc) return;
         try {
-          useRecoveryStore.getState().setPending(decodeProject(bytes));
+          if (isCampaignFile(bytes))
+            useRecoveryStore.getState().setPendingCampaign(decodeCampaign(bytes));
+          else useRecoveryStore.getState().setPending(decodeProject(bytes));
         } catch {
           // Unlesbare Sicherung (z. B. aus abgebrochenem Schreibvorgang) verwerfen.
           void fa.autosaveClear().catch(() => undefined);
@@ -50,15 +58,30 @@ export function useAppLifecycle() {
       intervalMs: autosaveSeconds * 1000,
       getSnapshot: () => {
         const s = useMapStore.getState();
-        return s.doc
-          ? {
-              doc: s.doc,
-              filePath: s.filePath,
-              dirty: s.dirty,
-              revision: s.revision,
-              assets: referencedAssets(s.doc, s.assets),
-            }
-          : null;
+        if (!s.doc) return null;
+        const c = useCampaignStore.getState();
+        if (c.campaign) {
+          // Kampagne: ganze Kampagne sichern (alle Szenen).
+          return {
+            doc: s.doc,
+            filePath: c.filePath,
+            dirty: s.dirty || c.dirty,
+            revision: s.revision + c.revision * 1_000_000,
+            encode: (recovery) => {
+              const contents = useCampaignStore.getState().collect();
+              if (!contents) throw new Error('Kampagne nicht verfügbar');
+              return encodeCampaign(contents, recovery);
+            },
+          };
+        }
+        return {
+          doc: s.doc,
+          filePath: s.filePath,
+          dirty: s.dirty,
+          revision: s.revision,
+          assets: referencedAssets(s.doc, s.assets, s.snapshots),
+          snapshots: s.snapshots,
+        };
       },
       write: (bytes) => getFileAccess().autosaveWrite(bytes),
       onError: () => {
@@ -87,7 +110,7 @@ export function useAppLifecycle() {
   useEffect(() => {
     if (!isTauri()) {
       const onBeforeUnload = (e: BeforeUnloadEvent) => {
-        if (useMapStore.getState().dirty) e.preventDefault();
+        if (useMapStore.getState().dirty || useCampaignStore.getState().dirty) e.preventDefault();
       };
       window.addEventListener('beforeunload', onBeforeUnload);
       return () => window.removeEventListener('beforeunload', onBeforeUnload);
@@ -97,7 +120,7 @@ export function useAppLifecycle() {
     void import('@tauri-apps/api/window').then(async ({ getCurrentWindow }) => {
       const off = await getCurrentWindow().onCloseRequested(async (event) => {
         const fa = getFileAccess();
-        if (useMapStore.getState().dirty) {
+        if (useMapStore.getState().dirty || useCampaignStore.getState().dirty) {
           const ok = await fa.confirm(
             t('confirm.closeUnsaved'),
             t('confirm.title'),
@@ -110,7 +133,8 @@ export function useAppLifecycle() {
           }
         }
         // Wiederherstellungsdaten nur behalten, wenn der Nutzer noch nicht entschieden hat.
-        if (!useRecoveryStore.getState().pending) await fa.autosaveClear().catch(() => undefined);
+        const rec = useRecoveryStore.getState();
+        if (!rec.pending && !rec.pendingCampaign) await fa.autosaveClear().catch(() => undefined);
         // Spieleransicht gehört zum Hauptfenster und schließt mit.
         await closePlayerView().catch(() => undefined);
       });

@@ -1,4 +1,7 @@
-/** Übersicht aller Tastenkürzel (Anzeige auf der Startseite und in der README). */
+/**
+ * Fest belegte Tastenkürzel (Strg-Kombinationen, Pfeiltasten, Maus …). Die anpassbaren
+ * Einzeltasten-Befehle stehen in keymap.ts; ShortcutTable zeigt beides.
+ */
 import type { MessageKey } from '../i18n';
 
 /** Benannte Tasten werden übersetzt (key.*), alle anderen wörtlich angezeigt. */
@@ -33,6 +36,7 @@ export const shortcutList: readonly ShortcutInfo[] = [
   { keys: [[k('ctrl'), 'O']], label: 'shortcut.open' },
   { keys: [[k('ctrl'), 'S']], label: 'shortcut.save' },
   { keys: [[k('ctrl'), k('shift'), 'S']], label: 'shortcut.saveAs' },
+  { keys: [[k('ctrl'), 'E']], label: 'shortcut.export' },
   {
     keys: [
       [k('ctrl'), 'Z'],
@@ -49,24 +53,8 @@ export const shortcutList: readonly ShortcutInfo[] = [
     ],
     label: 'shortcut.clipboard',
   },
-  { keys: [['V'], ['B'], ['U'], ['L'], ['F'], ['E'], ['N']], label: 'shortcut.tools' },
-  { keys: [['W']], label: 'shortcut.wall' },
-  { keys: [['D']], label: 'shortcut.door' },
-  { keys: [['A']], label: 'shortcut.effect' },
-  { keys: [[k('pageDown')], [k('pageUp')]], label: 'shortcut.turn' },
-  { keys: [['X']], label: 'shortcut.dice' },
-  { keys: [['O'], ['I']], label: 'shortcut.fogLight' },
   { keys: [[k('arrows')]], label: 'shortcut.tokenMove' },
-  { keys: [['H']], label: 'shortcut.pan' },
-  { keys: [['R']], label: 'shortcut.ruler' },
-  { keys: [['Q']], label: 'shortcut.rotate' },
-  { keys: [['Y']], label: 'shortcut.flip' },
-  { keys: [[k('delete')]], label: 'shortcut.delete' },
-  { keys: [['G']], label: 'shortcut.grid' },
-  { keys: [['T']], label: 'shortcut.terrainOverlay' },
   { keys: [[k('enter')]], label: 'shortcut.apply' },
-  { keys: [['+'], ['−']], label: 'shortcut.zoom' },
-  { keys: [['0']], label: 'shortcut.fit' },
   { keys: [[k('wheel')]], label: 'shortcut.wheel' },
   { keys: [[k('arrows')]], label: 'shortcut.cursor' },
   { keys: [[k('shift'), k('arrows')]], label: 'shortcut.panView' },

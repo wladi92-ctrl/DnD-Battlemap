@@ -4,23 +4,22 @@ Offline-Desktop-Anwendung für interaktive D&D-5e-Kampfkarten: Karten aus Elemen
 Bilder importieren und kalibrieren, Kreaturen als Tokens bewegen, Effektbereiche feldgenau
 anzeigen. Regelinhalte ausschließlich aus dem **SRD 5.1 (CC-BY-4.0)**.
 
-> **Entwicklungsstand: Phase 8 von 10 – Sicht, Licht, Nebel & Spieleransicht.**
-> Neu: Nebel des Krieges (aufdecken/verdecken mit Pinsel 1/3/5, Rechteck, Polygon; alles
-> auf-/zudecken), dynamische Sicht (Sichtlinie der Spielerfiguren, Wände/Türen/Gelände blockieren,
-> Grundhelligkeit hell/dämmrig/dunkel, Dunkelsicht), Lichtquellen (Vorlagen Kerze bis Tageslicht,
-> magische Dunkelheit, an Tokens heftbar), „erkundete“ Bereiche bleiben abgedunkelt sichtbar,
-> „Als Spieler ansehen“ und ein **zweites Fenster als Spieleransicht** (Beamer/Bildschirm;
-> Vollbild, eigene Kamera, reale Größe mit Kalibrierung). Die Spieleransicht erhält nur, was
-> Spieler sehen dürfen: keine verborgenen Tokens/Effekte, keine GM-Notizen, Geheimtüren als Wand.
-> Überarbeitet nach Phase 8: Kartengrafiken im Stil gedruckter Abenteuerkarten (Tuschumrisse,
-> Schlagschatten, Pinselkorn, neue Bäume/Obstbäume, Mauern und Türen), **Bilder für alle
-> 334 SRD-Kreaturen** (selbst erzeugte Porträts) mit „Bild ändern …“ für Tokens und Kreaturen,
-> zuverlässigere Rastererkennung für Abenteuerkarten (1:1-Import) mit „Feld ÷ 2 / × 2“ und
-> „Felder über die Bildbreite“.
-> Aus Phase 1–7: Karteneditor, Bildimport, Kantenwände, Tokens mit SRD-Kreaturen,
-> Spielercharaktere, Bewegung, Flächeneffekte mit Rettungswurf-Assistent, Initiative-Tracker,
-> Würfelroller, Angriffs-Helfer, Kampflog, `.dndmap`-Dateien, Autosave, Offline-Absicherung,
-> CI, Installer.
+> **Entwicklungsstand: Phase 9 von 10 – Zusatzfunktionen, Export, Encounter-Builder.**
+> Neu: **Kampagnen** (mehrere Karten als Szenen in einer `.dndcampaign`-Datei, Szenenwechsel,
+> Verknüpfungen „Tür → nächste Karte“, Kampagnennotizen, gespeicherte Begegnungen, Handouts mit
+> Bild/Text in der Spieleransicht), **Begegnungsplaner** (XP-Budget und Schwierigkeit
+> leicht/mittel/schwer/tödlich, alle Kreaturen in einem Schritt auf die Karte, Zusammenfassung
+> als Markdown/PDF), **Export** als PNG oder PDF (mit/ohne Raster, GM- oder Spieler-Version,
+> maßstabsgetreu 1 Feld = 1 Zoll mehrseitig mit Kachelnamen und Schnittmarken),
+> **Schnappschüsse** (Vorher/Nachher, Kampf pausieren), **Zeichnen und Ping** auf einem
+> temporären Overlay (auch in der Spieleransicht), **anpassbare Tastenkürzel**, **Bibliothek
+> teilen** (JSON-Export/-Import).
+> Aus Phase 1–8: Karteneditor im Stil gedruckter Abenteuerkarten, Bildimport mit
+> Rastererkennung, Kantenwände, Tokens mit Porträts für alle SRD-Kreaturen, Spielercharaktere,
+> Bewegung, Flächeneffekte mit Rettungswurf-Assistent, Initiative-Tracker, Würfelroller,
+> Angriffs-Helfer, Kampflog, Nebel/Licht/Sicht, Spieleransicht, `.dndmap`-Dateien, Autosave,
+> Offline-Absicherung, CI, Installer. Politur, Beispielkarten und Beispielkampagne folgen in
+> Phase 10.
 
 ## Voraussetzungen
 
@@ -308,6 +307,41 @@ Karte eingebettet.
   feinjustieren (Korrektur in %) – dann ist ein Feld 1 Zoll groß (für Miniaturen auf einem
   liegenden Bildschirm). Die Spieleransicht schließt sich mit dem GM-Fenster.
 
+**Zeichnen und Ping** (Werkzeug `Z`): Pfeil, Kreis oder Freihand in sechs Farben ziehen
+(Tastatur: `Eingabe` beginnt, Pfeiltasten führen, `Eingabe` beendet). `P` setzt einen
+pulsierenden Ping am Mauszeiger bzw. Fokusfeld, `C` löscht alle Zeichnungen. Zeichnungen und
+Pings sind temporär (nicht gespeichert, nicht im Rückgängig-Verlauf, beim Kartenwechsel weg) und
+erscheinen live in der Spieleransicht – auch über dem Nebel.
+
+**Exportieren** (`Strg`+`E`): **PNG** mit wählbarer Auflösung (Pixel pro Feld, bis 16 000 px
+Kantenlänge) oder **PDF** – entweder die ganze Karte auf einer Seite oder **maßstabsgetreu
+1 Feld = 1 Zoll** auf A4/Letter, mehrseitig mit Kachelnamen (A1, B1 …) und Schnittmarken zum
+Zusammensetzen (beim Drucken „Tatsächliche Größe“ wählen). Jeweils mit oder ohne Raster, als
+GM-Version (mit Notizen und Verborgenem) oder Spieler-Version (wie die Spieleransicht).
+
+**Begegnung planen** („Begegnung planen …“ im Reiter Kreaturen oder Kampagne): Gruppe aus den
+Spielercharakteren oder von Hand (Name, Stufe), Kreaturen suchen und mit Anzahl und Seite
+hinzufügen. Angezeigt werden XP gesamt, angepasste XP (Multiplikator nach Anzahl der Feinde und
+Gruppengröße), die Schwellen der Gruppe und die Schwierigkeit (leicht/mittel/schwer/tödlich).
+„Auf Karte setzen“ setzt alle Kreaturen ab dem Fokusfeld (ein Rückgängig-Schritt), eigene
+Kreaturenbilder werden übernommen. Zusammenfassung mit Kurzwerten als Markdown oder PDF; in
+einer Kampagne lässt sich die Begegnung speichern.
+
+**Schnappschüsse** (rechts): aktuellen Stand der Karte sichern (Tokens, Kampf, Effekte, Nebel,
+Lichter …) – z. B. „vor dem Kampf“ oder um einen Kampf zu pausieren – und später
+wiederherstellen (rückgängig machbar, das Kampflog bleibt). Bis zu 20 je Karte; sie werden mit
+der Karte bzw. Kampagne gespeichert.
+
+**Kampagne** (linker Reiter „Kampagne“): „Kampagne beginnen“ macht die geöffnete Karte zur
+ersten Szene. In einer Kampagne legen „Neue Karte“ und „Bild importieren …“ neue Szenen an;
+„Karte importieren …“ übernimmt eine vorhandene `.dndmap`. Szenen lassen sich wechseln,
+umbenennen, sortieren und entfernen. **Verknüpfungen**: Fokusfeld wählen (z. B. Tür oder
+Treppe), Ziel-Szene und Beschriftung angeben, „Am Fokusfeld verknüpfen“ – verknüpfte Felder sind
+golden markiert (nur GM), „Folgen“ wechselt die Szene. Dazu Kampagnennotizen (nur GM),
+gespeicherte Begegnungen und **Handouts** (Text und/oder Bild), die mit „Spielern zeigen“ groß
+in der Spieleransicht erscheinen. „Speichern“ sichert die ganze Kampagne als `.dndcampaign`;
+„Öffnen …“ lädt Karten und Kampagnen.
+
 **Würfel** (Knopf „Würfel“ in der Werkzeugleiste, `X`): W4 bis W100 per Klick, Ausdrücke wie
 `2d6+3` oder `3W8 + 1d4` (`Eingabe`), Vorteil/Nachteil für 1W20, Verlauf der letzten 50 Würfe,
 optional ins Kampflog.
@@ -333,6 +367,8 @@ Wegpunkte hinweg weiter (wie bei einer zusammenhängenden Bewegung).
 | `Bild↓` / `Bild↑`                             | Kampf: nächster / vorheriger Zug                          |
 | `X`                                           | Würfelroller ein/aus                                      |
 | `O` / `I`                                     | Nebel-Werkzeug / Licht-Werkzeug                           |
+| `Z` / `P` / `C`                               | Zeichnen / Ping / Zeichnungen löschen                     |
+| `Strg`+`E`                                    | Karte exportieren (PNG/PDF)                               |
 | `F` / `F11` (Spieleransicht)                  | Vollbild ein/aus                                          |
 | `+` / `-` / `0`                               | Vergrößern / Verkleinern / Einpassen                      |
 | Mausrad                                       | Zoomen am Mauszeiger                                      |
@@ -348,6 +384,13 @@ Wegpunkte hinweg weiter (wie bei einer zusammenhängenden Bewegung).
 UI-Skalierung 75–175 %, Diagonalregel (5e-Standard, Variante 5/10/5, euklidisch), Flächenregel
 für Effekte (halbe Abdeckung oder Feldmitte), Anzeige in
 Metern, Autosave-Intervall (30 s – 5 min, Standard 60 s).
+**Tastenkürzel** anpassen: alle Einzeltasten der Kartenansicht (Werkzeuge, Raster, Drehen,
+Zoom, Zugwechsel, Ping …) per „Ändern“ und Tastendruck neu belegen; ist die Taste vergeben,
+verliert der andere Befehl sie (mit Hinweis). Strg-Kombinationen, Pfeiltasten, Eingabe, Esc und
+Leertaste sind fest. Die Tabelle oben zeigt die Standardbelegung, die Startseite die aktuelle.
+**Bibliothek teilen**: Spielercharaktere, eigene Kreaturen, eigene Effekte und eigene
+Kreaturenbilder als JSON exportieren bzw. importieren (gleiche IDs werden nach Rückfrage
+ersetzt, ungültige Einträge übersprungen).
 
 **Dateiformat**: siehe [docs/DATEIFORMAT.md](docs/DATEIFORMAT.md).
 
@@ -446,6 +489,14 @@ enthalten (per Test erzwungen). Neue Sprache: JSON-Datei anlegen und in `src/i18
 | Kartenstil                | Ein gemeinsamer SVG-Filter für alle Objekte: Tuschumriss um die Silhouette, Schattierung zur Lichtseite (oben links), Schlagschatten, Pinselkorn; Böden/Mauern nur Korn (kachelbar)                                                              | Optik gedruckter D&D-Abenteuerkarten, ohne fremde Grafiken zu verwenden                                                      |
 | Kreaturenbilder           | Selbst erzeugte Porträts (eigene Silhouetten, Farben je Typ), zur Laufzeit erzeugt und nicht in Karten gespeichert; eigene Bilder haben Vorrang                                                                                                  | Das SRD enthält keine Bilder; Bilder aus Büchern/5e.tools sind urheberrechtlich geschützt                                    |
 | Rastererkennung (Teiler)  | Kammfilter über die Vielfachen der Feldgröße (unteres Quartil), danach Teilerprüfung bis ÷20 mit lokalen Spitzen; Feldgröße mit 4 Nachkommastellen, Rest ≤ 2 % am Rand zählt als Feld                                                            | Abenteuerkarten haben feine Rasterlinien unter kräftigen Wänden/Rahmen                                                       |
+| Begegnungsschwierigkeit   | XP-Schwellen je Stufe und Multiplikatoren nach Monsteranzahl aus dem **Dungeon Master's Guide (2014)** – nicht im SRD 5.1; in App und Zusammenfassung gekennzeichnet. Nur Feinde zählen; alle Feinde zählen mit                                  | Auf ausdrücklichen Wunsch; die XP der Kreaturen selbst stammen aus dem SRD                                                   |
+| Soundboard                | Nicht umgesetzt                                                                                                                                                                                                                                  | Im Lastenheft optional; auf Wunsch weggelassen                                                                               |
+| Kampagnen-Datei           | ZIP mit `campaign.json` und je Szene einer vollständigen `.dndmap`; die aktive Szene ist eine normale Karte im Editor                                                                                                                            | Kartenformat, Prüfung und Migration bleiben unverändert; alle Werkzeuge arbeiten wie gewohnt                                 |
+| Szenenwechsel             | Rückgängig/Wiederholen gilt je Besuch einer Szene (der Verlauf beginnt beim Wechsel neu)                                                                                                                                                         | Hält den Speicherbedarf bei vielen Szenen klein                                                                              |
+| Schnappschüsse            | Eigener Eintrag `snapshots.json` in der `.dndmap` (map.json bleibt Version 7); Wiederherstellen ersetzt alle Kartenfelder außer dem Kampflog                                                                                                     | Ältere Programmversionen ignorieren den Eintrag; Kampflog dokumentiert den tatsächlichen Verlauf                             |
+| Zeichnungen/Ping          | Temporär: nicht gespeichert, nicht im Rückgängig-Verlauf, beim Kartenwechsel gelöscht; über dem Nebel gezeichnet                                                                                                                                 | Zeigen am Tisch, ohne die Karte zu verändern                                                                                 |
+| PDF-Export                | Eigener PDF-Schreiber (JPEG-Seitenbilder, Helvetica/WinAnsi), 150 dpi, A4/Letter, 10 mm Rand, ganze Felder je Seite, Ausrichtung mit den wenigsten Seiten                                                                                        | Offline, ohne Fremdbibliothek; 1 Feld = 1 Zoll für Miniaturen                                                                |
+| Tastenkürzel              | Nur Einzeltasten anpassbar; Strg-Kombinationen fest; Belegung lokal in den Einstellungen                                                                                                                                                         | Strg-Kürzel sind Betriebssystem-Standard                                                                                     |
 | Bibliotheksgrafiken       | 168 selbst erzeugte SVGs, beim Start einmal in Texturen (128 px/Feld) gerastert                                                                                                                                                                  | Keine fremden Assets, scharf bis Zoom 200 %                                                                                  |
 | Performance               | Bodenkacheln in 16×16-Blöcken mit Culling, Rendern nur bei Änderungen                                                                                                                                                                            | Ausgelegt für 200×200 (40 000 Kacheln); FPS-Messung folgt in Phase 10                                                        |
 

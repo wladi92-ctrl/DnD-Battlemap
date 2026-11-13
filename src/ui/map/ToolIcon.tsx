@@ -24,6 +24,7 @@ const paths: Record<IconName, string> = {
     'M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3z',
   effect:
     'M12 12m-8 0a8 8 0 1 0 16 0a8 8 0 1 0-16 0M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0M12 2v3M12 19v3M2 12h3M19 12h3',
+  draw: 'M4 20c3-1 4-4 7-4s3 3 6 2M14 4l6 6-8 8H6v-6z',
 };
 
 const filled: ReadonlySet<IconName> = new Set(['select', 'pan']);

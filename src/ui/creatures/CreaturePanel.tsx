@@ -8,6 +8,7 @@ import { TEAMS, type Team } from '../../storage/mapDocument';
 import { setTool } from '../map/editorTools';
 import { useEditorStore } from '../state/editorStore';
 import { useLibraryStore } from '../state/libraryStore';
+import { useEncounterStore } from '../state/encounterStore';
 import { useNoticeStore } from '../state/noticeStore';
 import { useT } from '../useT';
 import { HomebrewDialog } from './HomebrewDialog';
@@ -284,6 +285,13 @@ export function CreaturePanel() {
           <PlaceControls defaultTeam="enemy" onPlace={(n, team) => place(current, n, team)} />
         </div>
       )}
+      <button
+        type="button"
+        className="btn library-import"
+        onClick={() => useEncounterStore.getState().show()}
+      >
+        {t('encounter.open')}
+      </button>
       <button type="button" className="btn library-import" onClick={() => setEditing('new')}>
         {t('creatures.newHomebrew')}
       </button>

@@ -12,6 +12,8 @@ import {
   type AutosaveSeconds,
   type ThemeSetting,
 } from './state/settingsStore';
+import { KeymapCard } from './settings/KeymapCard';
+import { LibraryTransferCard } from './settings/LibraryTransferCard';
 import { useT } from './useT';
 
 const themeLabels: Record<ThemeSetting, MessageKey> = {
@@ -146,6 +148,10 @@ export function SettingsPage() {
           </select>
         </div>
       </div>
+
+      <KeymapCard />
+
+      <LibraryTransferCard />
 
       <div className="field-inline">
         <button type="button" className="btn" onClick={s.reset}>

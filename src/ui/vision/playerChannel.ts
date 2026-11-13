@@ -10,6 +10,30 @@ import { translate } from '../../i18n';
 import type { MapDocument } from '../../storage/mapDocument';
 import { useMapStore } from '../state/mapStore';
 import { useSettings } from '../state/settingsStore';
+import { useOverlayStore, type Drawing, type Ping } from '../state/overlayStore';
+import { useCampaignStore } from '../state/campaignStore';
+
+/** In der Spieleransicht gezeigtes Handout. */
+export interface PlayerHandout {
+  title: string;
+  text: string;
+  image: Uint8Array | null;
+  /** Dateiname des Bildes (für den MIME-Typ). */
+  imageName: string | null;
+}
+
+/** Aktuell gezeigtes Handout der Kampagne (oder null). */
+export function shownHandout(): PlayerHandout | null {
+  const { campaign, shownHandout: id, handoutImages } = useCampaignStore.getState();
+  const h = id ? campaign?.handouts.find((x) => x.id === id) : undefined;
+  if (!h) return null;
+  return {
+    title: h.title,
+    text: h.text,
+    image: h.image ? (handoutImages.get(h.image) ?? null) : null,
+    imageName: h.image ?? null,
+  };
+}
 
 export const PLAYER_CHANNEL = 'dnd-battlemap-player';
 export const PLAYER_WINDOW = 'player';
@@ -17,7 +41,14 @@ export const PLAYER_WINDOW = 'player';
 export type PlayerMessage =
   | { type: 'hello' }
   | { type: 'bye' }
-  | { type: 'state'; doc: MapDocument | null; mask: Uint8Array | null }
+  | {
+      type: 'state';
+      doc: MapDocument | null;
+      mask: Uint8Array | null;
+      /** Temporäre Zeichnungen und Pings (Overlay). */
+      overlay: { drawings: Drawing[]; pings: Ping[] };
+      handout: PlayerHandout | null;
+    }
   | { type: 'assets'; assets: Map<string, Uint8Array> };
 
 /** Spieler-Sicht eines Dokuments: gefiltertes Dokument und Maske (null = alles sichtbar). */
@@ -50,7 +81,14 @@ export function startPlayerBroadcast(): () => void {
       channel.postMessage({ type: 'assets', assets: new Map(assets) } satisfies PlayerMessage);
     }
     const st = doc ? playerState(doc) : { doc: null, mask: null };
-    channel.postMessage({ type: 'state', doc: st.doc, mask: st.mask } satisfies PlayerMessage);
+    const o = useOverlayStore.getState();
+    channel.postMessage({
+      type: 'state',
+      doc: st.doc,
+      mask: st.mask,
+      overlay: { drawings: o.drawings, pings: o.pings },
+      handout: shownHandout(),
+    } satisfies PlayerMessage);
   };
   const schedule = () => {
     if (connected && !timer) timer = setTimeout(sendState, 100);
@@ -68,8 +106,18 @@ export function startPlayerBroadcast(): () => void {
   const off = useMapStore.subscribe((s, prev) => {
     if (s.doc !== prev.doc || s.assets !== prev.assets) schedule();
   });
+  // Laufende Zeichnungen (Entwurf) bleiben GM-intern; fertige und Pings gehen sofort raus.
+  const offOverlay = useOverlayStore.subscribe((s, prev) => {
+    if (s.drawings !== prev.drawings || s.pings !== prev.pings) schedule();
+  });
+  const offCampaign = useCampaignStore.subscribe((s, prev) => {
+    if (s.shownHandout !== prev.shownHandout || s.campaign?.handouts !== prev.campaign?.handouts)
+      schedule();
+  });
   return () => {
     off();
+    offOverlay();
+    offCampaign();
     if (timer) clearTimeout(timer);
     channel.close();
   };

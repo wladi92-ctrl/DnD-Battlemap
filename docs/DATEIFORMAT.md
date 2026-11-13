@@ -318,6 +318,67 @@ Laden abgelehnt; beim Ändern der Kartengröße werden sie umgerechnet.
 - Findet die App beim Start eine Autosave-Datei, bietet sie **Wiederherstellen** oder
   **Verwerfen** an.
 
+## Schnappschüsse (`snapshots.json` in der `.dndmap`)
+
+Optional, neben `map.json`: `[{ "id", "name", "createdAt", "doc" }]` – `doc` ist ein vollständiges
+Kartendokument wie `map.json` (beim Laden geprüft und ggf. migriert; ungültige Einträge werden
+übersprungen). Höchstens 20. Bilder unter `assets/`, die nur ein Schnappschuss braucht, bleiben
+erhalten. `map.json` selbst bleibt Version 7.
+
+## Kampagne (`.dndcampaign`)
+
+ZIP-Archiv mit:
+
+| Eintrag              | Inhalt                                                                                  |
+| -------------------- | --------------------------------------------------------------------------------------- |
+| `campaign.json`      | Kampagne (siehe unten)                                                                  |
+| `scenes/<id>.dndmap` | je Szene eine vollständige Karte im `.dndmap`-Format (inkl. Assets und Schnappschüssen) |
+| `handouts/<datei>`   | Bilder der Handouts                                                                     |
+| `recovery.json`      | nur in Autosave-Dateien                                                                 |
+
+```json
+{
+  "format": "dndcampaign",
+  "version": 1,
+  "id": "…",
+  "name": "Die Gruft",
+  "createdAt": "…",
+  "modifiedAt": "…",
+  "current": "s1",
+  "scenes": [
+    { "id": "s1", "name": "Taverne" },
+    { "id": "s2", "name": "Keller" }
+  ],
+  "links": [{ "id": "l1", "scene": "s1", "x": 4, "y": 7, "target": "s2", "label": "Falltür" }],
+  "notes": "…",
+  "encounters": [
+    {
+      "id": "e1",
+      "name": "Ratten",
+      "party": [{ "name": "Mira", "level": 3 }],
+      "groups": [{ "source": "giant-rat", "name": "Giant Rat", "count": 4, "team": "enemy" }],
+      "notes": ""
+    }
+  ],
+  "handouts": [{ "id": "h1", "title": "Brief", "text": "…", "image": "h1.png" }]
+}
+```
+
+Grenzen: 100 Szenen, 1000 Verknüpfungen, 200 Begegnungen (je 20 Charaktere, 30 Gruppen à 1–50),
+200 Handouts, Notizen 50 000 Zeichen. Verknüpfungen auf unbekannte Szenen werden verworfen;
+Szenen-Dateien, die nicht gelesen werden können, werden gemeldet und fehlen; eine neuere
+Kartenversion in einer Szene lehnt die ganze Kampagne mit Hinweis ab.
+
+## Bibliothek teilen (JSON)
+
+```json
+{ "format": "dndbattlemap-library", "version": 1, "exportedAt": "…",
+  "entries": [{ "kind": "pc" | "creature" | "effect" | "portrait", "id": "…", "name": "…", "data": { … } }] }
+```
+
+`data` entspricht dem gespeicherten Bibliothekseintrag; beim Import läuft jeder Eintrag durch
+dieselbe Prüfung wie beim Speichern (höchstens 5000 Einträge, Datei bis 200 MB).
+
 ## Lokale Bibliothek (nicht Teil der Karte)
 
 Spielercharaktere, eigene Kreaturen und eigene Effekte liegen in `bibliothek.sqlite` im App-Datenordner

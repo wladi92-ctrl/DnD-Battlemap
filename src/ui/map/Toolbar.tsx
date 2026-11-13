@@ -4,6 +4,8 @@ import { useEditorStore } from '../state/editorStore';
 import { useMapStore } from '../state/mapStore';
 import { useViewStore, type Tool } from '../state/viewStore';
 import { useT } from '../useT';
+import { buildKeymap, keyLabel, TOOL_DEFAULTS } from '../keymap';
+import { useSettings } from '../state/settingsStore';
 import { setTool } from './editorTools';
 import { ToolIcon } from './ToolIcon';
 
@@ -13,6 +15,7 @@ interface Props {
   onImportImage: () => void;
   onSave: () => void;
   onSaveAs: () => void;
+  onExport: () => void;
   onTemplate: () => void;
   onUndo: () => void;
   onRedo: () => void;
@@ -21,21 +24,8 @@ interface Props {
 export const ZOOM_STEP = 1.25;
 
 /** Werkzeuge in Anzeigereihenfolge mit Tastenkürzel. */
-export const TOOLS: readonly { id: Tool; key: string }[] = [
-  { id: 'pan', key: 'H' },
-  { id: 'select', key: 'V' },
-  { id: 'brush', key: 'B' },
-  { id: 'rect', key: 'U' },
-  { id: 'line', key: 'L' },
-  { id: 'fill', key: 'F' },
-  { id: 'erase', key: 'E' },
-  { id: 'wall', key: 'W' },
-  { id: 'note', key: 'N' },
-  { id: 'ruler', key: 'R' },
-  { id: 'effect', key: 'A' },
-  { id: 'fog', key: 'O' },
-  { id: 'light', key: 'I' },
-];
+/** Werkzeuge in Toolbar-Reihenfolge (Tasten: anpassbar, siehe keymap.ts). */
+export const TOOLS: readonly Tool[] = TOOL_DEFAULTS.map((tl) => tl.id);
 
 export function Toolbar({
   onNew,
@@ -43,12 +33,14 @@ export function Toolbar({
   onImportImage,
   onSave,
   onSaveAs,
+  onExport,
   onTemplate,
   onUndo,
   onRedo,
 }: Props) {
   const t = useT();
   const tool = useViewStore((s) => s.tool);
+  const keymap = buildKeymap(useSettings((s) => s.keymap));
   const zoom = useViewStore((s) => s.camera.zoom);
   const doc = useMapStore((s) => s.doc);
   const undoTop = useMapStore((s) => s.history.undo[s.history.undo.length - 1]);
@@ -93,6 +85,15 @@ export function Toolbar({
         >
           {t('file.saveAs')}
         </button>
+        <button
+          type="button"
+          className="btn"
+          onClick={onExport}
+          disabled={!doc}
+          aria-keyshortcuts="Control+E"
+        >
+          {t('file.export')}
+        </button>
       </div>
       {doc && (
         <>
@@ -129,20 +130,22 @@ export function Toolbar({
             </button>
           </div>
           <div className="toolbar-group" role="group" aria-label={t('toolbar.tools')}>
-            {TOOLS.map((tl) => {
-              const label = t(`tool.${tl.id}` as MessageKey);
+            {TOOLS.map((id) => {
+              const label = t(`tool.${id}` as MessageKey);
+              const keys = keymap[`tool.${id}`];
+              const hint = keys.map((k) => keyLabel(k, t)).join(', ');
               return (
                 <button
-                  key={tl.id}
+                  key={id}
                   type="button"
                   className="btn btn-icon"
-                  aria-pressed={tool === tl.id}
+                  aria-pressed={tool === id}
                   aria-label={label}
-                  aria-keyshortcuts={tl.key}
-                  title={`${label} (${tl.key})`}
-                  onClick={() => setTool(tl.id)}
+                  aria-keyshortcuts={keys.length ? keys.join(' ') : undefined}
+                  title={hint ? `${label} (${hint})` : label}
+                  onClick={() => setTool(id)}
                 >
-                  <ToolIcon name={tl.id} />
+                  <ToolIcon name={id} />
                 </button>
               );
             })}

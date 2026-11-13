@@ -65,6 +65,8 @@ export class TokenLayer {
   /** Standard-Porträts je portraitKey (Tokens ohne eigenes Bild). */
   private portraits = new Map<string, Texture>();
   private portraitLoading = new Set<string>();
+  /** Laufende Ladevorgänge (Bilder und Porträts) – für ready(). */
+  private pending = new Set<Promise<unknown>>();
   private destroyed = false;
   private assets: ReadonlyMap<string, Uint8Array> = new Map();
   private label: ConditionLabel = (id) => id.slice(0, 3);
@@ -127,7 +129,7 @@ export class TokenLayer {
     if (this.portraitLoading.has(key)) return;
     this.portraitLoading.add(key);
     const srdId = t.kind === 'creature' && t.source && !t.source.includes(':') ? t.source : null;
-    void (srdId ? creatureTypeOf(srdId).catch(() => undefined) : Promise.resolve(undefined))
+    const job = (srdId ? creatureTypeOf(srdId).catch(() => undefined) : Promise.resolve(undefined))
       .then((type) =>
         rasterize(
           svgUrl(
@@ -150,6 +152,17 @@ export class TokenLayer {
       .catch(() => {
         // Ohne Porträt bleibt die Scheibe mit Initialen.
       });
+    this.track(job);
+  }
+
+  private track(job: Promise<unknown>) {
+    this.pending.add(job);
+    void job.finally(() => this.pending.delete(job));
+  }
+
+  /** Erfüllt, sobald alle angestoßenen Bilder/Porträts geladen (oder fehlgeschlagen) sind. */
+  async ready(): Promise<void> {
+    while (this.pending.size) await Promise.allSettled([...this.pending]);
   }
 
   private dropImage(key: string) {
@@ -174,6 +187,7 @@ export class TokenLayer {
       })
       .catch(() => null);
     this.images.set(path, p);
+    this.track(p);
   }
 
   private rebuildAll() {

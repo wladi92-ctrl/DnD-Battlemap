@@ -1796,3 +1796,252 @@ input[type='color'] {
 .portrait-actions .small {
   flex-basis: 100%;
 }
+
+/* ---------------------------------------------------------------- Phase 9 */
+
+/* Tastenkürzel (Einstellungen) */
+.keymap-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.6rem;
+}
+
+.keymap-table th,
+.keymap-table td {
+  padding: 0.25rem 0.4rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  font-weight: normal;
+  vertical-align: middle;
+}
+
+.keymap-table kbd + kbd {
+  margin-left: 0.25rem;
+}
+
+.keymap-actions {
+  white-space: nowrap;
+  text-align: right;
+}
+
+.keymap-actions .btn + .btn {
+  margin-left: 0.25rem;
+}
+
+/* Zeichenwerkzeug: Farbauswahl */
+.draw-colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.4rem 0;
+}
+
+.swatch {
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  cursor: pointer;
+  padding: 0;
+}
+
+.swatch.selected {
+  outline: 3px solid var(--focus);
+  outline-offset: 1px;
+}
+
+/* Kampagne, Schnappschüsse */
+.campaign-panel {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.45rem;
+}
+
+.campaign-panel h3 {
+  margin: 0;
+}
+
+.campaign-panel h4 {
+  margin: 0.4rem 0 0.25rem;
+  font-size: 0.9rem;
+}
+
+.campaign-panel textarea {
+  width: 100%;
+}
+
+.campaign-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.campaign-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  padding: 0.15rem 0.25rem;
+  border-radius: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.campaign-list li.active {
+  background: var(--surface-2);
+  font-weight: 600;
+}
+
+.campaign-list-actions {
+  display: flex;
+  gap: 0.2rem;
+  flex: none;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.link-button:hover {
+  text-decoration: underline;
+}
+
+/* Begegnungsplaner */
+.encounter {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.encounter-pcs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 1rem;
+}
+
+.encounter-list,
+.encounter-results {
+  list-style: none;
+  margin: 0.3rem 0;
+  padding: 0;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.encounter-list li {
+  display: grid;
+  grid-template-columns: 4.5rem 1fr auto auto;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.encounter-list li > span:first-child {
+  grid-column: 1 / span 2;
+}
+
+.encounter-list input[type='number'] {
+  width: 4.5rem;
+}
+
+.encounter-results li {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.encounter-rating {
+  border: 2px solid var(--border);
+  border-left-width: 0.5rem;
+  border-radius: 0.35rem;
+  padding: 0.4rem 0.6rem;
+}
+
+.encounter-rating p {
+  margin: 0.15rem 0;
+}
+
+.difficulty-easy {
+  border-left-color: #2e8b57;
+}
+
+.difficulty-medium {
+  border-left-color: #d4a72c;
+}
+
+.difficulty-hard {
+  border-left-color: #d9622b;
+}
+
+.difficulty-deadly {
+  border-left-color: #b3261e;
+}
+
+/* Handout in der Spieleransicht */
+.handout-card {
+  position: absolute;
+  z-index: 5;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-width: min(90vw, 56rem);
+  max-height: 88vh;
+  overflow: auto;
+  padding: 1.2rem 1.6rem;
+  background: #f3e9d2;
+  color: #2a1c11;
+  border: 3px solid #7a2a1a;
+  border-radius: 0.6rem;
+  box-shadow: 0 1rem 3rem rgb(0 0 0 / 0.6);
+  font-family: Georgia, 'Book Antiqua', serif;
+}
+
+.handout-card h2 {
+  margin-top: 0;
+}
+
+.handout-card img {
+  display: block;
+  max-width: 100%;
+  max-height: 60vh;
+  margin: 0 auto 0.8rem;
+}
+
+.handout-text {
+  white-space: pre-wrap;
+  font-size: 1.2rem;
+}
+
+/* Kampagne in der schmalen linken Spalte: untereinander statt nebeneinander */
+.campaign-panel .field {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.15rem;
+}
+
+.campaign-panel .field input,
+.campaign-panel .field select,
+.campaign-panel .field textarea {
+  width: 100%;
+  min-width: 0;
+}
+
+.campaign-panel .button-grid {
+  grid-template-columns: 1fr;
+}
+
+.campaign-list li {
+  flex-wrap: wrap;
+}
+
+.campaign-list li > span:first-child,
+.campaign-list li > .link-button {
+  flex: 1 1 8rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

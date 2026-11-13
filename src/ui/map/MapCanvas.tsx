@@ -46,6 +46,10 @@ import { tokenCells } from '../../editor/tokens';
 import { moveRangeFor, selectedTokens, stepSelectedTokens } from './tokenTools';
 import { aoePointerMove, cancelAoe, effectVisuals, previewResult } from './effectTools';
 import { brushCells, cancelFog, closePolygon } from './visionTools';
+import { cancelDraw } from './drawTools';
+import { setActiveRenderer, setRendererRefresh } from './rendererRegistry';
+import { activeLinks, useCampaignStore } from '../state/campaignStore';
+import { overlayVisuals, useOverlayStore } from '../state/overlayStore';
 import {
   computeVision,
   lightPosition,
@@ -104,6 +108,7 @@ function buildOverlay(): OverlayState {
     ...tokenOverlay(tool),
     targets: aoeTargets(tool),
     current: currentTurnRect(),
+    links: activeLinks(useCampaignStore.getState().campaign).map((l) => ({ x: l.x, y: l.y })),
   };
 }
 
@@ -208,6 +213,7 @@ const HINTS: Partial<Record<string, MessageKey[]>> = {
   effect: ['hint.effect'],
   fog: ['hint.fog'],
   light: ['hint.light'],
+  draw: ['hint.draw'],
 };
 
 export function MapCanvas() {
@@ -235,10 +241,12 @@ export function MapCanvas() {
     void MapRenderer.create(host).then((r) => {
       if (cancelled) return r.destroy();
       rendererRef.current = r;
+      setActiveRenderer(r);
       setReady(true);
     });
     return () => {
       cancelled = true;
+      setActiveRenderer(null);
       rendererRef.current?.destroy();
       rendererRef.current = null;
       setReady(false);
@@ -319,6 +327,8 @@ export function MapCanvas() {
     r.setCamera(useViewStore.getState().camera);
     pushOverlay();
     const offMap = useMapStore.subscribe((s, prev) => {
+      // Andere Karte (Öffnen, Szenenwechsel): temporäre Zeichnungen gehören zur alten Karte.
+      if (s.doc?.id !== prev.doc?.id) useOverlayStore.getState().clear();
       if (s.doc !== prev.doc || s.assets !== prev.assets) {
         pushDoc();
         pushOverlay();
@@ -338,6 +348,28 @@ export function MapCanvas() {
       ) {
         pushOverlay();
       }
+    });
+    const pushDrawings = () => {
+      const v = overlayVisuals(useOverlayStore.getState());
+      r.setDrawings(v.items, v.pings);
+    };
+    pushDrawings();
+    setRendererRefresh(() => {
+      pushDoc();
+      pushEffects();
+      pushOverlay();
+      pushDrawings();
+    });
+    const offCampaign = useCampaignStore.subscribe((s, prev) => {
+      if (
+        s.campaign?.links !== prev.campaign?.links ||
+        s.campaign?.current !== prev.campaign?.current
+      )
+        pushOverlay();
+    });
+    const offDrawings = useOverlayStore.subscribe((s, prev) => {
+      if (s.drawings !== prev.drawings || s.draft !== prev.draft || s.pings !== prev.pings)
+        pushDrawings();
     });
     const offEditor = useEditorStore.subscribe((s, prev) => {
       if (s.showTerrain !== prev.showTerrain) r.setShowTerrain(s.showTerrain);
@@ -369,7 +401,10 @@ export function MapCanvas() {
       offMap();
       offView();
       offEditor();
+      offDrawings();
+      offCampaign();
       offSettings();
+      setRendererRefresh(null);
     };
     // t wechselt mit der Sprache; Abzeichen werden dann neu beschriftet.
   }, [ready, t]);
@@ -529,6 +564,7 @@ export function MapCanvas() {
       if (ed.spawn) ed.setSpawn(null);
       else if (tool === 'effect' && cancelAoe()) return;
       else if (tool === 'fog' && cancelFog()) return;
+      else if (tool === 'draw' && cancelDraw()) return;
       else if (ed.wallChain.length) endWallChain();
       else if (view.ruler.active) view.rulerEnd();
       else if (view.ruler.points.length) view.rulerClear();

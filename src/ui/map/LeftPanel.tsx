@@ -1,4 +1,4 @@
-/** Linke Seitenleiste mit Reitern: Elemente, Kreaturen (SRD + eigene), Charaktere. */
+/** Linke Seitenleiste mit Reitern: Elemente, Kreaturen (SRD + eigene), Charaktere, Effekte, Kampagne. */
 import { useId, useRef, useState } from 'react';
 import type { MessageKey } from '../../i18n';
 import { CharacterPanel } from '../creatures/CharacterPanel';
@@ -6,8 +6,9 @@ import { EffectLibraryPanel } from '../effects/EffectLibraryPanel';
 import { CreaturePanel } from '../creatures/CreaturePanel';
 import { useT } from '../useT';
 import { LibraryPanel } from './LibraryPanel';
+import { CampaignPanel } from '../campaign/CampaignPanel';
 
-const TABS = ['elements', 'creatures', 'characters', 'effects'] as const;
+const TABS = ['elements', 'creatures', 'characters', 'effects', 'campaign'] as const;
 type Tab = (typeof TABS)[number];
 
 export function LeftPanel() {
@@ -70,8 +71,10 @@ export function LeftPanel() {
               <CreaturePanel />
             ) : tb === 'characters' ? (
               <CharacterPanel />
-            ) : (
+            ) : tb === 'effects' ? (
               <EffectLibraryPanel />
+            ) : (
+              <CampaignPanel />
             ))}
         </div>
       ))}

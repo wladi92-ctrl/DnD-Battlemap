@@ -13,9 +13,11 @@ import type { MapDocument } from '../../storage/mapDocument';
 import { Modal } from '../Modal';
 import { useApplySettings } from '../useApplySettings';
 import { useT } from '../useT';
-import { PLAYER_CHANNEL, type PlayerMessage } from '../vision/playerChannel';
+import { PLAYER_CHANNEL, type PlayerHandout, type PlayerMessage } from '../vision/playerChannel';
+import { HandoutCard } from './HandoutCard';
 import { effectVisuals } from '../map/effectTools';
 import { effectLabel } from '../creatures/effectLabels';
+import { overlayVisuals, useOverlayStore } from '../state/overlayStore';
 
 const STORAGE_KEY = 'dnd-battlemap.player.v1';
 
@@ -79,6 +81,7 @@ export function PlayerApp() {
   const [viewport, setViewport] = useState<Size>({ width: 1, height: 1 });
   const [realSize, setRealSize] = useState<RealSizeSettings>(loadRealSize);
   const [calibrating, setCalibrating] = useState(false);
+  const [handout, setHandout] = useState<PlayerHandout | null>(null);
   const [controls, setControls] = useState(true);
   const drag = useRef<{ x: number; y: number } | null>(null);
   const fittedFor = useRef<string | null>(null);
@@ -92,6 +95,8 @@ export function PlayerApp() {
       if (m?.type === 'state') {
         setDoc(m.doc);
         setMask(m.mask);
+        useOverlayStore.getState().replace(m.overlay.drawings, m.overlay.pings);
+        setHandout(m.handout);
       } else if (m?.type === 'assets') {
         setAssets(m.assets);
       }
@@ -160,6 +165,17 @@ export function PlayerApp() {
   }, [ready, doc, mask, assets, t]);
   useEffect(() => rendererRef.current?.setCamera(camera), [ready, camera]);
 
+  // Zeichnungen und Pings der Spielleitung.
+  useEffect(() => {
+    if (!ready) return;
+    const push = () => {
+      const v = overlayVisuals(useOverlayStore.getState());
+      rendererRef.current?.setDrawings(v.items, v.pings);
+    };
+    push();
+    return useOverlayStore.subscribe(push);
+  }, [ready]);
+
   // Steuerleiste nach 3 s ohne Bewegung ausblenden (Beamer).
   useEffect(() => {
     if (!controls) return;
@@ -220,6 +236,7 @@ export function PlayerApp() {
       }}
       tabIndex={-1}
     >
+      {handout && <HandoutCard handout={handout} />}
       <div
         ref={hostRef}
         className="player-canvas"

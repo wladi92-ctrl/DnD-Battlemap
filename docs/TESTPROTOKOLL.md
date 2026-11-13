@@ -390,3 +390,44 @@ Neue Tests:
 | Porträtgalerie (334 Kreaturen)                               | ✅ alle sichtbar; gefunden und behoben: Schlangen (doppeltes Attribut), „Fire Giant“ als Flamme |
 | Tokens auf der Karte, Kreaturenliste, Bild-Bedienelemente    | ✅ Porträts mit Teamring, Vorschaubilder, „Bild ändern …“/„Standardbild“                        |
 | Konsole                                                      | ✅ keine Fehler                                                                                 |
+
+## Phase 9 – Zusatzfunktionen, Export, Encounter-Builder (2026-11-13)
+
+### Automatisch
+
+| Prüfung                                                                  | Ergebnis                   |
+| ------------------------------------------------------------------------ | -------------------------- |
+| `npm run verify` (Lint, Prettier, `tsc`, Vitest, Build, Offline-Prüfung) | ✅ 288 Tests in 42 Dateien |
+| `npm run test:rust`                                                      | ✅ 6 Tests                 |
+
+Neue Tests:
+
+- `src/core/pdf.test.ts` – PDF-Struktur (Kopf, Seiten, JPEG-Bilder, Text mit Umlauten und
+  Sonderzeichen, gültige xref-Offsets), Zeilenumbruch; Drucklayout 1 Feld = 1 Zoll (A4 quer
+  10 × 7 Felder je Seite, jedes Feld genau einmal), Einpassen, Kachelnamen
+- `src/core/encounter.test.ts` – Schwellen (DMG-Beispiel 4 × Stufe 3), Multiplikatoren mit
+  Gruppenanpassung (×0,5 … ×5), Bewertung (Oger + 2 Goblins = schwer), Grenzfälle
+- `src/storage/campaign.test.ts` – Schnappschüsse in der `.dndmap` (inkl. nur dort benötigter
+  Bilder), Wiederherstellen als Patch (Kampflog bleibt, rückgängig), ungültige Schnappschüsse;
+  Kampagnen-Round-Trip (Szenen, Verknüpfungen, Notizen, Begegnungen, Handouts), beschädigte
+  Szene wird gemeldet, Prüfung/Begrenzung; Begegnung in einem Schritt setzen
+- `src/storage/libraryTransfer.test.ts` – Export/Import aller Arten, Auswahl, ungültige Einträge,
+  falsches Format/neuere Version/kein JSON
+- `src/ui/keymap.test.ts`, `src/ui/state/overlayStore.test.ts` – Tastenbelegung (Konflikte,
+  Zurücksetzen, reservierte Tasten, gespeicherte Daten prüfen), Zeichnungen und Pings
+- `src/ui/phase9/Phase9.test.tsx` – Zeichnen per Tastatur, Ping, Löschen; Taste neu belegen;
+  PNG- und PDF-Export (9 Seiten, Spieler-Version); Begegnung planen bis Markdown und Setzen mit
+  einem Rückgängig-Schritt; Schnappschuss; Kampagne mit Szene, Verknüpfung, Handout, Speichern
+  und Wiederöffnen; Bibliothek exportieren/importieren
+
+### Manuell (Produktions-Build, Produktions-CSP, Chromium)
+
+| Prüfung                                        | Ergebnis                                                                                                                                         |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Zeichnen (Pfeil) und Ping                      | ✅ sichtbar, Ping pulsiert                                                                                                                       |
+| PNG-Export 30 × 20 Felder, 100 px              | ✅ 3000 × 2000 px, ganze Karte inkl. außerhalb des Bildschirms, ohne Overlay/Zeichnung, keine Kachelnähte                                        |
+| PDF-Export 1 Feld = 1 Zoll                     | ✅ 9 Seiten A4 quer, je 10 × 7 Felder mit 1500 × 1050 px (150 dpi), Beschriftung „Kachel A1 (Seite 1 von 9)“                                     |
+| Begegnungsplaner                               | ✅ 3 × Stufe 1 gegen Oger: tödlich, DMG-Hinweis                                                                                                  |
+| Kampagne beginnen, neue Szene                  | ✅ Fenstertitel „Kampagne · Szene 2“                                                                                                             |
+| Gefunden und behoben                           | Doppelte Optionen beim Zeichenwerkzeug; Name fehlte im Hinweis bei neuer Szene; Zeichnungen blieben beim Szenenwechsel; Kampagnen-Panel zu breit |
+| Druck auf Papier (Maßstab), Tauri-Dateidialoge | ⏳ bitte manuell prüfen (PDF-Ansicht ist im Browser-Test durch die strenge CSP gesperrt; Seitenbild und Maße wurden ausgelesen)                  |

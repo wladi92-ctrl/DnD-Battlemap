@@ -25,10 +25,14 @@ export const MAP_IMAGE_MAX_BYTES = 200 * 1024 * 1024;
 export const IMAGE_MAX_BYTES = 20 * 1024 * 1024;
 
 export interface FileAccess {
-  /** Zeigt "Öffnen"-Dialog; null bei Abbruch. */
-  openProject(title: string, filterName: string): Promise<OpenedFile | null>;
-  /** Bilddatei wählen und lesen; null bei Abbruch. */
-  openImage(
+  /** Zeigt "Öffnen"-Dialog (Karten und Kampagnen); null bei Abbruch. */
+  openProject(
+    title: string,
+    filterName: string,
+    extensions?: readonly string[],
+  ): Promise<OpenedFile | null>;
+  /** Datei wählen und lesen (Standard: Bilder); null bei Abbruch. */
+  openFile(
     title: string,
     filterName: string,
     extensions?: readonly string[],
@@ -42,6 +46,7 @@ export interface FileAccess {
     path: string | null,
     suggestedName: string,
     filterName: string,
+    extension?: string,
   ): Promise<string | null>;
   /**
    * Text exportieren (z. B. Kampflog als Markdown): Speichern-Dialog bzw. Download.
@@ -53,6 +58,17 @@ export interface FileAccess {
     filterName: string,
     extension: string,
   ): Promise<string | null>;
+  /**
+   * Binärdatei exportieren (PNG, PDF, JSON …): Speichern-Dialog bzw. Download.
+   * Liefert den Pfad/Dateinamen oder null bei Abbruch.
+   */
+  exportBytes(
+    bytes: Uint8Array,
+    suggestedName: string,
+    filterName: string,
+    extension: string,
+    mime: string,
+  ): Promise<string | null>;
   autosaveWrite(bytes: Uint8Array): Promise<void>;
   autosaveRead(): Promise<Uint8Array | null>;
   autosaveClear(): Promise<void>;
@@ -62,10 +78,11 @@ export interface FileAccess {
   readonly canSaveInPlace: boolean;
 }
 
-export function ensureExtension(path: string): string {
-  return path.toLowerCase().endsWith(`.${PROJECT_EXTENSION}`)
-    ? path
-    : `${path}.${PROJECT_EXTENSION}`;
+/** Dateiendungen, die „Öffnen“ anbietet. */
+export const OPEN_EXTENSIONS = [PROJECT_EXTENSION, 'dndcampaign'] as const;
+
+export function ensureExtension(path: string, extension: string = PROJECT_EXTENSION): string {
+  return path.toLowerCase().endsWith(`.${extension}`) ? path : `${path}.${extension}`;
 }
 
 export function baseName(path: string): string {
@@ -95,19 +112,7 @@ export function createTauriFileAccess(): FileAccess {
   const dialog = () => import('@tauri-apps/plugin-dialog');
   return {
     canSaveInPlace: true,
-    async openProject(title, filterName) {
-      const { open } = await dialog();
-      const path = await open({
-        title,
-        multiple: false,
-        directory: false,
-        filters: [{ name: filterName, extensions: [PROJECT_EXTENSION] }],
-      });
-      if (typeof path !== 'string') return null;
-      const data = await ioError(() => invoke<ArrayBuffer>('read_file', { path }));
-      return { path, name: baseName(path), bytes: toBytes(data) };
-    },
-    async openImage(title, filterName, extensions = IMAGE_EXTENSIONS) {
+    async openProject(title, filterName, extensions = OPEN_EXTENSIONS) {
       const { open } = await dialog();
       const path = await open({
         title,
@@ -119,22 +124,43 @@ export function createTauriFileAccess(): FileAccess {
       const data = await ioError(() => invoke<ArrayBuffer>('read_file', { path }));
       return { path, name: baseName(path), bytes: toBytes(data) };
     },
-    async saveProject(bytes, path, suggestedName, filterName) {
+    async openFile(title, filterName, extensions = IMAGE_EXTENSIONS) {
+      const { open } = await dialog();
+      const path = await open({
+        title,
+        multiple: false,
+        directory: false,
+        filters: [{ name: filterName, extensions: [...extensions] }],
+      });
+      if (typeof path !== 'string') return null;
+      const data = await ioError(() => invoke<ArrayBuffer>('read_file', { path }));
+      return { path, name: baseName(path), bytes: toBytes(data) };
+    },
+    async saveProject(bytes, path, suggestedName, filterName, extension = PROJECT_EXTENSION) {
       let target = path;
       if (!target) {
         const { save } = await dialog();
         const chosen = await save({
           defaultPath: suggestedName,
-          filters: [{ name: filterName, extensions: [PROJECT_EXTENSION] }],
+          filters: [{ name: filterName, extensions: [extension] }],
         });
         if (!chosen) return null;
-        target = ensureExtension(chosen);
+        target = ensureExtension(chosen, extension);
       }
       const finalPath = target;
       await ioError(() => invoke('write_file', bytes, pathHeader(finalPath)));
       return finalPath;
     },
-    async exportText(text, suggestedName, filterName, extension) {
+    exportText(text, suggestedName, filterName, extension) {
+      return this.exportBytes(
+        new TextEncoder().encode(text),
+        suggestedName,
+        filterName,
+        extension,
+        'text/plain',
+      );
+    },
+    async exportBytes(bytes, suggestedName, filterName, extension) {
       const { save } = await dialog();
       const chosen = await save({
         defaultPath: suggestedName,
@@ -144,7 +170,7 @@ export function createTauriFileAccess(): FileAccess {
       const target = chosen.toLowerCase().endsWith(`.${extension}`)
         ? chosen
         : `${chosen}.${extension}`;
-      await ioError(() => invoke('write_file', new TextEncoder().encode(text), pathHeader(target)));
+      await ioError(() => invoke('write_file', bytes, pathHeader(target)));
       return target;
     },
     autosaveWrite: (bytes) => ioError(() => invoke('autosave_write', bytes)),
@@ -198,36 +224,41 @@ function pickFile(accept: string): Promise<File | null> {
   });
 }
 
+/** Download im Browser (Dev-Modus). */
+function download(blob: Blob, name: string): string {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  return name;
+}
+
 export function createBrowserFileAccess(): FileAccess {
   return {
     canSaveInPlace: false,
-    async openProject() {
-      const file = await pickFile(`.${PROJECT_EXTENSION}`);
-      if (!file) return null;
-      return { path: null, name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) };
-    },
-    async openImage(_title, _filterName, extensions = IMAGE_EXTENSIONS) {
+    async openProject(_title, _filterName, extensions = OPEN_EXTENSIONS) {
       const file = await pickFile(extensions.map((e) => `.${e}`).join(','));
       if (!file) return null;
       return { path: null, name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) };
     },
-    async saveProject(bytes, _path, suggestedName) {
-      const url = URL.createObjectURL(new Blob([bytes], { type: 'application/zip' }));
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = ensureExtension(suggestedName);
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 10_000);
-      return a.download;
+    async openFile(_title, _filterName, extensions = IMAGE_EXTENSIONS) {
+      const file = await pickFile(extensions.map((e) => `.${e}`).join(','));
+      if (!file) return null;
+      return { path: null, name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) };
+    },
+    async saveProject(bytes, _path, suggestedName, _filterName, extension = PROJECT_EXTENSION) {
+      return download(
+        new Blob([bytes], { type: 'application/zip' }),
+        ensureExtension(suggestedName, extension),
+      );
     },
     async exportText(text, suggestedName) {
-      const url = URL.createObjectURL(new Blob([text], { type: 'text/markdown;charset=utf-8' }));
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = suggestedName;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 10_000);
-      return suggestedName;
+      return download(new Blob([text], { type: 'text/markdown;charset=utf-8' }), suggestedName);
+    },
+    async exportBytes(bytes, suggestedName, _filterName, _extension, mime) {
+      return download(new Blob([bytes], { type: mime }), suggestedName);
     },
     autosaveWrite: (bytes) => ioError(() => idb('readwrite', (s) => s.put(bytes, IDB_KEY))),
     async autosaveRead() {

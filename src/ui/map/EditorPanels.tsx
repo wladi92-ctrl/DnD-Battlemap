@@ -46,7 +46,8 @@ export function ToolOptionsPanel() {
   const ed = useEditorStore();
   const doc = useMapStore((s) => s.doc);
   const locale = useSettings((s) => s.locale);
-  if (!doc) return null;
+  // Das Zeichenwerkzeug hat eigene Optionen (DrawPanel).
+  if (!doc || tool === 'draw') return null;
 
   const element = ed.elementId
     ? resolveElement(ed.elementId, doc.customElements, locale)

@@ -22,7 +22,7 @@ export function bytesToDataUrl(bytes: Uint8Array, ext: string): string | null {
  * Übersetzungsschlüssel als Fehlergrund.
  */
 export async function pickTokenImage(title: string, filterName: string): Promise<string | null> {
-  const file = await getFileAccess().openImage(title, filterName, ['png', 'jpg', 'jpeg', 'webp']);
+  const file = await getFileAccess().openFile(title, filterName, ['png', 'jpg', 'jpeg', 'webp']);
   if (!file) return null;
   const ext = extensionOf(file.name);
   if (!TYPES[ext]) throw new ImageError('pc.imageBadType');

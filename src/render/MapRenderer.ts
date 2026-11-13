@@ -14,6 +14,7 @@ import {
   Culler,
   Graphics,
   Rectangle,
+  RenderTexture,
   Sprite,
   Text,
   Texture,
@@ -32,6 +33,7 @@ import { BackgroundImageLayer } from './backgroundImage';
 import { TokenLayer, type ConditionLabel } from './tokenLayer';
 import { EffectLayer, type EffectVisual } from './effectLayer';
 import { FogLayer, type FogMode, type LightMarker } from './fogLayer';
+import { DrawLayer, type DrawVisual, type PingVisual } from './drawLayer';
 import { RENDERER_PREFERENCE } from './graphicsSupport';
 import { ElementTextures, TEXTURE_PX_PER_CELL } from './textures';
 
@@ -81,6 +83,8 @@ export interface OverlayState {
   targets?: readonly CellRectF[];
   /** Nahkampfreichweiten ausgewählter Tokens (Rechtecke in Feldern). */
   reach?: readonly CellRectF[];
+  /** Felder mit Szenen-Verknüpfung (Kampagne; nur GM-Ansicht). */
+  links?: readonly Cell[];
 }
 
 export interface SegmentF {
@@ -168,6 +172,8 @@ export class MapRenderer {
   private readonly tokens: TokenLayer;
   private readonly effects = new EffectLayer();
   private readonly fog = new FogLayer();
+  private readonly drawings = new DrawLayer();
+  private pingFrame = 0;
   private readonly bgImage: BackgroundImageLayer;
 
   private readonly textures: ElementTextures;
@@ -205,6 +211,7 @@ export class MapRenderer {
       this.effects.container,
       this.notesLayer,
       this.fog.container,
+      this.drawings.container,
       this.overlay,
     );
     this.objectLayers.walls.sortableChildren = true;
@@ -350,11 +357,110 @@ export class MapRenderer {
     this.bgImage.setZoom(camera.zoom);
     this.effects.setZoom(camera.zoom);
     this.fog.setZoom(camera.zoom);
+    this.drawings.setZoom(camera.zoom);
     if (zoomChanged) {
       this.applyGridAlpha();
       this.drawOverlay(); // Linienstärken sind zoomabhängig
     }
     this.requestRender();
+  }
+
+  /** Temporäre Zeichnungen und Pings (Alter in ms); Pings werden animiert. */
+  setDrawings(items: readonly DrawVisual[], pings: readonly PingVisual[]): void {
+    this.drawings.set(items, pings, performance.now());
+    this.requestRender();
+    if (pings.length && !this.pingFrame) this.animatePings();
+  }
+
+  private animatePings(): void {
+    this.pingFrame = requestAnimationFrame(() => {
+      this.pingFrame = 0;
+      if (this.destroyed) return;
+      const alive = this.drawings.tick(performance.now());
+      this.app.render();
+      if (alive) this.animatePings();
+    });
+  }
+
+  /** Wartet, bis Token-Bilder und Standard-Porträts geladen sind (für den Export). */
+  tokensReady(): Promise<void> {
+    return this.tokens.ready();
+  }
+
+  /**
+   * Rendert einen Kartenausschnitt (in Feldern) offscreen in voller Auflösung – ohne
+   * Bedien-Overlays, Bewegungsbereiche und temporäre Zeichnungen; Raster wahlweise.
+   * Große Bilder entstehen kachelweise (Texturgrenze der Grafikkarte).
+   */
+  async exportImage(
+    rect: { x: number; y: number; w: number; h: number },
+    pxPerCell: number,
+    opts: { grid: boolean },
+    mime: 'image/png' | 'image/jpeg',
+    quality = 0.9,
+  ): Promise<{ bytes: Uint8Array; width: number; height: number }> {
+    const width = Math.max(1, Math.round(rect.w * pxPerCell));
+    const height = Math.max(1, Math.round(rect.h * pxPerCell));
+    const out = document.createElement('canvas');
+    out.width = width;
+    out.height = height;
+    const ctx = out.getContext('2d');
+    if (!ctx) throw new Error('Canvas2D nicht verfügbar');
+    if (mime === 'image/jpeg') {
+      // JPEG kennt keine Transparenz: Papierweiß als Grund.
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, width, height);
+    }
+    const saved = {
+      x: this.world.position.x,
+      y: this.world.position.y,
+      scale: this.world.scale.x,
+      overlay: this.overlay.visible,
+      range: this.rangeGfx.visible,
+      drawings: this.drawings.container.visible,
+      grid: this.grid.visible,
+      gridAlpha: this.grid.alpha,
+    };
+    const scale = pxPerCell / CELL_PX;
+    this.overlay.visible = false;
+    this.rangeGfx.visible = false;
+    this.drawings.container.visible = false;
+    if (!opts.grid) this.grid.visible = false;
+    else {
+      if (this.map && !this.map.grid.visible) this.drawGrid(true);
+      this.grid.visible = true;
+      this.grid.alpha = this.map?.grid.opacity ?? 0.35;
+    }
+    this.world.scale.set(scale);
+    const TILE = 2048;
+    try {
+      for (let ty = 0; ty < height; ty += TILE) {
+        for (let tx = 0; tx < width; tx += TILE) {
+          const tw = Math.min(TILE, width - tx);
+          const th = Math.min(TILE, height - ty);
+          this.world.position.set(-rect.x * pxPerCell - tx, -rect.y * pxPerCell - ty);
+          Culler.shared.cull(this.app.stage, new Rectangle(0, 0, tw, th));
+          const rt = RenderTexture.create({ width: tw, height: th });
+          this.app.renderer.render({ container: this.app.stage, target: rt, clear: true });
+          const tile = this.app.renderer.extract.canvas(rt) as HTMLCanvasElement;
+          ctx.drawImage(tile, tx, ty);
+          rt.destroy(true);
+        }
+      }
+    } finally {
+      this.world.position.set(saved.x, saved.y);
+      this.world.scale.set(saved.scale);
+      this.overlay.visible = saved.overlay;
+      this.rangeGfx.visible = saved.range;
+      this.drawings.container.visible = saved.drawings;
+      this.grid.alpha = saved.gridAlpha;
+      if (this.map && !this.map.grid.visible) this.drawGrid();
+      this.grid.visible = saved.grid;
+      this.requestRender();
+    }
+    const blob = await new Promise<Blob | null>((res) => out.toBlob(res, mime, quality));
+    if (!blob) throw new Error('Bild konnte nicht erzeugt werden');
+    return { bytes: new Uint8Array(await blob.arrayBuffer()), width, height };
   }
 
   setOverlay(state: OverlayState): void {
@@ -367,6 +473,8 @@ export class MapRenderer {
     if (this.destroyed) return;
     this.destroyed = true;
     cancelAnimationFrame(this.frame);
+    cancelAnimationFrame(this.pingFrame);
+    this.drawings.destroy();
     this.bgImage.destroy();
     this.tokens.destroy();
     this.effects.destroy();
@@ -649,10 +757,11 @@ export class MapRenderer {
       .stroke({ color: 0x000000, alpha: 0.6, width: 2, pixelLine: true });
   }
 
-  private drawGrid(): void {
+  /** @param force auch zeichnen, wenn das Raster ausgeblendet ist (Export mit Raster). */
+  private drawGrid(force = false): void {
     const m = this.map;
     this.grid.clear();
-    if (!m || !m.grid.visible) return;
+    if (!m || (!m.grid.visible && !force)) return;
     const w = m.cols * CELL_PX;
     const h = m.rows * CELL_PX;
     for (let x = 1; x < m.cols; x++) this.grid.moveTo(x * CELL_PX, 0).lineTo(x * CELL_PX, h);
@@ -716,6 +825,29 @@ export class MapRenderer {
     const { hover, cursor, ruler, preview, placement, selection, marquee } = this.overlayState;
     g.clear();
     this.drawMoveRange(px);
+
+    // Szenen-Verknüpfungen: goldener Rahmen mit Pfeil in der Ecke
+    for (const l of this.overlayState.links ?? []) {
+      const x = l.x * CELL_PX;
+      const y = l.y * CELL_PX;
+      g.roundRect(x + 3 * px, y + 3 * px, CELL_PX - 6 * px, CELL_PX - 6 * px, 6 * px).stroke({
+        color: 0xe3b832,
+        width: 3 * px,
+        alpha: 0.95,
+      });
+      const s = CELL_PX * 0.28;
+      const cx = x + CELL_PX - s;
+      const cy = y + s;
+      g.circle(cx, cy, s * 0.75)
+        .fill({ color: 0xe3b832 })
+        .stroke({ color: 0x2a1c11, width: 1.5 * px });
+      g.moveTo(cx - s * 0.35, cy)
+        .lineTo(cx + s * 0.35, cy)
+        .moveTo(cx + s * 0.05, cy - s * 0.3)
+        .lineTo(cx + s * 0.35, cy)
+        .lineTo(cx + s * 0.05, cy + s * 0.3)
+        .stroke({ color: 0x2a1c11, width: 2 * px });
+    }
 
     if (hover) {
       g.rect(hover.x * CELL_PX, hover.y * CELL_PX, CELL_PX, CELL_PX).fill({

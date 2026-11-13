@@ -32,6 +32,7 @@ import {
   type MapDocument,
   type NewMapOptions,
 } from '../../storage/mapDocument';
+import { createSnapshot, SNAPSHOTS_MAX, type MapSnapshot } from '../../editor/snapshot';
 
 export type FileRef = { path: string | null; name: string | null };
 
@@ -51,6 +52,8 @@ export interface MapState {
   history: History;
   /** Eingebettete Dateien (assets/…), z. B. Bilder eigener Elemente. */
   assets: ReadonlyMap<string, Uint8Array>;
+  /** Schnappschüsse der Karte (mit der Datei gespeichert, nicht im Undo-Verlauf). */
+  snapshots: MapSnapshot[];
   stroke: Stroke | null;
 
   newMap: (opts: NewMapOptions) => void;
@@ -59,6 +62,7 @@ export interface MapState {
     file: FileRef,
     dirty?: boolean,
     assets?: ReadonlyMap<string, Uint8Array>,
+    snapshots?: MapSnapshot[],
   ) => void;
   /** Wendet einen Patch an und legt einen Undo-Schritt an. */
   apply: (patch: DocPatch, label: string, mergeKey?: string) => void;
@@ -81,6 +85,10 @@ export interface MapState {
   setExplored: (runs: number[]) => void;
   markSaved: (file: FileRef) => void;
   closeMap: () => void;
+  /** Schnappschuss anlegen; false, wenn das Limit erreicht ist. */
+  takeSnapshot: (name: string) => boolean;
+  renameSnapshot: (id: string, name: string) => void;
+  deleteSnapshot: (id: string) => void;
 }
 
 const touch = (doc: MapDocument): MapDocument => ({ ...doc, modifiedAt: new Date().toISOString() });
@@ -106,9 +114,11 @@ export const useMapStore = create<MapState>((set, get) => {
     file: FileRef,
     dirty: boolean,
     assets: ReadonlyMap<string, Uint8Array>,
+    snapshots: MapSnapshot[] = [],
   ) =>
     set((s) => ({
       doc,
+      snapshots,
       filePath: file.path,
       fileName: file.name,
       dirty,
@@ -126,10 +136,12 @@ export const useMapStore = create<MapState>((set, get) => {
     revision: 0,
     history: emptyHistory,
     assets: new Map(),
+    snapshots: [],
     stroke: null,
 
     newMap: (opts) => resetDoc(createMap(opts), { path: null, name: null }, true, new Map()),
-    loadMap: (doc, file, dirty = false, assets = new Map()) => resetDoc(doc, file, dirty, assets),
+    loadMap: (doc, file, dirty = false, assets = new Map(), snapshots = []) =>
+      resetDoc(doc, file, dirty, assets, snapshots),
 
     apply,
     run: (result, label, mergeKey) => {
@@ -248,6 +260,31 @@ export const useMapStore = create<MapState>((set, get) => {
     },
     markSaved: (file) => set({ filePath: file.path, fileName: file.name, dirty: false }),
     closeMap: () => resetDoc(null, { path: null, name: null }, false, new Map()),
+    takeSnapshot: (name) => {
+      const { doc, snapshots } = get();
+      if (!doc || snapshots.length >= SNAPSHOTS_MAX) return false;
+      set((s) => ({
+        snapshots: [...s.snapshots, createSnapshot(doc, name)],
+        dirty: true,
+        revision: s.revision + 1,
+      }));
+      return true;
+    },
+    renameSnapshot: (id, name) => {
+      const clean = name.trim().slice(0, 80);
+      if (!clean) return;
+      set((s) => ({
+        snapshots: s.snapshots.map((x) => (x.id === id ? { ...x, name: clean } : x)),
+        dirty: true,
+        revision: s.revision + 1,
+      }));
+    },
+    deleteSnapshot: (id) =>
+      set((s) => ({
+        snapshots: s.snapshots.filter((x) => x.id !== id),
+        dirty: true,
+        revision: s.revision + 1,
+      })),
   };
 });
 
@@ -255,11 +292,16 @@ export const useMapStore = create<MapState>((set, get) => {
 export function referencedAssets(
   doc: MapDocument,
   assets: ReadonlyMap<string, Uint8Array>,
+  snapshots: readonly MapSnapshot[] = [],
 ): Map<string, Uint8Array> {
   const out = new Map<string, Uint8Array>();
-  const paths = doc.customElements.map((el) => el.asset);
-  if (doc.background.image) paths.push(doc.background.image.asset);
-  for (const t of doc.tokens) if (t.image) paths.push(t.image);
+  const paths: string[] = [];
+  // Auch Bilder, die nur noch ein Schnappschuss braucht, bleiben erhalten.
+  for (const d of [doc, ...snapshots.map((s) => s.doc)]) {
+    paths.push(...d.customElements.map((el) => el.asset));
+    if (d.background.image) paths.push(d.background.image.asset);
+    for (const t of d.tokens) if (t.image) paths.push(t.image);
+  }
   for (const path of paths) {
     const bytes = assets.get(path);
     if (bytes) out.set(path, bytes);

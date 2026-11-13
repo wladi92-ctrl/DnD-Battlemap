@@ -3,7 +3,8 @@
  * Geschrieben wird nur bei ungespeicherten Änderungen und neuer Revision.
  */
 import type { MapDocument } from './mapDocument';
-import { encodeProject } from './projectFile';
+import { encodeProject, type RecoveryInfo } from './projectFile';
+import type { MapSnapshot } from '../editor/snapshot';
 
 export interface AutosaveSnapshot {
   doc: MapDocument;
@@ -12,6 +13,9 @@ export interface AutosaveSnapshot {
   revision: number;
   /** Eingebettete Dateien, die mitgesichert werden. */
   assets?: ReadonlyMap<string, Uint8Array>;
+  snapshots?: readonly MapSnapshot[];
+  /** Eigene Kodierung (z. B. ganze Kampagne statt einzelner Karte). */
+  encode?: (recovery: RecoveryInfo) => Uint8Array;
 }
 
 export interface AutosaveOptions {
@@ -38,8 +42,11 @@ export function startAutosave(opts: AutosaveOptions): AutosaveHandle {
     busy = true;
     try {
       const savedAt = (opts.now?.() ?? new Date()).toISOString();
+      const recovery = { savedAt, filePath: snap.filePath };
       await opts.write(
-        encodeProject(snap.doc, snap.assets ?? new Map(), { savedAt, filePath: snap.filePath }),
+        snap.encode
+          ? snap.encode(recovery)
+          : encodeProject(snap.doc, snap.assets ?? new Map(), recovery, snap.snapshots ?? []),
       );
       lastRevision = snap.revision;
       return true;

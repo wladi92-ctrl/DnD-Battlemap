@@ -27,7 +27,8 @@ export type Tool =
   | 'wall'
   | 'effect'
   | 'fog'
-  | 'light';
+  | 'light'
+  | 'draw';
 
 export interface RulerState {
   /** Feste Punkte (Start + Wegpunkte). */

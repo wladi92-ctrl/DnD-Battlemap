@@ -6,9 +6,10 @@ import { create } from 'zustand';
 import type { MessageKey } from '../../i18n';
 import { setBackgroundImage } from '../../editor/wallOps';
 import { getFileAccess, MAP_IMAGE_EXTENSIONS } from '../../storage/fileAccess';
-import type { BackgroundImage } from '../../storage/mapDocument';
+import { createMap, type BackgroundImage } from '../../storage/mapDocument';
 import { calibratedMapSize } from '../../editor/calibration';
 import { useMapStore } from '../state/mapStore';
+import { useCampaignStore } from '../state/campaignStore';
 import { useNoticeStore } from '../state/noticeStore';
 import { imageErrorKey, loadMapImage, type ImageSourceFile } from './imageTools';
 
@@ -56,7 +57,7 @@ export async function beginImageImport(
 /** Bilddatei über den Dialog wählen. */
 export async function pickImageImport(t: T, mode: ImportMode) {
   try {
-    const file = await getFileAccess().openImage(
+    const file = await getFileAccess().openFile(
       t('imageImport.pickTitle'),
       t('imageImport.filterName'),
       MAP_IMAGE_EXTENSIONS,
@@ -94,14 +95,25 @@ export function applyCalibration(image: BackgroundImage, opts: ApplyOptions) {
   const store = useMapStore.getState();
   if (session.mode === 'newMap') {
     const size = calibratedMapSize(image);
-    store.newMap({
+    const mapOpts = {
       name: opts.name,
       cols: size.cols,
       rows: size.rows,
       feetPerCell: opts.feetPerCell,
       backgroundImage: image,
-    });
-    useMapStore.getState().addAsset(image.asset, session.source.bytes);
+    };
+    const campaign = useCampaignStore.getState();
+    if (campaign.campaign) {
+      // In einer Kampagne wird das Bild zu einer neuen Szene.
+      const id = campaign.addSceneFromMap(
+        createMap(mapOpts),
+        new Map([[image.asset, session.source.bytes]]),
+      );
+      if (id) useCampaignStore.getState().switchScene(id);
+    } else {
+      store.newMap(mapOpts);
+      useMapStore.getState().addAsset(image.asset, session.source.bytes);
+    }
   } else if (store.doc) {
     if (session.mode === 'background') store.addAsset(image.asset, session.source.bytes);
     const doc = useMapStore.getState().doc;
